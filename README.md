@@ -124,6 +124,44 @@ The Experience based planning update to the coordination framework allows for st
 * The RViz visualization has been fixed to show the map published on the /map topic
 * A graph visualization tool has been developed to display the experiences stored in the databases
 
+### Usage:
+* Clone this repository
+```
+git clone git@github.com:Sushant-Chavan/coordination_oru.git
+```
+* cd to the coordination_oru directory
+```
+cd coordination_oru/
+```
+* Checkout the branch ExperinceBasedPlanning
+```
+git checkout ExperinceBasedPlanning
+```
+* Run any desired test. For example to run the University test case use the command:
+```
+./gradlew run -Pdemo=customTests.University
+```
+* Visualization medium depends the test case. Tests based on JAVA Swing will automatically launch the visualization. For browser based visualization, open the link <a href="http://localhost:8080">http://localhost:8080</a>. For RViz visualization (which is used for all newly added tests) start RViz with the custom generated RViz config file after launching the test case using the below command:
+```
+rosrun rviz rviz -d ~/config.rviz
+```
+* A list of all available tests can be found using the command:
+```
+./gradlew run
+```
+* Build the graph visualization tool using the following commands:
+```
+cd graphml_generator/
+mkdir build
+cd build/
+rm -rf * && cmake .. && make
+cd ../../
+```
+* Plot the database using the command:
+```
+python3 graphml_generator/PlotDatabase.py --experience_db_filename=test-uni_lightning.db --map_image_filename=test-uni.png
+```
+
 ## Sponsors
 This project is supported by
 
