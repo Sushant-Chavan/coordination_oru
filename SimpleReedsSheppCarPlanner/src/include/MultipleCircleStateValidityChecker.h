@@ -5,6 +5,8 @@
 #include <ompl/base/spaces/ReedsSheppStateSpace.h>
 #include <ompl/base/ScopedState.h>
 #include <ompl/geometric/SimpleSetup.h>
+#include <ompl/tools/thunder/Thunder.h>
+#include <ompl/tools/lightning/Lightning.h>
 
 using namespace mrpt::maps;
 namespace ob = ompl::base;
