@@ -115,6 +115,71 @@ for a list of all provided examples and instructions on how to run them (and/or 
 
 ![Coordination with the ReedsSheppCarPlanner](images/coord-rsp.png "Coordination with the ReedsSheppCarPlanner")
 
+## Experience Based Planning
+The Experience based planning update to the coordination framework allows for storing the previous planning experiences into a database and reuse them during future planning.
+
+### Updates:
+* Currently the Lightning and Thunder frameworks provided by OMPL have been implemented for the ReedsSheppCarPlanner.
+* Two new test cases have been added to simulate a narrow corridor and H-BRS university layout.
+* The RViz visualization has been fixed to show the map published on the /map topic
+* A graph visualization tool has been developed to display the experiences stored in the databases
+
+### Usage:
+* Clone this repository
+```
+git clone git@github.com:Sushant-Chavan/coordination_oru.git
+```
+* cd to the coordination_oru directory
+```
+cd coordination_oru/
+```
+* Checkout the branch ExperinceBasedPlanning
+```
+git checkout ExperinceBasedPlanning
+```
+* Run any desired test. For example to run the University test case use the command:
+```
+./gradlew run -Pdemo=customTests.University
+```
+* Visualization medium depends the test case. Tests based on JAVA Swing will automatically launch the visualization. For browser based visualization, open the link <a href="http://localhost:8080">http://localhost:8080</a>. For RViz visualization (which is used for all newly added tests) start RViz with the custom generated RViz config file after launching the test case using the below command:
+```
+rosrun rviz rviz -d ~/config.rviz
+```
+* A list of all available tests can be found using the command:
+```
+./gradlew run
+```
+* Build the graph visualization tool using the following commands:
+```
+cd graphml_generator/
+mkdir build
+cd build/
+rm -rf * && cmake .. && make
+cd ../../
+```
+* Plot the database using the command:
+```
+python3 graphml_generator/PlotDatabase.py --experience_db_filename=test-uni_lightning.db --map_image_filename=test-uni.png
+```
+
+### Switching between different frameworks:
+* The switch between Simple, Lightning and Thunder frameworks can be done by choosing the desired plannerType in the function ```doPlanning()``` in [ReedsSheppCarPlanner.java](src/main/java/se/oru/coordination/coordination_oru/motionplanning/ompl/ReedsSheppCarPlanner.java)
+* To plot the Thunder databases, the plotting script needs additional paramaters. For example for the university test case, the script should be called as follows after the thunder database has been generated:
+```
+python3 graphml_generator/PlotDatabase.py --experience_db_filename=test-uni_thunder.db --map_image_filename=test-uni.png --is_thunder_db
+```
+
+### Choosing a different planning algorithm in ReedsSheepCarPlanner
+It is possible to use different planning algorithms instead of the default RRT-Connect alogorithm used by the ReedsSheepCarPlanner. For example to switch to the RRT-Star planning algorithm, change the lines containing ```ob::PlannerPtr planner(new og::RRTConnect(si));``` to ```ob::PlannerPtr planner(new og::RRTstar(si));``` in the file [MultipleCircleReedsSheppCarPlanner.cpp](SimpleReedsSheppCarPlanner/src/MultipleCircleReedsSheppCarPlanner.cpp)
+
+Then recompile and install the updated ReedsShepp planning library using the below commands:
+```
+cd SimpleReedsSheppCarPlanner/
+mkdir build
+cd build/
+rm -rf * && cmake .. && make && sudo make install && sudo ldconfig
+```
+
 ## Sponsors
 This project is supported by
 
