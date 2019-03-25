@@ -88,11 +88,26 @@ public class ReedsSheppCarPlanner extends AbstractMotionPlanner {
 
 	public void setTurningRadius(double rad) {
 		this.turningRadius = rad;
-	}
+    }
+    
+    public String getOriginalFilename() {
+        String[] bits = this.mapFilenameBAK.split("/");
+        String experienceDBNameWithExtension = bits[bits.length-1];
+        String[] extensionBits = experienceDBNameWithExtension.split("\\.");
+        return extensionBits[0];
+    }
+
+    public enum PLANNER_TYPE{
+        SIMPLE,
+        LIGHTNING,
+        THUNDER
+    }
 
 	@Override
 	public boolean doPlanning() {
-		ArrayList<PoseSteering> finalPath = new ArrayList<PoseSteering>();  
+        ArrayList<PoseSteering> finalPath = new ArrayList<PoseSteering>();  
+        PLANNER_TYPE plannerType = PLANNER_TYPE.LIGHTNING;
+        String experienceDBName = this.getOriginalFilename();
 		for (int i = 0; i < this.goal.length; i++) {
 			Pose start_ = null;
 			Pose goal_ = this.goal[i];
@@ -113,10 +128,10 @@ public class ReedsSheppCarPlanner extends AbstractMotionPlanner {
 				}
 				metaCSPLogger.info("Path planning with " + collisionCircleCenters.length + " circle positions");
 				if (this.mapFilename != null) {
-					if (!INSTANCE.plan_multiple_circles(mapFilename, mapResolution, robotRadius, xCoords, yCoords, numCoords, start_.getX(), start_.getY(), start_.getTheta(), goal_.getX(), goal_.getY(), goal_.getTheta(), path, pathLength, distanceBetweenPathPoints, turningRadius)) return false;					
+					if (!INSTANCE.plan_multiple_circles(mapFilename, mapResolution, robotRadius, xCoords, yCoords, numCoords, start_.getX(), start_.getY(), start_.getTheta(), goal_.getX(), goal_.getY(), goal_.getTheta(), path, pathLength, distanceBetweenPathPoints, turningRadius, plannerType.ordinal(), experienceDBName)) return false;					
 				}
 				else {
-					if (!INSTANCE.plan_multiple_circles_nomap(xCoords, yCoords, numCoords, start_.getX(), start_.getY(), start_.getTheta(), goal_.getX(), goal_.getY(), goal_.getTheta(), path, pathLength, distanceBetweenPathPoints, turningRadius)) return false;					
+					if (!INSTANCE.plan_multiple_circles_nomap(xCoords, yCoords, numCoords, start_.getX(), start_.getY(), start_.getTheta(), goal_.getX(), goal_.getY(), goal_.getTheta(), path, pathLength, distanceBetweenPathPoints, turningRadius, plannerType.ordinal())) return false;					
 				}
 			}
 			final Pointer pathVals = path.getValue();
