@@ -115,6 +115,15 @@ for a list of all provided examples and instructions on how to run them (and/or 
 
 ![Coordination with the ReedsSheppCarPlanner](images/coord-rsp.png "Coordination with the ReedsSheppCarPlanner")
 
+## Experience Based Planning
+The Experience based planning update to the coordination framework allows for storing the previous planning experiences into a database and reuse them during future planning.
+
+### Updates:
+* Currently the Lightning and Thunder frameworks provided by OMPL have been implemented for the ReedsSheppCarPlanner.
+* Two new test cases have been added to simulate a narrow corridor and H-BRS university layout.
+* The RViz visualization has been fixed to show the map published on the /map topic
+* A graph visualization tool has been developed to display the experiences stored in the databases
+
 ## Sponsors
 This project is supported by
 
