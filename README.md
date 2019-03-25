@@ -162,6 +162,13 @@ cd ../../
 python3 graphml_generator/PlotDatabase.py --experience_db_filename=test-uni_lightning.db --map_image_filename=test-uni.png
 ```
 
+### Switching between different frameworks:
+* The switch between Simple, Lightning and Thunder frameworks can be done by choosing the desired plannerType in the function ```doPlanning()``` in [ReedsSheppCarPlanner.java](src/main/java/se/oru/coordination/coordination_oru/motionplanning/ompl/ReedsSheppCarPlanner.java)
+* To plot the Thunder databases, the plotting script needs additional paramaters. For example for the university test case, the script should be called as follows after the thunder database has been generated:
+```
+python3 graphml_generator/PlotDatabase.py --experience_db_filename=test-uni_thunder.db --map_image_filename=test-uni.png --is_thunder_db
+```
+
 ## Sponsors
 This project is supported by
 
