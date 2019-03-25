@@ -169,6 +169,17 @@ python3 graphml_generator/PlotDatabase.py --experience_db_filename=test-uni_ligh
 python3 graphml_generator/PlotDatabase.py --experience_db_filename=test-uni_thunder.db --map_image_filename=test-uni.png --is_thunder_db
 ```
 
+### Choosing a different planning algorithm in ReedsSheepCarPlanner
+It is possible to use different planning algorithms instead of the default RRT-Connect alogorithm used by the ReedsSheepCarPlanner. For example to switch to the RRT-Star planning algorithm, change the lines containing ```ob::PlannerPtr planner(new og::RRTConnect(si));``` to ```ob::PlannerPtr planner(new og::RRTstar(si));``` in the file [MultipleCircleReedsSheppCarPlanner.cpp](SimpleReedsSheppCarPlanner/src/MultipleCircleReedsSheppCarPlanner.cpp)
+
+Then recompile and install the updated ReedsShepp planning library using the below commands:
+```
+cd SimpleReedsSheppCarPlanner/
+mkdir build
+cd build/
+rm -rf * && cmake .. && make && sudo make install && sudo ldconfig
+```
+
 ## Sponsors
 This project is supported by
 
