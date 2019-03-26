@@ -96,9 +96,21 @@ def plot_Lightning_graph(graph_path, map_filename, output_filename, output_forma
 
     plt.savefig(output_filename, format=output_format)
 
+def get_experience_db_path(user_db_filepath, map_image_filename, is_thunder, root_dir):
+    db_filename =  user_db_filepath if user_db_filepath is not None \
+        else os.path.splitext(map_image_filename)[0] + "_" + ("thunder.db" if is_thunder else "lightning.db")
+    db_file_path = os.path.abspath(root_dir + "/../generated/experienceDBs/" + db_filename)
+    return db_file_path
+
+def get_plot_filepath(user_output_filename, map_image_filename, is_thunder, root_dir):
+    plot_filename =  user_output_filename if user_output_filename is not None \
+        else os.path.splitext(map_image_filename)[0] + "_" + ("thunder.svg" if is_thunder else "lightning.svg")
+    plot_file_path = os.path.abspath(root_dir + "/../generated/plots/" + plot_filename)
+    return plot_file_path
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--experience_db_filename", help="Filename of the experience database file (ex. thunder.db)", default="lightning.db")
+    parser.add_argument("--experience_db_filename", help="Filename of the experience database file (ex. thunder.db)")
     parser.add_argument("--map_image_filename", help="Filename of the map image that was used for generating the experience database (ex. map1.png)", default="map1.png")
     parser.add_argument("--output_filename", help="File name of the output file (ex. plot.svg)", default=None)
     parser.add_argument("--is_thunder_db", help="Set this if plotting Thunder DB", action="store_true", default=False)
@@ -112,13 +124,11 @@ def main():
 
     turning_radius = args.turning_radius
     is_thunder = args.is_thunder_db
-    experience_db_path = os.path.abspath(dirname + "/../generated/experienceDBs/" + args.experience_db_filename)
+    experience_db_path = get_experience_db_path(args.experience_db_filename, args.map_image_filename, is_thunder, dirname)
     map_file_path = os.path.abspath(dirname + "/../maps/" + args.map_image_filename)
     map_resolution = args.map_resolution
 
-    plot_filename =  args.output_filename if args.output_filename is not None \
-        else os.path.splitext(args.map_image_filename)[0] + "_" + ("thunder.svg" if is_thunder else "lightning.svg")
-    plotFilePath = os.path.abspath(dirname + "/../generated/plots/" + plot_filename)
+    plotFilePath = get_plot_filepath(args.output_filename, args.map_image_filename, is_thunder, dirname)
 
     plot_output_format = args.output_format
 
