@@ -87,6 +87,11 @@ dependencies {
 
 run {
     if (project.hasProperty("demo")) {
-        args(demo)
+        if (project.hasProperty("itr")) {
+            args(demo, itr)
+        }
+        else {
+            args(demo)
+        }
     }
 }

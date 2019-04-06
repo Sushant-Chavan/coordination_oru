@@ -23,7 +23,7 @@ public class DemoLauncher {
 	
 	private static void printUsage() {
 
-		System.out.println("Usage: ./gradlew run -Pdemo=<demo>\n\nAvailable options for <demo>");
+        System.out.println("Usage: \n./gradlew run -Pdemo=<demo> \n\tOR \n./gradlew run -Pdemo=<demo> -Pitr=N \n\nN represents the number of simulation iterations.\nAvailable options for <demo>");
 
 		List<ClassLoader> classLoadersList = new LinkedList<ClassLoader>();
 		classLoadersList.add(ClasspathHelper.contextClassLoader());
@@ -64,14 +64,19 @@ public class DemoLauncher {
 		
 		//Forces to loads the class so that license and (c) are printed even if no demo is invoked
 		Class.forName("se.oru.coordination.coordination_oru.TrajectoryEnvelopeCoordinator");
-		
-		if (args.length != 1) printUsage();
+
+		if (args.length < 1 || args.length > 2) printUsage();
 		else {
 			String className = args[0];
 			try {
 				Class<?> cl = Class.forName(testsPackage+"."+className);
 				Method meth = cl.getMethod("main", String[].class);
-			    String[] params = null;
+                String[] params = null;
+                if (args.length == 2)
+                {
+                    params = new String[1];
+                    params[0] = args[1];
+                }
 			    meth.invoke(null, (Object) params);
 			}
 			catch (IllegalAccessException e) { e.printStackTrace(); }
