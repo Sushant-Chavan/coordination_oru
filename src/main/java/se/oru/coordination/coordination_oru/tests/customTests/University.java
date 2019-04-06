@@ -65,6 +65,8 @@ public class University {
 		double MAX_ACCEL = 3.0;
 		double MAX_VEL = 14.0;
 		int CONTROL_PERIOD = 1000;
+
+        final int numOfSimulationIterations = (args != null) ? Integer.parseInt(args[0]) : 20;
 		//Instantiate a trajectory envelope coordinator.
 		//The TrajectoryEnvelopeCoordinatorSimulation implementation provides
 		// -- the factory method getNewTracker() which returns a trajectory envelope tracker
@@ -200,9 +202,13 @@ public class University {
 			}
 			
 			Mission m = new Mission(robotID, path, startLocName, endLocName, Missions.getLocation(startLocName), Missions.getLocation(endLocName));
-			Missions.enqueueMission(m);
-			Mission m1 = new Mission(robotID, pathInv, endLocName, startLocName, Missions.getLocation(endLocName), Missions.getLocation(startLocName));
-			Missions.enqueueMission(m1);
+            Missions.enqueueMission(m);
+            if (numOfSimulationIterations > 1)
+            {
+                // Add the reverse path as mission
+                Mission m1 = new Mission(robotID, pathInv, endLocName, startLocName, Missions.getLocation(endLocName), Missions.getLocation(startLocName));
+                Missions.enqueueMission(m1);
+            }
 		}
 
 		System.out.println("Added missions " + Missions.getMissions());
@@ -228,8 +234,8 @@ public class University {
 				public void run() {
 					boolean firstTime = true;
 					int sequenceNumber = 0;
-					int totalIterations = 20;
-					if (robotID%2 == 0) totalIterations = 19;
+					int totalIterations = numOfSimulationIterations;
+					// if (robotID%2 == 0 && numOfSimulationIterations > 1) totalIterations = numOfSimulationIterations -1;
 					String lastDestination = "R_"+(robotID-1);
 					long startTime = Calendar.getInstance().getTimeInMillis();
 					while (true && totalIterations > 0) {
