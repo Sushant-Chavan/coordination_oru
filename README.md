@@ -124,6 +124,9 @@ The Experience based planning update to the coordination framework allows for st
 * The RViz visualization has been fixed to show the map published on the /map topic
 * A graph visualization tool has been developed to display the experiences stored in the databases
 
+### Dependencies:
+* **OMPL 1.4.2** - Installation instructions can be found <a href="http://ompl.kavrakilab.org/installation.html">here</a>. Generation of python bindings takes a lot of time (several hours). Since we do not need python bindings, install OMPL without bindings for faster build.
+
 ### Usage:
 * Clone this repository
 ```
