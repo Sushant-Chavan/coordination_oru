@@ -144,6 +144,10 @@ git checkout ExperinceBasedPlanning
 ```
 ./gradlew run -Pdemo=customTests.University
 ```
+or to specify number of simulation iterations (for example 2 itertions) as well, use:
+```
+./gradlew run -Pdemo=customTests.University -Pitr=2
+```
 * Visualization medium depends the test case. Tests based on JAVA Swing will automatically launch the visualization. For browser based visualization, open the link <a href="http://localhost:8080">http://localhost:8080</a>. For RViz visualization (which is used for all newly added tests) start RViz with the custom generated RViz config file after launching the test case using the below command:
 ```
 rosrun rviz rviz -d ~/config.rviz
