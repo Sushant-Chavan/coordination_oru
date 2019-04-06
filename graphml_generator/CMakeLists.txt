@@ -7,7 +7,7 @@ project (Generate_Graphml)
 set (CMAKE_CXX_STANDARD 11)
 
 find_package(Boost COMPONENTS system filesystem serialization REQUIRED)
-find_package(OMPL)
+# find_package(OMPL)
 find_package(MRPT) 
 
 # Define a variable PROJECT_LINK_LIBS to contain all library dependencies
@@ -19,6 +19,7 @@ link_directories(/usr/local/lib/)
 # Define the paths to the include directories
 include_directories(include/
  /usr/include/eigen3/
+ /usr/local/include/
  )
 
  include_directories( ${MRPT_INCLUDE_DIRS} )
@@ -29,4 +30,4 @@ add_executable(GenerateGraphml
  )
 
 # Link the executable to the defined libraries
-target_link_libraries(GenerateGraphml ${PROJECT_LINK_LIBS} ${OMPL_LIBRARIES} ${MRPT_LIBRARIES})
+target_link_libraries(GenerateGraphml ${PROJECT_LINK_LIBS} /usr/local/lib/libompl.so ${MRPT_LIBRARIES})
