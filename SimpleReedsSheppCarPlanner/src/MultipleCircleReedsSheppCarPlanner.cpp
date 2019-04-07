@@ -73,9 +73,9 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
                       double startTheta, double goalX, double goalY,
                       double goalTheta, PathPose **path, int *pathLength,
                       double distanceBetweenPathPoints, double turningRadius,
-                      PLANNER_TYPE plannerType, const char *experienceDBName)
+                      PLANNER_TYPE plannerType, const char *experienceDBName,
+                      bool forceUseRRTConnect)
 {
-
     double pLen = 0.0;
     int numInterpolationPoints = 0;
     ob::StateSpacePtr space(new ob::ReedsSheppStateSpace(turningRadius));
@@ -106,15 +106,22 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
                                                robotRadius, xCoords, yCoords,
                                                numCoords)));
 
-     ob::PlannerPtr planner(new og::RRTConnect(si));
-    //ob::PlannerPtr planner(new og::RRTstar(si));
-    // ob::PlannerPtr planner(new og::TRRT(si));
-    // ob::PlannerPtr planner(new og::SST(si));
-    // ob::PlannerPtr planner(new og::LBTRRT(si));
-    // ob::PlannerPtr planner(new og::PRMstar(si));
-    // ob::PlannerPtr planner(new og::SPARS(si));
-    // ob::PlannerPtr planner(new og::pRRT(si));
-    // ob::PlannerPtr planner(new og::LazyRRT(si));
+    ob::PlannerPtr planner;
+    if (forceUseRRTConnect) {
+        planner = ob::PlannerPtr(new og::RRTConnect(si));
+    }
+    else {
+        // planner = ob::PlannerPtr(new og::RRTConnect(si));
+        planner = ob::PlannerPtr(new og::RRTstar(si));
+        // planner = ob::PlannerPtr(new og::TRRT(si));
+        // planner = ob::PlannerPtr(new og::SST(si));
+        // planner = ob::PlannerPtr(new og::LBTRRT(si));
+        // planner = ob::PlannerPtr(new og::PRMstar(si));
+        // planner = ob::PlannerPtr(new og::SPARS(si));
+        // planner = ob::PlannerPtr(new og::pRRT(si));
+        // planner = ob::PlannerPtr(new og::LazyRRT(si));
+    }
+
     ssPtr->setPlanner(planner);
 
     ompl::tools::ExperienceSetup *ePtr =
@@ -181,13 +188,12 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     return solved ? 1 : 0;
 }
 
-extern "C" bool
-plan_multiple_circles_nomap(double *xCoords, double *yCoords, int numCoords,
-                            double startX, double startY, double startTheta,
-                            double goalX, double goalY, double goalTheta,
-                            PathPose **path, int *pathLength,
-                            double distanceBetweenPathPoints,
-                            double turningRadius, PLANNER_TYPE plannerType)
+extern "C" bool plan_multiple_circles_nomap(
+    double *xCoords, double *yCoords, int numCoords, double startX,
+    double startY, double startTheta, double goalX, double goalY,
+    double goalTheta, PathPose **path, int *pathLength,
+    double distanceBetweenPathPoints, double turningRadius,
+    PLANNER_TYPE plannerType, bool forceUseRRTConnect)
 {
 
     double pLen = 0.0;
@@ -215,15 +221,21 @@ plan_multiple_circles_nomap(double *xCoords, double *yCoords, int numCoords,
     si->setStateValidityChecker(ob::StateValidityCheckerPtr(
         new MultipleCircleStateValidityChecker(si)));
 
-     ob::PlannerPtr planner(new og::RRTConnect(si));
-    //ob::PlannerPtr planner(new og::RRTstar(si));
-    // ob::PlannerPtr planner(new og::TRRT(si));
-    // ob::PlannerPtr planner(new og::SST(si));
-    // ob::PlannerPtr planner(new og::LBTRRT(si));
-    // ob::PlannerPtr planner(new og::PRMstar(si));
-    // ob::PlannerPtr planner(new og::SPARS(si));
-    // ob::PlannerPtr planner(new og::pRRT(si));
-    // ob::PlannerPtr planner(new og::LazyRRT(si));
+    ob::PlannerPtr planner;
+    if (forceUseRRTConnect) {
+        planner = ob::PlannerPtr(new og::RRTConnect(si));
+    }
+    else {
+        // planner = ob::PlannerPtr(new og::RRTConnect(si));
+        planner = ob::PlannerPtr(new og::RRTstar(si));
+        // planner = ob::PlannerPtr(new og::TRRT(si));
+        // planner = ob::PlannerPtr(new og::SST(si));
+        // planner = ob::PlannerPtr(new og::LBTRRT(si));
+        // planner = ob::PlannerPtr(new og::PRMstar(si));
+        // planner = ob::PlannerPtr(new og::SPARS(si));
+        // planner = ob::PlannerPtr(new og::pRRT(si));
+        // planner = ob::PlannerPtr(new og::LazyRRT(si));
+    }
     ssPtr->setPlanner(planner);
 
     ompl::tools::ExperienceSetup *ePtr =
