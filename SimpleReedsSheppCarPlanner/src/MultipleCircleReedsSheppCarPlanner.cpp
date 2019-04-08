@@ -74,7 +74,7 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
                       double goalTheta, PathPose **path, int *pathLength,
                       double distanceBetweenPathPoints, double turningRadius,
                       PLANNER_TYPE plannerType, const char *experienceDBName,
-                      bool forceUseRRTConnect)
+                      bool isReplan)
 {
     double pLen = 0.0;
     int numInterpolationPoints = 0;
@@ -107,7 +107,7 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
                                                numCoords)));
 
     ob::PlannerPtr planner;
-    if (forceUseRRTConnect) {
+    if (isReplan) {
         planner = ob::PlannerPtr(new og::RRTConnect(si));
     }
     else {
@@ -130,9 +130,8 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
         ompl::base::PlannerPtr repairPlanner(new og::RRTConnect(si));
         ePtr->setRepairPlanner(repairPlanner);
 
-        // Disable planning from recall if we are replanning (i.e. RRTConnect
-        // planner is forced to be used)
-        if (forceUseRRTConnect) {
+        // Disable planning from recall if we are replanning
+        if (isReplan) {
             ePtr->enablePlanningFromRecall(false);
         }
     }
@@ -199,7 +198,7 @@ extern "C" bool plan_multiple_circles_nomap(
     double startY, double startTheta, double goalX, double goalY,
     double goalTheta, PathPose **path, int *pathLength,
     double distanceBetweenPathPoints, double turningRadius,
-    PLANNER_TYPE plannerType, bool forceUseRRTConnect)
+    PLANNER_TYPE plannerType, bool isReplan)
 {
 
     double pLen = 0.0;
@@ -228,7 +227,7 @@ extern "C" bool plan_multiple_circles_nomap(
         new MultipleCircleStateValidityChecker(si)));
 
     ob::PlannerPtr planner;
-    if (forceUseRRTConnect) {
+    if (isReplan) {
         planner = ob::PlannerPtr(new og::RRTConnect(si));
     }
     else {
@@ -249,6 +248,12 @@ extern "C" bool plan_multiple_circles_nomap(
     if (ePtr != NULL) {
         ompl::base::PlannerPtr repairPlanner(new og::RRTConnect(si));
         ePtr->setRepairPlanner(repairPlanner);
+
+        // Disable planning from recall if we are replanning (i.e. RRTConnect
+        // planner is forced to be used)
+        if (isReplan) {
+            ePtr->enablePlanningFromRecall(false);
+        }
     }
 
     // set the start and goal states

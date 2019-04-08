@@ -108,8 +108,6 @@ public class ReedsSheppCarPlanner extends AbstractMotionPlanner {
         ArrayList<PoseSteering> finalPath = new ArrayList<PoseSteering>();  
         PLANNER_TYPE plannerType = PLANNER_TYPE.LIGHTNING;
         String experienceDBName = this.getOriginalFilename();
-        // Use RRT Connect planner to accelerate replanning
-        boolean forUseRRTConnectPlanner = this.isReplan;
 		for (int i = 0; i < this.goal.length; i++) {
 			Pose start_ = null;
 			Pose goal_ = this.goal[i];
@@ -138,13 +136,13 @@ public class ReedsSheppCarPlanner extends AbstractMotionPlanner {
                         start_.getY(), start_.getTheta(), goal_.getX(), goal_.getY(),
                         goal_.getTheta(), path, pathLength, distanceBetweenPathPoints,
                         turningRadius, plannerType.ordinal(), experienceDBName,
-                        forUseRRTConnectPlanner)) return false;
+                        this.isReplan)) return false;
 				}
 				else {
                     if (!INSTANCE.plan_multiple_circles_nomap(xCoords, yCoords, numCoords,
                         start_.getX(), start_.getY(), start_.getTheta(), goal_.getX(),
                         goal_.getY(), goal_.getTheta(), path, pathLength, distanceBetweenPathPoints,
-                        turningRadius, plannerType.ordinal(), forUseRRTConnectPlanner)) return false;
+                        turningRadius, plannerType.ordinal(), this.isReplan)) return false;
 				}
 			}
 			final Pointer pathVals = path.getValue();
