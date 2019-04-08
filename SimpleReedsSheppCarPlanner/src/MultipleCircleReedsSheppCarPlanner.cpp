@@ -129,6 +129,12 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     if (ePtr != NULL) {
         ompl::base::PlannerPtr repairPlanner(new og::RRTConnect(si));
         ePtr->setRepairPlanner(repairPlanner);
+
+        // Disable planning from recall if we are replanning (i.e. RRTConnect
+        // planner is forced to be used)
+        if (forceUseRRTConnect) {
+            ePtr->enablePlanningFromRecall(false);
+        }
     }
 
     // set the start and goal states
