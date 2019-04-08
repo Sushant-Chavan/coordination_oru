@@ -952,9 +952,11 @@ public abstract class TrajectoryEnvelopeCoordinator {
 		mp.setStart(fromPose);
 		mp.setGoals(toPose);
 		mp.clearObstacles();
+        mp.setIsReplan(true);
 		if (obstaclesToConsider != null && obstaclesToConsider.length > 0) mp.addObstacles(obstaclesToConsider);
-		if (mp.plan()) return mp.getPath();
-		return null;
+        PoseSteering[] result = mp.plan() ? mp.getPath() : null;
+        mp.setIsReplan(false);
+		return result;
 	}
 	
 	protected void rePlanPath(HashSet<Integer> robotsToReplan, HashSet<Integer> allRobots) {
