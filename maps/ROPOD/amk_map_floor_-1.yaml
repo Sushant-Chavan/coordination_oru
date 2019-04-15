@@ -1,0 +1,2 @@
+{free_thresh: 0.1, image: map_floor_-1.pgm, latitude: 50.1363485, longitude: 8.6474024,
+  negate: 0, occupied_thresh: 0.9, origin: [-25, -147.99798410292715, 0.0], resolution: 0.02}
