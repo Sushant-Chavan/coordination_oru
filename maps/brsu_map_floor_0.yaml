@@ -1,4 +1,4 @@
-image: ROPOD/brsu_map_floor_0.png
+image: brsu_map_floor_0.png
 resolution: 0.02
 origin: [-25, -0.6582221845164895, 0.0]
 negate: 0
