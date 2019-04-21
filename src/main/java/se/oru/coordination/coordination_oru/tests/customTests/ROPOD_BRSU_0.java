@@ -111,7 +111,8 @@ public class ROPOD_BRSU_0 {
 		
 		tec.setUseInternalCriticalPoints(true);
 		tec.setYieldIfParking(false);
-		tec.setBreakDeadlocks(true);
+        tec.setBreakDeadlocks(true);
+        tec.setQuiet(true);
 		
 		Missions.loadLocationAndPathData("missions/ROPOD_BRSU.txt");
 

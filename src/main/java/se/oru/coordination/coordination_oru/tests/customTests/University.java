@@ -112,7 +112,8 @@ public class University {
 		
 		tec.setUseInternalCriticalPoints(true);
 		tec.setYieldIfParking(false);
-		tec.setBreakDeadlocks(true);
+        tec.setBreakDeadlocks(true);
+        tec.setQuiet(true);
 		
 		Missions.loadLocationAndPathData("missions/university.txt");
 
