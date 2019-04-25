@@ -203,8 +203,8 @@ class DatasetGenerator():
         print("Robot radius:\t", self.robot_radius)
         print("------------------------------------------------")
 
-        oversamplingFactor = 10
-        nSamples = self.nProblems * oversamplingFactor
+        oversamplingFactor = 2
+        nSamples = self.nProblems * 2 * oversamplingFactor
 
         print("Generating", nSamples, "samples (with oversampling factor of", oversamplingFactor, ")...")
         self.generate_samples(nSamples)
