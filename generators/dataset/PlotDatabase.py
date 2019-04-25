@@ -23,7 +23,8 @@ def get_YAML_data(filepath):
 
 def get_color_vector(img, pos):
     # Inverted pos indexs because image is given as height x width
-    return img[int(pos[1]), int(pos[0]), :]
+    # Also used just the RGB channels.
+    return img[int(pos[1]), int(pos[0]), 0:3]
 
 def close_to_obstacles(pos, box_half_width, img):
     collides_with_obstacle = False
@@ -80,7 +81,7 @@ def plot_problems(ax, problems, samples):
         x = [start[0], goal[0]]
         y = [start[1], goal[1]]
         plt.plot(x, y)
-    
+
 def generate_samples(map_file_path, resolution, robot_radius, nSamples, hotspots=None):
     img = plt.imread(map_file_path)
     img_height = img.shape[0]
