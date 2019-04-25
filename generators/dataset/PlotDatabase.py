@@ -73,6 +73,9 @@ class DatasetGenerator():
                 # Check if point is close to the obstacle
                 if not self.close_to_obstacles(pos):
                     filtered_sample_indices.append(s_id)
+                    # Periodically print number of samples generated
+                    if len(filtered_sample_indices) % 100 == 0:
+                        print("\tGenerated", len(filtered_sample_indices), "samples")
                     # Check if we obtained the max required number of samples
                     if len(filtered_sample_indices) >= maxNumSamples:
                         break
