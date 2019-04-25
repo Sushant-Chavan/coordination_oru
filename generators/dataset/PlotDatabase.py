@@ -16,8 +16,9 @@ class DatasetGenerator():
     def __init__(self, args):
         self.root_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../")
         self.map_filename = args.map_filename
-        self.nProblems = int(args.nProblems)
+        self.nProblemsList = args.nProblems
         self.robot_radius = int(args.robot_radius)
+        self.save_dbg_image = args.dbg_image
 
         self.map_file_path = os.path.abspath(self.root_dir + "/maps/" + self.map_filename)
         self.map_name = os.path.splitext(self.map_filename)[0]
@@ -197,37 +198,40 @@ class DatasetGenerator():
         print("Saved debug map at", file_path)
 
     def generate_dataset(self):
-        print("========= Generating Training Dataset ==========")
-        print("Map:\t\t", self.map_filename)
-        print("Num of problems:", self.nProblems)
-        print("Robot radius:\t", self.robot_radius)
-        print("------------------------------------------------")
+        for n in self.nProblemsList:
+            self.nProblems = n
+            print("\n========= Generating Training Dataset ==========")
+            print("Map:\t\t", self.map_filename)
+            print("Num of problems:", self.nProblems)
+            print("Robot radius:\t", self.robot_radius)
+            print("------------------------------------------------")
 
-        oversamplingFactor = 2
-        nSamples = self.nProblems * 2 * oversamplingFactor
+            oversamplingFactor = 2
+            nSamples = self.nProblems * 2 * oversamplingFactor
 
-        print("Generating", nSamples, "samples (with oversampling factor of", oversamplingFactor, ")...")
-        self.generate_samples(nSamples)
-        print("Successfully generated", self.samples.shape[0], "samples")
+            print("Generating", nSamples, "samples (with oversampling factor of", oversamplingFactor, ")...")
+            self.generate_samples(nSamples)
+            print("Successfully generated", self.samples.shape[0], "samples")
 
-        print("\nGenerating", self.nProblems, "unique problems from generated samples...")
-        self.generate_problem_scenarios()
-        print("Successfully generated", self.problems.shape[0], "problems")
-        print("================================================")
+            print("\nGenerating", self.nProblems, "unique problems from generated samples...")
+            self.generate_problem_scenarios()
+            print("Successfully generated", self.problems.shape[0], "problems")
+            print("================================================")
+
+            self.save_dataset_to_file()
+            if self.save_dbg_image:
+                self.save_debug_map()
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("map_filename", help="Filename of the map image that should be used for dataset generation (ex. map1.png)")
-    parser.add_argument("nProblems", help="Number of training problems to be generated")
-    parser.add_argument("--robot_radius", help="Radius of the robot (in pixels) to be used for collision detection", default=10)
-    parser.add_argument("--dbg_image", help="Generate a debug image to visualize generated dataset (Disabled by default)", default=False)
+    parser.add_argument("map_filename", type=str, help="Filename of the map image that should be used for dataset generation (ex. map1.png)")
+    parser.add_argument("--nProblems", required=True, nargs="*", type=int, help="Number of training problems to be generated (ex. 10 100 1000)", default=[100])
+    parser.add_argument("--robot_radius", type=int, help="Radius of the robot (in pixels) to be used for collision detection", default=10)
+    parser.add_argument("--dbg_image", type=bool, help="Generate a debug image to visualize generated dataset (Disabled by default)", default=False)
     args = parser.parse_args()
 
     data_gen = DatasetGenerator(args)
     data_gen.generate_dataset()
-    data_gen.save_dataset_to_file()
-    if args.dbg_image:
-        data_gen.save_debug_map()
 
 if __name__ == "__main__":
     main()
