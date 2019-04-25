@@ -12,196 +12,219 @@ import yaml
 import time
 import pandas as pd
 
-def get_YAML_data(filepath):
-    data = None
-    with open(filepath, 'r') as stream:
-        try:
-            data = yaml.safe_load(stream)
-        except yaml.YAMLError as exc:
-            print(exc)
-    return data
+class DatasetGenerator():
+    def __init__(self, args):
+        self.root_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../")
+        self.map_filename = args.map_filename
+        self.nProblems = int(args.nProblems)
+        self.robot_radius = int(args.robot_radius)
 
-def get_color_vector(img, pos):
-    # Inverted pos indexs because image is given as height x width
-    # Also used just the RGB channels.
-    return img[int(pos[1]), int(pos[0]), 0:3]
+        self.map_file_path = os.path.abspath(self.root_dir + "/maps/" + self.map_filename)
+        self.map_name = os.path.splitext(self.map_filename)[0]
 
-def close_to_obstacles(pos, box_half_width, img):
-    collides_with_obstacle = False
-    img_height = img.shape[0]
-    img_width = img.shape[1]
-    
-    min_x = int(max(0, pos[0] - box_half_width))
-    max_x = int(min(img_width-1, pos[0] + box_half_width))
-    min_y = int(max(0, pos[1] - box_half_width))
-    max_y = int(min(img_height-1, pos[1] + box_half_width))
+        self.img = plt.imread(self.map_file_path)
+        self.img_height = self.img.shape[0]
+        self.img_width = self.img.shape[1]
 
-    # max to min iterations since probability of collision is higher
-    # at the borders of the bounding box than at the center
-    for i in range(max_x, min_x, -1):
-        for j in range(max_y, min_y, -1):
-            p = np.array([i, j])
-            if np.allclose(np.linalg.norm(get_color_vector(img, p)), 0.0):
-                collides_with_obstacle = True
-                break
+        yaml_file_path = os.path.splitext(self.map_file_path)[0] + ".yaml"
+        self.resolution = float(self.get_YAML_data(yaml_file_path)['resolution'])
 
-    return collides_with_obstacle
+    def get_YAML_data(self, filepath):
+        data = None
+        with open(filepath, 'r') as stream:
+            try:
+                data = yaml.safe_load(stream)
+            except yaml.YAMLError as exc:
+                print(exc)
+        return data
 
-def discard_invalid_samples(img, samples, robot_pixel_radius, maxNumSamples):
-    filtered_sample_indices = []
-    for s_id in range(samples.shape[0]):
-        pos = samples[s_id]
-        if np.linalg.norm(get_color_vector(img, pos)) > 0.0:
-            if not close_to_obstacles(pos, robot_pixel_radius, img):
-                filtered_sample_indices.append(s_id)
-                if len(filtered_sample_indices) >= maxNumSamples:
+    def get_color_vector(self, pos):
+        # Inverted pos indices because image is given as height x width
+        # Also used just the RGB channels.
+        return self.img[int(pos[1]), int(pos[0]), 0:3]
+
+    def close_to_obstacles(self, pos):
+        collides_with_obstacle = False
+
+        box_half_width = self.robot_radius
+        
+        min_x = int(max(0, pos[0] - box_half_width))
+        max_x = int(min(self.img_width-1, pos[0] + box_half_width))
+        min_y = int(max(0, pos[1] - box_half_width))
+        max_y = int(min(self.img_height-1, pos[1] + box_half_width))
+
+        # max to min iterations since probability of collision is higher
+        # at the borders of the bounding box than at the center
+        for i in range(max_x, min_x, -1):
+            for j in range(max_y, min_y, -1):
+                p = np.array([i, j])
+                if np.allclose(np.linalg.norm(self.get_color_vector(p)), 0.0):
+                    collides_with_obstacle = True
                     break
 
-    return samples[filtered_sample_indices,:]
+        return collides_with_obstacle
 
-def plot_map(ax, map_file_path):
-    img = plt.imread(map_file_path)
-    img_height = img.shape[0]
-    img_width = img.shape[1]
-    ax.imshow(img)
+    def discard_invalid_samples(self, maxNumSamples):
+        filtered_sample_indices = []
+        for s_id in range(self.samples.shape[0]):
+            pos = self.samples[s_id]
+            # Check if point lies on the obstacles
+            if np.linalg.norm(self.get_color_vector(pos)) > 0.0:
+                # Check if point is close to the obstacle
+                if not self.close_to_obstacles(pos):
+                    filtered_sample_indices.append(s_id)
+                    # Check if we obtained the max required number of samples
+                    if len(filtered_sample_indices) >= maxNumSamples:
+                        break
 
-def plot_samples(ax, samples, robot_radius):
-    ax.scatter(samples[:, 0], samples[:,1], s=robot_radius/2.0)
-    thetas = samples[:, 2]
-    
-    for i in range(thetas.shape[0]):
-        ax.arrow(samples[i, 0], samples[i,1], 
-                 robot_radius*np.cos(thetas[i]), robot_radius*np.sin(thetas[i]),
-                 head_width=robot_radius/2.0, head_length=robot_radius/2.0, fc='k', ec='k')
-    
-def plot_problems(ax, problems, samples):
-    for p in problems:
-        start = samples[p[0]]
-        goal = samples[p[1]]
-        x = [start[0], goal[0]]
-        y = [start[1], goal[1]]
-        plt.plot(x, y)
-    
-def generate_samples(map_file_path, resolution, robot_radius, nSamples, hotspots=None):
-    img = plt.imread(map_file_path)
-    img_height = img.shape[0]
-    img_width = img.shape[1]
-    
-    # Oversample to account for samples that will discarded due to obstacles
-    sampleSize = nSamples * 4
-    
-    samples = np.zeros((sampleSize, 3))
-    samples[:,0] = np.random.randint(0, img_width, samples.shape[0])
-    samples[:,1] = np.random.randint(0, img_height, samples.shape[0])
-    samples[:,2] = np.random.uniform(-np.pi, np.pi, samples.shape[0])
-    samples = discard_invalid_samples(img, samples, robot_radius, nSamples)
-    
-    print("Discarded", nSamples - samples.shape[0], "samples as they were on or close to obstacles")    
-    return samples
+        self.samples = self.samples[filtered_sample_indices,:]
 
-def generate_problem_scenarios(samples, nProblems):
-    problems = np.zeros((nProblems, 2))
-    
-    used_samples = np.full((1, samples.shape[0]), False)
-    
-    for p_idx in range(nProblems):
-        start = 0
-        goal = 0
+    def generate_samples(self, nSamples):
+        # Oversample to account for samples that will discarded due to obstacles
+        sampleSize = nSamples * 4
+
+        self.samples = np.zeros((sampleSize, 3))
+        self.samples[:,0] = np.random.randint(0, self.img_width, self.samples.shape[0])
+        self.samples[:,1] = np.random.randint(0, self.img_height, self.samples.shape[0])
+        self.samples[:,2] = np.random.uniform(-np.pi, np.pi, self.samples.shape[0])
+        self.discard_invalid_samples(nSamples)
         
-        # Find a unique start position
-        while used_samples[0,start]:
-            start = np.random.randint(0, samples.shape[0], 1)[0]
-        used_samples[0, start] = True
-            
-        # Find a unique goal position
-        while used_samples[0,goal]:
-            goal = np.random.randint(0, samples.shape[0], 1)[0] 
-        used_samples[0, goal] = True
-        
-        problems[p_idx, 0] = start
-        problems[p_idx, 1] = goal
+        print("Discarded", nSamples - self.samples.shape[0], "samples as they were on/close to obstacles")
 
-    return problems.astype(int)
+    def generate_problem_scenarios(self):
+        nSamples = self.samples.shape[0]
+        used_samples = np.full((1, nSamples), False)
 
-def save_to_file(file_path, problems, samples, map_file_path):
-    img_height = plt.imread(map_file_path).shape[0]
+        self.problems = np.zeros((self.nProblems, 2))
 
-    start_pose_ids = problems[:, 0].astype(int)
-    goal_pose_ids = problems[:, 1].astype(int)
+        for p_idx in range(self.nProblems):
+            start = 0
+            goal = 0
 
-    start_sample_poses = samples[start_pose_ids, :]
-    goal_sample_poses = samples[goal_pose_ids, :]
-    
-    pose_names = ["Start_" + str(i) for i in range(problems.shape[0])]
-    pose_names.extend(["Goal_" + str(i) for i in range(problems.shape[0])])
+            # Find a unique start position
+            while used_samples[0,start]:
+                start = np.random.randint(0, nSamples, 1)[0]
+            used_samples[0, start] = True
+                
+            # Find a unique goal position
+            while used_samples[0,goal]:
+                goal = np.random.randint(0, nSamples, 1)[0] 
+            used_samples[0, goal] = True
 
-    x_pos = start_sample_poses[:, 0].astype(int).tolist()
-    y_pos = (img_height - start_sample_poses[:, 1]).astype(int).tolist()
-    theta = start_sample_poses[:, 2].astype(float).tolist()
+            self.problems[p_idx, 0] = start
+            self.problems[p_idx, 1] = goal
 
-    x_pos.extend(goal_sample_poses[:, 0].astype(int).tolist())
-    y_pos.extend((img_height - goal_sample_poses[:, 1]).astype(int).tolist())
-    theta.extend(goal_sample_poses[:, 2].astype(float).tolist())
+        self.problems = self.problems.astype(int)
 
-    df = pd.DataFrame(data={'Pose_Name':pose_names, 'X':x_pos, 'Y':y_pos, 'T':theta})
-    df.to_csv(file_path, sep="\t", header=False, index=False)
+    def save_dataset_to_file(self, file_path=None):
+        print("\nSaving dataset to a file...")
 
-def save_debug_map(root_dir, map_name, map_file_path, samples, problems, robot_radius):
-    print("\nGenerating debug map...")
-    f = plt.figure(figsize=(20, 20))
-    ax = f.subplots()
+        if file_path is None:
+            file_path = self.root_dir + "/generated/trainingData/" + self.map_name +\
+                    "-" + str(self.problems.shape[0]) + "Problems.txt"
 
-    plot_map(ax, map_file_path)
-    plot_samples(ax, samples, robot_radius)
-    plot_problems(ax, problems, samples)
+        nProblems = self.problems.shape[0]
+        pose_names = ["Start_" + str(i) for i in range(nProblems)]
+        pose_names.extend(["Goal_" + str(i) for i in range(nProblems)])
 
-    dbg_image_path = root_dir + "/generated/trainingData/debugMaps/" + map_name +\
-                     "-" + str(problems.shape[0]) + "Problems.svg"    
-    plt.savefig(dbg_image_path, format='svg')
-    print("Saved debug map at", dbg_image_path)
+        start_pose_ids = self.problems[:, 0].astype(int)
+        goal_pose_ids = self.problems[:, 1].astype(int)
+
+        start_sample_poses = self.samples[start_pose_ids, :]
+        goal_sample_poses = self.samples[goal_pose_ids, :]
+
+        x_pos = start_sample_poses[:, 0].astype(int).tolist()
+        y_pos = (self.img_height - start_sample_poses[:, 1]).astype(int).tolist()
+        theta = start_sample_poses[:, 2].astype(float).tolist()
+
+        x_pos.extend(goal_sample_poses[:, 0].astype(int).tolist())
+        y_pos.extend((self.img_height - goal_sample_poses[:, 1]).astype(int).tolist())
+        theta.extend(goal_sample_poses[:, 2].astype(float).tolist())
+
+        df = pd.DataFrame(data={'Pose_Name':pose_names, 'X':x_pos, 'Y':y_pos, 'T':theta})
+        df.to_csv(file_path, sep="\t", header=False, index=False)
+        print("Saved generated dataset at", file_path)
+
+    def plot_map(self, ax):
+        ax.imshow(self.img)
+
+    def plot_samples(self, ax, filter_samples=True):
+        if filter_samples:
+            start_pose_ids = self.problems[:, 0].astype(int)
+            goal_pose_ids = self.problems[:, 1].astype(int)
+
+            start_sample_poses = self.samples[start_pose_ids, :]
+            goal_sample_poses = self.samples[goal_pose_ids, :]
+            poses = np.vstack((start_sample_poses, goal_sample_poses))
+        else:
+            poses = self.samples
+
+        thetas = poses[:, 2]
+
+        # plot each individual poses as a point
+        ax.scatter(poses[:, 0], poses[:,1], s=self.robot_radius/2.0)
+
+        # plot arrows corresponding to the theta value associated with each pose
+        for i in range(thetas.shape[0]):
+            ax.arrow(poses[i, 0], poses[i,1],
+                    self.robot_radius*np.cos(thetas[i]), self.robot_radius*np.sin(thetas[i]),
+                    head_width=self.robot_radius/2.0, head_length=self.robot_radius/2.0, fc='k', ec='k')
+
+    def plot_problems(self, ax):
+        for p in self.problems:
+            start = self.samples[p[0]]
+            goal = self.samples[p[1]]
+            x = [start[0], goal[0]]
+            y = [start[1], goal[1]]
+            plt.plot(x, y)
+
+    def save_debug_map(self, file_path=None):
+        print("\nGenerating debug map...")
+        f = plt.figure(figsize=(20, 20))
+        ax = f.subplots()
+
+        self.plot_map(ax)
+        self.plot_samples(ax)
+        self.plot_problems(ax)
+
+        if file_path is None:
+            file_path = self.root_dir + "/generated/trainingData/debugMaps/" + self.map_name +\
+                        "-" + str(self.nProblems) + "Problems.svg"
+        plt.savefig(file_path, format='svg')
+        print("Saved debug map at", file_path)
+
+    def generate_dataset(self):
+        print("========= Generating Training Dataset ==========")
+        print("Map:\t\t", self.map_filename)
+        print("Num of problems:", self.nProblems)
+        print("Robot radius:\t", self.robot_radius)
+        print("------------------------------------------------")
+
+        oversamplingFactor = 10
+        nSamples = self.nProblems * oversamplingFactor
+
+        print("Generating", nSamples, "samples (with oversampling factor of", oversamplingFactor, ")...")
+        self.generate_samples(nSamples)
+        print("Successfully generated", self.samples.shape[0], "samples")
+
+        print("\nGenerating", self.nProblems, "unique problems from generated samples...")
+        self.generate_problem_scenarios()
+        print("Successfully generated", self.problems.shape[0], "problems")
+        print("================================================")
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("map_filename", help="Filename of the map image that should be used for dataset generation (ex. map1.png)")
     parser.add_argument("nProblems", help="Number of training problems to be generated")
     parser.add_argument("--robot_radius", help="Radius of the robot (in pixels) to be used for collision detection", default=10)
+    parser.add_argument("--dbg_image", help="Generate a debug image to visualize generated dataset (Disabled by default)", default=False)
     args = parser.parse_args()
 
-    root_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../")
-    map_file_path = os.path.abspath(root_dir + "/maps/" + args.map_filename)
-    yaml_file_path = os.path.splitext(map_file_path)[0] + ".yaml"
-    resolution = float(get_YAML_data(yaml_file_path)['resolution'])
-    map_name = os.path.splitext(args.map_filename)[0]
-
-    nProblems = int(args.nProblems)
-    nSamples = nProblems * 10
-    robot_radius = int(args.robot_radius)
-
-    print("========= Generating Training Dataset ==========")
-    print("Map:\t\t", args.map_filename)
-    print("Num of problems:", nProblems)
-    print("Robot radius:\t", robot_radius)
-    print("------------------------------------------------")
-
-    print("Generating", nSamples, "samples...")
-    samples = generate_samples(map_file_path, resolution, robot_radius, nSamples)
-    print("Successfully generated", samples.shape[0], "samples")
-    
-    print("\nGenerating", nProblems, "unique problems from generated samples...")
-    problems = generate_problem_scenarios(samples, nProblems)
-    print("Successfully generated", problems.shape[0], "problems")
-
-    print("\nSaving dataset to a file...")
-    data_file_path = root_dir + "/generated/trainingData/" + map_name +\
-                     "-" + str(problems.shape[0]) + "Problems.txt"
-    save_to_file(data_file_path, problems, samples, map_file_path)
-    print("Saved generated dataset at", data_file_path)
-
-    plot_debug_map = True
-    if plot_debug_map:
-        save_debug_map(root_dir, map_name, map_file_path, samples, problems, robot_radius)
-
-    print("================================================")
+    data_gen = DatasetGenerator(args)
+    data_gen.generate_dataset()
+    data_gen.save_dataset_to_file()
+    if args.dbg_image:
+        data_gen.save_debug_map()
 
 if __name__ == "__main__":
     main()
