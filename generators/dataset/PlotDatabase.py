@@ -10,13 +10,13 @@ import sys
 import os
 import yaml
 import time
+import pandas as pd
 
 def get_YAML_data(filepath):
     data = None
     with open(filepath, 'r') as stream:
         try:
             data = yaml.safe_load(stream)
-            print("Loaded YAML data from file", filepath)
         except yaml.YAMLError as exc:
             print(exc)
     return data
@@ -81,7 +81,7 @@ def plot_problems(ax, problems, samples):
         x = [start[0], goal[0]]
         y = [start[1], goal[1]]
         plt.plot(x, y)
-
+    
 def generate_samples(map_file_path, resolution, robot_radius, nSamples, hotspots=None):
     img = plt.imread(map_file_path)
     img_height = img.shape[0]
@@ -123,35 +123,85 @@ def generate_problem_scenarios(samples, nProblems):
 
     return problems.astype(int)
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("map_filename", help="Filename of the map image that should be used for dataset generation (ex. map1.png)")
-    args = parser.parse_args()
+def save_to_file(file_path, problems, samples, map_file_path):
+    img_height = plt.imread(map_file_path).shape[0]
 
-    dir_name, _ = os.path.split(os.path.abspath(sys.argv[0]))
-    map_file_path = os.path.abspath(dir_name + "/../../maps/" + args.map_filename)
-    print(map_file_path)
-    yaml_file_path = os.path.splitext(map_file_path)[0] + ".yaml"
-    resolution = float(get_YAML_data(yaml_file_path)['resolution'])
+    start_pose_ids = problems[:, 0].astype(int)
+    goal_pose_ids = problems[:, 1].astype(int)
 
-    robot_radius = 10
-    nSamples = 1000
-    nProblems = 100
-
-    samples = generate_samples(map_file_path, resolution, robot_radius, nSamples)
-    print("Successfully generated", samples.shape[0], "samples")
+    start_sample_poses = samples[start_pose_ids, :]
+    goal_sample_poses = samples[goal_pose_ids, :]
     
-    problems = generate_problem_scenarios(samples, nProblems)
-    
+    pose_names = ["Start_" + str(i) for i in range(problems.shape[0])]
+    pose_names.extend(["Goal_" + str(i) for i in range(problems.shape[0])])
+
+    x_pos = start_sample_poses[:, 0].astype(int).tolist()
+    y_pos = (img_height - start_sample_poses[:, 1]).astype(int).tolist()
+    theta = start_sample_poses[:, 2].astype(float).tolist()
+
+    x_pos.extend(goal_sample_poses[:, 0].astype(int).tolist())
+    y_pos.extend((img_height - goal_sample_poses[:, 1]).astype(int).tolist())
+    theta.extend(goal_sample_poses[:, 2].astype(float).tolist())
+
+    df = pd.DataFrame(data={'Pose_Name':pose_names, 'X':x_pos, 'Y':y_pos, 'T':theta})
+    df.to_csv(file_path, sep="\t", header=False, index=False)
+
+def save_debug_map(root_dir, map_name, map_file_path, samples, problems, robot_radius):
+    print("\nGenerating debug map...")
     f = plt.figure(figsize=(20, 20))
     ax = f.subplots()
+
     plot_map(ax, map_file_path)
     plot_samples(ax, samples, robot_radius)
     plot_problems(ax, problems, samples)
-    plt.savefig("/home/suvich15/Sushant/MAS/RnD_Resources/repositories/coordination_oru/maps/samples/map.svg",
-                format='svg')
 
+    dbg_image_path = root_dir + "/generated/trainingData/debugMaps/" + map_name +\
+                     "-" + str(problems.shape[0]) + "Problems.svg"    
+    plt.savefig(dbg_image_path, format='svg')
+    print("Saved debug map at", dbg_image_path)
 
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("map_filename", help="Filename of the map image that should be used for dataset generation (ex. map1.png)")
+    parser.add_argument("nProblems", help="Number of training problems to be generated")
+    parser.add_argument("--robot_radius", help="Radius of the robot (in pixels) to be used for collision detection", default=10)
+    args = parser.parse_args()
+
+    root_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../")
+    map_file_path = os.path.abspath(root_dir + "/maps/" + args.map_filename)
+    yaml_file_path = os.path.splitext(map_file_path)[0] + ".yaml"
+    resolution = float(get_YAML_data(yaml_file_path)['resolution'])
+    map_name = os.path.splitext(args.map_filename)[0]
+
+    nProblems = int(args.nProblems)
+    nSamples = nProblems * 10
+    robot_radius = int(args.robot_radius)
+
+    print("========= Generating Training Dataset ==========")
+    print("Map:\t\t", args.map_filename)
+    print("Num of problems:", nProblems)
+    print("Robot radius:\t", robot_radius)
+    print("------------------------------------------------")
+
+    print("Generating", nSamples, "samples...")
+    samples = generate_samples(map_file_path, resolution, robot_radius, nSamples)
+    print("Successfully generated", samples.shape[0], "samples")
+    
+    print("\nGenerating", nProblems, "unique problems from generated samples...")
+    problems = generate_problem_scenarios(samples, nProblems)
+    print("Successfully generated", problems.shape[0], "problems")
+
+    print("\nSaving dataset to a file...")
+    data_file_path = root_dir + "/generated/trainingData/" + map_name +\
+                     "-" + str(problems.shape[0]) + "Problems.txt"
+    save_to_file(data_file_path, problems, samples, map_file_path)
+    print("Saved generated dataset at", data_file_path)
+
+    plot_debug_map = True
+    if plot_debug_map:
+        save_debug_map(root_dir, map_name, map_file_path, samples, problems, robot_radius)
+
+    print("================================================")
 
 if __name__ == "__main__":
     main()
