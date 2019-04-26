@@ -52,13 +52,6 @@ class OMPL_Wrapper():
         self.start_training_poses = data[:nProblems, :]
         self.goal_training_poses = data[nProblems:, :]
 
-        self.start_training_poses = np.delete(self.start_training_poses, (76), axis=0)
-        self.goal_training_poses = np.delete(self.goal_training_poses, (76), axis=0)
-        self.start_training_poses = np.delete(self.start_training_poses, (64), axis=0)
-        self.goal_training_poses = np.delete(self.goal_training_poses, (64), axis=0)
-        self.start_training_poses = np.delete(self.start_training_poses, (55), axis=0)
-        self.goal_training_poses = np.delete(self.goal_training_poses, (55), axis=0)
-
     def generate_collision_centers(self, robot_footprint):
         xCoords = []
         yCoords = []
