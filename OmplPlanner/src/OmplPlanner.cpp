@@ -161,7 +161,7 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     // this call is optional, but we put it in to get more output information
     ssPtr->getSpaceInformation()->setStateValidityCheckingResolution(0.005);
     ssPtr->setup();
-    ssPtr->print();
+    //ssPtr->print();
 
     // attempt to solve the problem within 30 seconds of planning time
     ob::PlannerStatus solved = ssPtr->solve(30.0);
@@ -287,7 +287,7 @@ extern "C" bool plan_multiple_circles_nomap(
     // this call is optional, but we put it in to get more output information
     ssPtr->getSpaceInformation()->setStateValidityCheckingResolution(0.005);
     ssPtr->setup();
-    ssPtr->print();
+    //ssPtr->print();
 
     // attempt to solve the problem within 30 seconds of planning time
     ob::PlannerStatus solved = ssPtr->solve(30.0);
