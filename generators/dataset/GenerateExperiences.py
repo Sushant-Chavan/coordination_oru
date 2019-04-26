@@ -6,47 +6,21 @@ import numpy as np
 import os
 import sys
 import pandas as pd
+import yaml
 
-# lib = 'libomplMotionPlanner.so'
-# dll = cdll.LoadLibrary(lib)
-
-# Defining a class to receive the array of poses from the shared libarary
+# A class to receive the array of poses from the shared libarary
 class PathPose(Structure):
     _fields_=[("x", c_double),
               ("y", c_double),
               ("theta", c_double)]
 
-# # Declaring the argument types
-# dll.testFunc.arguments = [c_char_p, POINTER(c_double), c_int, POINTER(POINTER(PathPose)), POINTER(c_int), c_int]
-
-# # Passing an array to the library
-# nDoubles = 5
-# DoublesAray = c_double * nDoubles
-# dArr = DoublesAray(0.0, 0.1, 0.2, 0.3, 0.4)
-
-# # Preparing to receive array of structs from the library
-# mem = POINTER(PathPose)()
-# size = c_int(0)
-
-# name = "Sushant"
-
-# # Calling the function
-# dll.testFunc(name.encode(encoding='utf-8'), dArr, nDoubles, byref(mem), byref(size), 1)
-
-# print("Path length: ", size.value)
-# print("PathPoses:")
-# for i in range(size.value):
-#     pose = mem[i]
-#     print(pose.x, pose.y, pose.theta)
-
 class OMPL_Wrapper():
-    def __init__(self, map_filename, map_resolution,
+    def __init__(self, map_filepath,
                  robot_footprint, robot_radius, turning_radius,
                  dist_between_points, planner_type, experience_db_name,
                  is_holonomic_robot, training_data_file_name,
                  libname = 'libomplMotionPlanner.so'):
-        self.map_filename = map_filename.encode(encoding='utf-8')
-        self.map_resolution = c_double(map_resolution)
+        self.map_filepath = map_filepath.encode(encoding='utf-8')
         self.robot_radius = c_double(robot_radius)
         self.turning_radius = c_double(turning_radius)
         self.dist_between_points = c_double(dist_between_points)
@@ -58,12 +32,31 @@ class OMPL_Wrapper():
         self.load_shared_library(libname)
         self.load_training_dataset(training_data_file_name)
 
+        yaml_file_path = os.path.splitext(map_filepath)[0] + ".yaml"
+        self.map_resolution = c_double(self.get_YAML_data(yaml_file_path)['resolution'])
+
+    def get_YAML_data(self, filepath):
+        data = None
+        with open(filepath, 'r') as stream:
+            try:
+                data = yaml.safe_load(stream)
+            except yaml.YAMLError as exc:
+                print(exc)
+        return data
+
     def load_training_dataset(self, training_data_filename):
         df = pd.read_csv(training_data_filename, header=None, sep='\t', usecols=[1,2,3])
         data = df.values
         nProblems = int(data.shape[0]/2)
         self.start_training_poses = data[:nProblems, :]
         self.goal_training_poses = data[nProblems:, :]
+
+        self.start_training_poses = np.delete(self.start_training_poses, (76), axis=0)
+        self.goal_training_poses = np.delete(self.goal_training_poses, (76), axis=0)
+        self.start_training_poses = np.delete(self.start_training_poses, (64), axis=0)
+        self.goal_training_poses = np.delete(self.goal_training_poses, (64), axis=0)
+        self.start_training_poses = np.delete(self.start_training_poses, (55), axis=0)
+        self.goal_training_poses = np.delete(self.goal_training_poses, (55), axis=0)
         print(self.start_training_poses)
         print(self.goal_training_poses)
 
@@ -104,21 +97,22 @@ class OMPL_Wrapper():
                                        c_double, POINTER(POINTER(PathPose)), POINTER(c_int), 
                                        c_double, c_double, 
                                        c_int,  c_char_p, 
-                                       c_bool, c_bool]
+                                       c_int, c_bool]
         self.cdll.plan_multiple_circles.restype = c_bool
 
     def invoke(self, start, goal):
         # Preparing to receive array of structs from the library
         path = POINTER(PathPose)()
         path_length = c_int(0)
+        mode = 2 # Corresponds to the experience generation mode
 
-        self.cdll.plan_multiple_circles(self.map_filename, self.map_resolution, self.robot_radius,
+        self.cdll.plan_multiple_circles(self.map_filepath, self.map_resolution, self.robot_radius,
                                         self.collision_centers_x, self.collision_centers_y, self.n_collsion_centers,
                                         c_double(start[0]), c_double(start[1]), c_double(start[2]),
                                         c_double(goal[0]), c_double(goal[1]), c_double(goal[2]),
                                         byref(path), byref(path_length), self.dist_between_points,
                                         self.turning_radius, self.planner_type, self.experience_db_name,
-                                        False, self.is_holonomic_robot)
+                                        mode, self.is_holonomic_robot)
 
     def start_training(self):
         print("\n============ Starting Training ============")
@@ -127,28 +121,30 @@ class OMPL_Wrapper():
             self.invoke(self.start_training_poses[p_idx], self.goal_training_poses[p_idx])
         print("\n============ Training Complete ============")
 
-root_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../")
-map_filename = "test-uni.png"
-robot_radius = 10
 
-map_filename = os.path.abspath(root_dir + "/maps/" + map_filename)
-map_resolution = 0.1
-footprint = np.array([[-1.0,0.5],
-                      [1.0,0.5],
-                      [1.0,-0.5],
-                      [-1.0,-0.5]])
-robot_radius = 1.0
-turning_radius = 1.0
-dist_between_points = 0.5
-planner_type = 1
-experience_db_name = "test-uni"
-is_holonomic_robot = True
-training_dataset = os.path.abspath(root_dir + "/generated/trainingData/" + experience_db_name + "-100Problems.txt")
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("map_filename", type=str, help="Filename of the map image that should be used for experience generation (ex. map1.png)")
+    parser.add_argument("--robot_radius", type=float, help="Radius of the robot (in pixels) to be used for collision detection", default=1.0)
+    parser.add_argument("--turning_radius", type=float, help="Turning radius of the vehicle in case of ReedsSheep type car", default=1.0)
+    parser.add_argument("--dist_between_points", type=float, help="Max distance between two poses in the generated path", default=0.5)
+    parser.add_argument("--planner_type", type=int, help="Type of planner to be used for experience generation (LIGHTNING:1, THUNDER:2), Default: Lightning", default=1)
+    parser.add_argument("--is_holonomic_robot", type=bool, help="Flag to specify if the robot is holonomic. Default: True", default=True)
+    parser.add_argument("--training_dataset_count", type=int, help="Number of problems present in the training dataset. Default: 10", default=10)
+    args = parser.parse_args()
 
-ompl_wrapper = OMPL_Wrapper(map_filename, map_resolution,
-                 footprint, robot_radius, turning_radius,
-                 dist_between_points, planner_type, experience_db_name,
-                 is_holonomic_robot, training_dataset)
+    root_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../")
+    map_filepath = os.path.abspath(root_dir + "/maps/" + args.map_filename)
+    footprint = np.array([[-1.0,0.5],
+                        [1.0,0.5],
+                        [1.0,-0.5],
+                        [-1.0,-0.5]])
+    experience_db_name = os.path.splitext(args.map_filename)[0]
+    training_dataset = os.path.abspath(root_dir + "/generated/trainingData/" + experience_db_name + args.training_dataset_count + "Problems.txt")
 
-# ompl_wrapper.invoke([47, 3, 0.028546782479839994], [170, 89, -2.7531840840671546])
-ompl_wrapper.start_training()
+    ompl_wrapper = OMPL_Wrapper(map_filepath,
+                    footprint, args.robot_radius, args.turning_radius,
+                    args.dist_between_points, args.planner_type, experience_db_name,
+                    args.is_holonomic_robot, training_dataset)
+
+    ompl_wrapper.start_training()

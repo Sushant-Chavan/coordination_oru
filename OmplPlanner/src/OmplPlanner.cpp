@@ -66,28 +66,6 @@ og::SimpleSetup *getPlanningSetup(PLANNER_TYPE type, ob::StateSpacePtr space,
     return ssPtr;
 }
 
-extern "C" void testFunc(const char * name, double *yCoords, int numCoords,
-                           PathPose **path, int* size, PLANNER_TYPE plannerType)
-{
-    std::cout << "Hello " << std::string(name) << std::endl;
-
-    for (int i = 0; i < numCoords; i++)
-        std::cout << yCoords[i] << std::endl;
-
-    std::cout << "Planner type: " << plannerType << std::endl;
-
-    int pathLength = 5;
-    *size = pathLength;
-    *path = (PathPose *)malloc(sizeof(PathPose) * pathLength);
-    memset(*path, 0, sizeof(PathPose) * pathLength);
-
-    for (unsigned i = 0; i < pathLength; i++) {
-        (*path)[i].x = i;
-        (*path)[i].y = i*10.0;
-        (*path)[i].theta = i * 100.0;
-    }
-}
-
 extern "C" bool
 plan_multiple_circles(const char *mapFilename, double mapResolution,
                       double robotRadius, double *xCoords, double *yCoords,
