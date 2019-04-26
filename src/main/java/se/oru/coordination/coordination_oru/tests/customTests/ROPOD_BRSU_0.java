@@ -99,7 +99,7 @@ public class ROPOD_BRSU_0 {
 		tec.setupSolver(0, 100000000);
 
 		//Setup a simple GUI (null means empty map, otherwise provide yaml file)
-		String yamlFile = "maps/brsu_map_floor_0.yaml";
+		String yamlFile = "maps/BRSU_Floor0.yaml";
 		//JTSDrawingPanelVisualization viz = new JTSDrawingPanelVisualization();
 		//viz.setMap(yamlFile);
 		RVizVisualization viz = new RVizVisualization();
@@ -114,7 +114,7 @@ public class ROPOD_BRSU_0 {
         tec.setBreakDeadlocks(true);
         tec.setQuiet(true);
 		
-		Missions.loadLocationAndPathData("missions/ROPOD_BRSU.txt");
+		Missions.loadLocationAndPathData("missions/BRSU_Floor0.txt");
 
 		//MetaCSPLogging.setLevel(tec.getClass().getSuperclass(), Level.FINEST);
 
