@@ -125,7 +125,8 @@ public class ROPOD_BRSU_0 {
 		rsp.setRadius(0.1);
 		rsp.setFootprint(tec.getDefaultFootprint());
 		rsp.setTurningRadius(4.0);
-		rsp.setDistanceBetweenPathPoints(0.3);
+        rsp.setDistanceBetweenPathPoints(0.3);
+        rsp.setHolonomicRobot(true); // ROPOD Robots are holonomic
 		
 		//In case deadlocks occur, we make the coordinator capable of re-planning on the fly (experimental, not working properly yet)
 		tec.setMotionPlanner(rsp);
