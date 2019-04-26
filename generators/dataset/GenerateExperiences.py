@@ -5,8 +5,10 @@ from ctypes import *
 import numpy as np
 import os
 import sys
-lib = 'libomplMotionPlanner.so'
-dll = cdll.LoadLibrary(lib)
+import pandas as pd
+
+# lib = 'libomplMotionPlanner.so'
+# dll = cdll.LoadLibrary(lib)
 
 # Defining a class to receive the array of poses from the shared libarary
 class PathPose(Structure):
@@ -41,7 +43,8 @@ class OMPL_Wrapper():
     def __init__(self, map_filename, map_resolution,
                  robot_footprint, robot_radius, turning_radius,
                  dist_between_points, planner_type, experience_db_name,
-                 is_holonomic_robot, libname = 'libomplMotionPlanner.so'):
+                 is_holonomic_robot, training_data_file_name,
+                 libname = 'libomplMotionPlanner.so'):
         self.map_filename = map_filename.encode(encoding='utf-8')
         self.map_resolution = c_double(map_resolution)
         self.robot_radius = c_double(robot_radius)
@@ -53,6 +56,16 @@ class OMPL_Wrapper():
 
         self.generate_collision_centers(robot_footprint)
         self.load_shared_library(libname)
+        self.load_training_dataset(training_data_file_name)
+
+    def load_training_dataset(self, training_data_filename):
+        df = pd.read_csv(training_data_filename, header=None, sep='\t', usecols=[1,2,3])
+        data = df.values
+        nProblems = int(data.shape[0]/2)
+        self.start_training_poses = data[:nProblems, :]
+        self.goal_training_poses = data[nProblems:, :]
+        print(self.start_training_poses)
+        print(self.goal_training_poses)
 
     def generate_collision_centers(self, robot_footprint):
         xCoords = []
@@ -107,13 +120,19 @@ class OMPL_Wrapper():
                                         self.turning_radius, self.planner_type, self.experience_db_name,
                                         False, self.is_holonomic_robot)
 
+    def start_training(self):
+        print("\n============ Starting Training ============")
+        for p_idx in range(self.start_training_poses.shape[0]):
+            print("\n----------- Problem", p_idx , "-----------")
+            self.invoke(self.start_training_poses[p_idx], self.goal_training_poses[p_idx])
+        print("\n============ Training Complete ============")
 
 root_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../")
-map_filename = "map1.png"
+map_filename = "test-uni.png"
 robot_radius = 10
 
 map_filename = os.path.abspath(root_dir + "/maps/" + map_filename)
-map_resolution = 1.0
+map_resolution = 0.1
 footprint = np.array([[-1.0,0.5],
                       [1.0,0.5],
                       [1.0,-0.5],
@@ -122,12 +141,14 @@ robot_radius = 1.0
 turning_radius = 1.0
 dist_between_points = 0.5
 planner_type = 1
-experience_db_name = "map1"
+experience_db_name = "test-uni"
 is_holonomic_robot = True
+training_dataset = os.path.abspath(root_dir + "/generated/trainingData/" + experience_db_name + "-100Problems.txt")
 
 ompl_wrapper = OMPL_Wrapper(map_filename, map_resolution,
                  footprint, robot_radius, turning_radius,
                  dist_between_points, planner_type, experience_db_name,
-                 is_holonomic_robot)
+                 is_holonomic_robot, training_dataset)
 
-ompl_wrapper.invoke([722.0, 432.0, -0.06940318744781715], [564.0, 565.0, -0.3667634555408852])
+# ompl_wrapper.invoke([47, 3, 0.028546782479839994], [170, 89, -2.7531840840671546])
+ompl_wrapper.start_training()
