@@ -24,8 +24,10 @@ dArr = DoublesAray(0.0, 0.1, 0.2, 0.3, 0.4)
 mem = POINTER(PathPose)()
 size = c_int(0)
 
+name = "Sushant"
+
 # Calling the function
-dll.testFunc(b"Sushant", dArr, nDoubles, byref(mem), byref(size), 1)
+dll.testFunc(name.encode(encoding='utf-8'), dArr, nDoubles, byref(mem), byref(size), 1)
 
 print("Path length: ", size.value)
 print("PathPoses:")
