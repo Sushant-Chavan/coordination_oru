@@ -92,7 +92,12 @@ class DatasetGenerator():
         self.samples[:,1] = np.random.randint(0, self.img_height, self.samples.shape[0])
         self.samples[:,2] = np.random.uniform(-np.pi, np.pi, self.samples.shape[0])
         self.discard_invalid_samples(nSamples)
-        
+
+        # Set the resolution
+        print("Before resolution: ", self.samples[0])
+        self.samples[:, 0:2] = self.samples[:, 0:2] * self.resolution
+        print("After resolution: ", self.samples[0])
+
         print("Discarded", nSamples - self.samples.shape[0], "samples as they were on/close to obstacles")
 
     def generate_problem_scenarios(self):
@@ -127,6 +132,8 @@ class DatasetGenerator():
             file_path = self.root_dir + "/generated/trainingData/" + self.map_name +\
                     "-" + str(self.problems.shape[0]) + "Problems.txt"
 
+        height = self.img_height * self.resolution
+
         nProblems = self.problems.shape[0]
         pose_names = ["Start_" + str(i) for i in range(nProblems)]
         pose_names.extend(["Goal_" + str(i) for i in range(nProblems)])
@@ -138,11 +145,11 @@ class DatasetGenerator():
         goal_sample_poses = self.samples[goal_pose_ids, :]
 
         x_pos = start_sample_poses[:, 0].astype(int).tolist()
-        y_pos = (self.img_height - start_sample_poses[:, 1]).astype(int).tolist()
+        y_pos = (height - start_sample_poses[:, 1]).astype(int).tolist()
         theta = start_sample_poses[:, 2].astype(float).tolist()
 
         x_pos.extend(goal_sample_poses[:, 0].astype(int).tolist())
-        y_pos.extend((self.img_height - goal_sample_poses[:, 1]).astype(int).tolist())
+        y_pos.extend((height - goal_sample_poses[:, 1]).astype(int).tolist())
         theta.extend(goal_sample_poses[:, 2].astype(float).tolist())
 
         df = pd.DataFrame(data={'Pose_Name':pose_names, 'X':x_pos, 'Y':y_pos, 'T':theta})
@@ -164,6 +171,7 @@ class DatasetGenerator():
             poses = self.samples
 
         thetas = poses[:, 2]
+        poses = poses / self.resolution
 
         # plot each individual poses as a point
         ax.scatter(poses[:, 0], poses[:,1], s=self.robot_radius/2.0)
@@ -178,8 +186,8 @@ class DatasetGenerator():
         for p in self.problems:
             start = self.samples[p[0]]
             goal = self.samples[p[1]]
-            x = [start[0], goal[0]]
-            y = [start[1], goal[1]]
+            x = np.array([start[0], goal[0]]) / self.resolution
+            y = np.array([start[1], goal[1]]) / self.resolution
             plt.plot(x, y)
 
     def save_debug_map(self, file_path=None):
