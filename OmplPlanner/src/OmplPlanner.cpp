@@ -32,6 +32,12 @@ enum PLANNER_TYPE {
     EXPERIENCE_THUNDER
 };
 
+enum MODE {
+    NORMAL = 0,
+    REPLANNING,
+    EXPERIENCE_GENERATION
+};
+
 og::SimpleSetup *getPlanningSetup(PLANNER_TYPE type, ob::StateSpacePtr space,
                                   std::string mapFilename)
 {
@@ -74,10 +80,11 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
                       double goalTheta, PathPose **path, int *pathLength,
                       double distanceBetweenPathPoints, double turningRadius,
                       PLANNER_TYPE plannerType, const char *experienceDBName,
-                      bool isReplan, bool isHolonomicRobot)
+                      MODE mode, bool isHolonomicRobot)
 {
     double pLen = 0.0;
     int numInterpolationPoints = 0;
+    bool isReplan = (mode == MODE::REPLANNING);
 
     ob::StateSpacePtr space =
         isHolonomicRobot
@@ -135,8 +142,11 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
         ompl::base::PlannerPtr repairPlanner(new og::RRTConnect(si));
         ePtr->setRepairPlanner(repairPlanner);
 
-        // Disable planning from recall if we are replanning
-        // ePtr->enablePlanningFromRecall(false);
+        // Disable planning from recall if we are generating experiences
+        if (mode == MODE::EXPERIENCE_GENERATION)
+        {
+            ePtr->enablePlanningFromRecall(false);
+        }
     }
 
     // set the start and goal states
@@ -201,11 +211,12 @@ extern "C" bool plan_multiple_circles_nomap(
     double startY, double startTheta, double goalX, double goalY,
     double goalTheta, PathPose **path, int *pathLength,
     double distanceBetweenPathPoints, double turningRadius,
-    PLANNER_TYPE plannerType, bool isReplan, bool isHolonomicRobot)
+    PLANNER_TYPE plannerType, MODE mode, bool isHolonomicRobot)
 {
 
     double pLen = 0.0;
     int numInterpolationPoints = 0;
+    bool isReplan = (mode == MODE::REPLANNING);
 
     ob::StateSpacePtr space =
         isHolonomicRobot
@@ -257,9 +268,11 @@ extern "C" bool plan_multiple_circles_nomap(
         ompl::base::PlannerPtr repairPlanner(new og::RRTConnect(si));
         ePtr->setRepairPlanner(repairPlanner);
 
-        // Disable planning from recall if we are replanning (i.e. RRTConnect
-        // planner is forced to be used)
-        // ePtr->enablePlanningFromRecall(false);
+        // Disable planning from recall if we are generating experiences
+        if (mode == MODE::EXPERIENCE_GENERATION)
+        {
+            ePtr->enablePlanningFromRecall(false);
+        }
     }
 
     // set the start and goal states
