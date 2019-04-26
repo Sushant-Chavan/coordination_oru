@@ -7,6 +7,7 @@ import os
 import sys
 import pandas as pd
 import yaml
+import argparse
 
 # A class to receive the array of poses from the shared libarary
 class PathPose(Structure):
@@ -57,8 +58,6 @@ class OMPL_Wrapper():
         self.goal_training_poses = np.delete(self.goal_training_poses, (64), axis=0)
         self.start_training_poses = np.delete(self.start_training_poses, (55), axis=0)
         self.goal_training_poses = np.delete(self.goal_training_poses, (55), axis=0)
-        print(self.start_training_poses)
-        print(self.goal_training_poses)
 
     def generate_collision_centers(self, robot_footprint):
         xCoords = []
@@ -140,7 +139,7 @@ def main():
                         [1.0,-0.5],
                         [-1.0,-0.5]])
     experience_db_name = os.path.splitext(args.map_filename)[0]
-    training_dataset = os.path.abspath(root_dir + "/generated/trainingData/" + experience_db_name + args.training_dataset_count + "Problems.txt")
+    training_dataset = os.path.abspath(root_dir + "/generated/trainingData/" + experience_db_name + "-" + str(args.training_dataset_count) + "Problems.txt")
 
     ompl_wrapper = OMPL_Wrapper(map_filepath,
                     footprint, args.robot_radius, args.turning_radius,
@@ -148,3 +147,6 @@ def main():
                     args.is_holonomic_robot, training_dataset)
 
     ompl_wrapper.start_training()
+
+if __name__ == "__main__":
+    main()
