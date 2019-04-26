@@ -17,7 +17,7 @@ import se.oru.coordination.coordination_oru.Mission;
 import se.oru.coordination.coordination_oru.RobotAtCriticalSection;
 import se.oru.coordination.coordination_oru.RobotReport;
 import se.oru.coordination.coordination_oru.demo.DemoDescription;
-import se.oru.coordination.coordination_oru.motionplanning.ompl.ReedsSheppCarPlanner;
+import se.oru.coordination.coordination_oru.motionplanning.ompl.OMPLPlanner;
 import se.oru.coordination.coordination_oru.simulation2D.TrajectoryEnvelopeCoordinatorSimulation;
 import se.oru.coordination.coordination_oru.util.BrowserVisualization;
 import se.oru.coordination.coordination_oru.util.Missions;
@@ -119,17 +119,17 @@ public class University {
 		//MetaCSPLogging.setLevel(tec.getClass().getSuperclass(), Level.FINEST);
 
 		//Instantiate a simple motion planner
-		ReedsSheppCarPlanner rsp = new ReedsSheppCarPlanner();
-		rsp.setMapFilename("maps"+File.separator+Missions.getProperty("image", yamlFile));
+		OMPLPlanner omplPlanner = new OMPLPlanner();
+		omplPlanner.setMapFilename("maps"+File.separator+Missions.getProperty("image", yamlFile));
 		double res = Double.parseDouble(Missions.getProperty("resolution", yamlFile));
-		rsp.setMapResolution(res);
-		rsp.setRadius(0.1);
-		rsp.setFootprint(tec.getDefaultFootprint());
-		rsp.setTurningRadius(4.0);
-		rsp.setDistanceBetweenPathPoints(0.3);
+		omplPlanner.setMapResolution(res);
+		omplPlanner.setRadius(0.1);
+		omplPlanner.setFootprint(tec.getDefaultFootprint());
+		omplPlanner.setTurningRadius(4.0);
+		omplPlanner.setDistanceBetweenPathPoints(0.3);
 		
 		//In case deadlocks occur, we make the coordinator capable of re-planning on the fly (experimental, not working properly yet)
-		tec.setMotionPlanner(rsp);
+		tec.setMotionPlanner(omplPlanner);
 		
 		boolean cachePaths = false;
 		String outputDir = "paths";
@@ -186,11 +186,11 @@ public class University {
 			PoseSteering[] pathInv = null;
 			File f = new File(pathFilename);
 			if(!cachePaths || (cachePaths && !f.exists())) { 
-				rsp.setStart(startLoc);
-				rsp.setGoals(endLoc);
-				rsp.plan();
-				path = rsp.getPath();
-				pathInv = rsp.getPathInv();
+				omplPlanner.setStart(startLoc);
+				omplPlanner.setGoals(endLoc);
+				omplPlanner.plan();
+				path = omplPlanner.getPath();
+				pathInv = omplPlanner.getPathInv();
 				if (cachePaths) {
 					Missions.writePath(pathFilename, path);
 					Missions.writePath(pathFilenameInv, pathInv);
