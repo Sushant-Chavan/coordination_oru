@@ -38,6 +38,11 @@ enum MODE {
     EXPERIENCE_GENERATION
 };
 
+extern "C" void cleanupPath(PathPose* path) {
+  std::cout << "Cleaning up memory.." << std::endl;
+  free(path);
+}
+
 og::SimpleSetup *getPlanningSetup(PLANNER_TYPE type, ob::StateSpacePtr space,
                                   std::string mapFilename)
 {
