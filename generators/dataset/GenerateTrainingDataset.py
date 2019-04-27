@@ -102,6 +102,12 @@ class DatasetGenerator():
 
     def generate_problem_scenarios(self):
         nSamples = self.samples.shape[0]
+
+        if nSamples < (self.nProblems * 2):
+            print("Insufficient number of samples generated! Min number of samples = 2 * nProblems")
+            print("Try increasing the oversampling factor to generate more samples")
+            return False
+
         used_samples = np.full((1, nSamples), False)
 
         self.problems = np.zeros((self.nProblems, 2))
@@ -124,6 +130,7 @@ class DatasetGenerator():
             self.problems[p_idx, 1] = goal
 
         self.problems = self.problems.astype(int)
+        return True
 
     def save_dataset_to_file(self, file_path=None):
         print("\nSaving dataset to a file...")
@@ -144,12 +151,12 @@ class DatasetGenerator():
         start_sample_poses = self.samples[start_pose_ids, :]
         goal_sample_poses = self.samples[goal_pose_ids, :]
 
-        x_pos = start_sample_poses[:, 0].astype(int).tolist()
-        y_pos = (height - start_sample_poses[:, 1]).astype(int).tolist()
+        x_pos = start_sample_poses[:, 0].astype(float).tolist()
+        y_pos = (height - start_sample_poses[:, 1]).astype(float).tolist()
         theta = start_sample_poses[:, 2].astype(float).tolist()
 
-        x_pos.extend(goal_sample_poses[:, 0].astype(int).tolist())
-        y_pos.extend((height - goal_sample_poses[:, 1]).astype(int).tolist())
+        x_pos.extend(goal_sample_poses[:, 0].astype(float).tolist())
+        y_pos.extend((height - goal_sample_poses[:, 1]).astype(float).tolist())
         theta.extend(goal_sample_poses[:, 2].astype(float).tolist())
 
         df = pd.DataFrame(data={'Pose_Name':pose_names, 'X':x_pos, 'Y':y_pos, 'T':theta})
@@ -222,7 +229,9 @@ class DatasetGenerator():
             print("Successfully generated", self.samples.shape[0], "samples")
 
             print("\nGenerating", self.nProblems, "unique problems from generated samples...")
-            self.generate_problem_scenarios()
+            success = self.generate_problem_scenarios()
+            if not success:
+                return
             print("Successfully generated", self.problems.shape[0], "problems")
             print("================================================")
 

@@ -115,7 +115,7 @@ public class OMPLPlanner extends AbstractMotionPlanner {
 	@Override
 	public boolean doPlanning() {
         ArrayList<PoseSteering> finalPath = new ArrayList<PoseSteering>();  
-        PLANNER_TYPE plannerType = PLANNER_TYPE.THUNDER;
+        PLANNER_TYPE plannerType = PLANNER_TYPE.LIGHTNING;
         String experienceDBName = this.getOriginalFilename();
         int mode = this.isReplan ? 1 : 0;
 		for (int i = 0; i < this.goal.length; i++) {
