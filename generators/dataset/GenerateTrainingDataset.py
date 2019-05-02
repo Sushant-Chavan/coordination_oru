@@ -295,6 +295,7 @@ def main():
     parser.add_argument("--nProblems", required=True, nargs="*", type=int, help="Number of training problems to be generated (ex. 10 100 1000)", default=[100])
     parser.add_argument("--robot_radius", type=int, help="Radius of the robot (in pixels) to be used for collision detection", default=10)
     parser.add_argument("--dbg_image", type=bool, help="Generate a debug image to visualize generated dataset (Disabled by default)", default=False)
+    parser.add_argument("--use_hotspots", type=bool, help="Flag to activate use of hotspots for dataset generation (Disabled by default)", default=False)
     args = parser.parse_args()
 
     data_gen = DatasetGenerator(args)
