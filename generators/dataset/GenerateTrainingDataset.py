@@ -87,10 +87,10 @@ class DatasetGenerator():
 
         return collides_with_obstacle
 
-    def discard_invalid_samples(self, maxNumSamples):
+    def discard_samples_near_obstacle(self, samples, maxNumSamples):
         filtered_sample_indices = []
-        for s_id in range(self.samples.shape[0]):
-            pos = self.samples[s_id]
+        for s_id in range(samples.shape[0]):
+            pos = samples[s_id]
             # Check if point lies on the obstacles
             if np.linalg.norm(self.get_color_vector(pos)) > 0.0:
                 # Check if point is close to the obstacle
@@ -103,9 +103,19 @@ class DatasetGenerator():
                     if len(filtered_sample_indices) >= maxNumSamples:
                         break
 
-        self.samples = self.samples[filtered_sample_indices,:]
+        return samples[filtered_sample_indices,:]
 
-    def generate_samples(self, nSamples):
+    def discard_outside_map_samples(self, samples):
+        filtered_sample_indices = []
+        for s_id in range(samples.shape[0]):
+            pos = samples[s_id]
+            if (pos[0] > 0) and (pos[0] < self.img_width) and \
+               (pos[1] > 0) and (pos[1] < self.img_height):
+                filtered_sample_indices.append(s_id)
+
+        return samples[filtered_sample_indices,:]
+
+    def generate_random_samples(self, nSamples):
         # Oversample to account for samples that will discarded due to obstacles
         sampleSize = nSamples * 4
 
@@ -113,12 +123,52 @@ class DatasetGenerator():
         self.samples[:,0] = np.random.randint(0, self.img_width, self.samples.shape[0])
         self.samples[:,1] = np.random.randint(0, self.img_height, self.samples.shape[0])
         self.samples[:,2] = np.random.uniform(-np.pi, np.pi, self.samples.shape[0])
-        self.discard_invalid_samples(nSamples)
+        self.samples = self.discard_samples_near_obstacle(self.samples, nSamples)
 
         # Set the resolution
-        print("Before resolution: ", self.samples[0])
         self.samples[:, 0:2] = self.samples[:, 0:2] * self.resolution
-        print("After resolution: ", self.samples[0])
+
+        print("Discarded", nSamples - self.samples.shape[0], "samples as they were on/close to obstacles")
+
+    def get_bivariate_samples(self, nSamples, mean, cov):
+        samples = None
+        while (samples is None) or (samples.shape[0] < nSamples):
+            requiredSamples = nSamples if samples is None else (nSamples - samples.shape[0])
+            # Oversample to account for samples that will discarded due to obstacles
+            overSampledSize = requiredSamples * 4
+            newSamples = np.zeros((overSampledSize, 3))
+            newSamples[:, 0:2] = np.random.multivariate_normal(mean, cov, overSampledSize)
+            newSamples[:,2] = np.random.uniform(-np.pi, np.pi, overSampledSize)
+            newSamples = self.discard_outside_map_samples(newSamples)
+            newSamples = self.discard_samples_near_obstacle(newSamples, requiredSamples)
+            if samples is None:
+                samples = newSamples
+            else:
+                samples = np.vstack((samples, newSamples))
+
+        assert(samples.shape[0] == nSamples)
+        return samples
+
+    def generate_focussed_samples(self, nSamples):
+        # Ensure that the number of means and covariances is same
+        nMeans = self.hotspot_means.shape[0]
+        nCov = self.hotspot_covs.shape[0]
+        assert(nMeans == nCov)
+
+        # Divide all samples equallly among the different hotspot centers
+        sampleSize = int(float(nSamples) / nMeans)
+
+        for i in range(nMeans):
+            size = sampleSize if (i != (nMeans-1)) else (nSamples - (sampleSize * (nMeans - 1)))
+            newSamples = self.get_bivariate_samples(size, self.hotspot_means[i], self.hotspot_covs[i])
+            if self.samples is None:
+                self.samples = newSamples
+            else:
+                self.samples = np.vstack((self.samples, newSamples))
+            print("\tGenerated", newSamples.shape[0], "samples for hotspot", i+1, "of", nMeans)
+
+        # Set the resolution
+        self.samples[:, 0:2] = self.samples[:, 0:2] * self.resolution
 
         print("Discarded", nSamples - self.samples.shape[0], "samples as they were on/close to obstacles")
 
@@ -274,8 +324,12 @@ class DatasetGenerator():
             oversamplingFactor = 2
             nSamples = self.nProblems * 2 * oversamplingFactor
 
-            print("Generating", nSamples, "samples (with oversampling factor of", oversamplingFactor, ")...")
-            self.generate_samples(nSamples)
+            if self.hotspot_means is not None:
+                print("Generating", nSamples, "samples (with oversampling factor of", oversamplingFactor, ") at the hotspots...")
+                self.generate_focussed_samples(nSamples)
+            else:
+                print("Generating", nSamples, "samples (with oversampling factor of", oversamplingFactor, ") uniformly over the map...")
+                self.generate_random_samples(nSamples)
             print("Successfully generated", self.samples.shape[0], "samples")
 
             print("\nGenerating", self.nProblems, "unique problems from generated samples...")
