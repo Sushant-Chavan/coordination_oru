@@ -119,10 +119,12 @@ for a list of all provided examples and instructions on how to run them (and/or 
 The Experience based planning update to the coordination framework allows for storing the previous planning experiences into a database and reuse them during future planning.
 
 ### Updates:
-* Currently the Lightning and Thunder frameworks provided by OMPL have been implemented for the ReedsSheppCarPlanner.
-* Two new test cases have been added to simulate a narrow corridor and H-BRS university layout.
+* Currently the Lightning and Thunder frameworks provided by OMPL have been implemented in the ```OmplPlanner``` package.
+* Many new test cases have been added to test the frameworks in the BRSU and Agaplesion hospital scenarios
 * The RViz visualization has been fixed to show the map published on the /map topic
 * A graph visualization tool has been developed to display the experiences stored in the databases
+* A script has been added to automatically generate training dataset to bootstrap the planning frameworks with prior experiences
+* A script has been added to train the frameworks using the training datasets
 
 ### Dependencies:
 * **OMPL 1.4.2** - Installation instructions can be found <a href="http://ompl.kavrakilab.org/installation.html">here</a>. Generation of python bindings takes a lot of time (several hours). Since we do not need python bindings, install OMPL without bindings for faster build.
@@ -170,18 +172,18 @@ python3 graphml_generator/PlotDatabase.py --map_image_filename=test-uni.png
 ```
 
 ### Switching between different frameworks:
-* The switch between Simple, Lightning and Thunder frameworks can be done by choosing the desired plannerType in the function ```doPlanning()``` in [ReedsSheppCarPlanner.java](src/main/java/se/oru/coordination/coordination_oru/motionplanning/ompl/ReedsSheppCarPlanner.java)
+* The switch between Simple, Lightning and Thunder frameworks can be done by choosing the desired plannerType in the function ```doPlanning()``` in [OMPLPlanner.java](src/main/java/se/oru/coordination/coordination_oru/motionplanning/ompl/OMPLPlanner.java)
 * To plot the Thunder databases, the plotting script needs additional paramaters. For example for the university test case, the script should be called as follows after the thunder database has been generated:
 ```
 python3 graphml_generator/PlotDatabase.py --map_image_filename=test-uni.png --is_thunder_db
 ```
 
-### Choosing a different planning algorithm in ReedsSheepCarPlanner
-It is possible to use different planning algorithms instead of the default RRT-Connect alogorithm used by the ReedsSheepCarPlanner. For example to switch to the RRT-Star planning algorithm, change the lines containing ```ob::PlannerPtr planner(new og::RRTConnect(si));``` to ```ob::PlannerPtr planner(new og::RRTstar(si));``` in the file [MultipleCircleReedsSheppCarPlanner.cpp](SimpleReedsSheppCarPlanner/src/MultipleCircleReedsSheppCarPlanner.cpp)
+### Choosing a different planning algorithm in OMPLPlanner
+It is possible to use different planning algorithms instead of the default RRT-Connect alogorithm used by the OMPLPlanner. For example to switch to the RRT-Star planning algorithm, change the lines containing ```ob::PlannerPtr planner(new og::RRTConnect(si));``` to ```ob::PlannerPtr planner(new og::RRTstar(si));``` in the file [OmplPlanner.cpp](OmplPlanner/src/OmplPlanner.cpp)
 
-Then recompile and install the updated ReedsShepp planning library using the below commands:
+Then recompile and install the OMPL planning library using the below commands:
 ```
-cd SimpleReedsSheppCarPlanner/
+cd OmplPlanner/
 mkdir build
 cd build/
 rm -rf * && cmake .. && make && sudo make install && sudo ldconfig
