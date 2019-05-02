@@ -9,6 +9,7 @@ import glob
 import subprocess
 import sys
 import os
+import yaml
 
 def get_node_list(graph):
     return sorted(list(graph.nodes))
@@ -33,7 +34,7 @@ def get_node_data(graph):
             data = np.vstack((data, get_node_data_as_list(graph, n)))
     return data
 
-def plot_Thunder_graph(graph_path, map_filename, output_filename, output_format):
+def plot_Thunder_graph(graph_path, map_filename, output_filename, output_format, resolution_multiplier=10):
     img = plt.imread(map_filename)
     img_height = img.shape[0]
     img_width = img.shape[1]
@@ -51,26 +52,26 @@ def plot_Thunder_graph(graph_path, map_filename, output_filename, output_format)
         # Discard the theta values
         nodes = nodes[:, 0:2]
 
-        ax.scatter(nodes[:,0] * 10, img_height - (nodes[:,1] * 10))
+        ax.scatter(nodes[:,0] * resolution_multiplier, img_height - (nodes[:,1] * resolution_multiplier))
 
         node_list = get_node_list(graph)
         node_ids_map = {}
         for i in range(len(node_list)):
             node_ids_map[node_list[i]] = i
-            ax.text(nodes[i,0] * 10, img_height - (nodes[i,1] * 10), node_list[i])
+            ax.text(nodes[i,0] * resolution_multiplier, img_height - (nodes[i,1] * resolution_multiplier), node_list[i])
 
         for e in edges:
             start = node_ids_map[e[0]]
             end = node_ids_map[e[1]]
 
-            x = np.array([nodes[start,0], nodes[end,0]]) * 10
-            y = img_height - np.array([nodes[start,1], nodes[end,1]]) * 10
+            x = np.array([nodes[start,0], nodes[end,0]]) * resolution_multiplier
+            y = img_height - np.array([nodes[start,1], nodes[end,1]]) * resolution_multiplier
 
             ax.plot(x, y)
 
     plt.savefig(output_filename, format=output_format)
 
-def plot_Lightning_graph(graph_path, map_filename, output_filename, output_format):
+def plot_Lightning_graph(graph_path, map_filename, output_filename, output_format, resolution_multiplier=10):
     img = plt.imread(map_filename)
     img_height = img.shape[0]
     img_width = img.shape[1]
@@ -86,13 +87,13 @@ def plot_Lightning_graph(graph_path, map_filename, output_filename, output_forma
 
         nodes = nodes[:, 0:2]
 
-        ax.scatter(nodes[:,0] * 10, img_height - (nodes[:,1] * 10))
-        ax.plot(nodes[:,0] * 10, img_height - (nodes[:,1] * 10))
+        ax.scatter(nodes[:,0] * resolution_multiplier, img_height - (nodes[:,1] * resolution_multiplier))
+        ax.plot(nodes[:,0] * resolution_multiplier, img_height - (nodes[:,1] * resolution_multiplier))
 
         # Render node ID's
         # node_list = get_node_list(graph)
         # for i in range(len(node_list)):
-        #     ax.text(nodes[i,0] * 10, img_height - (nodes[i,1] * 10), node_list[i])
+        #     ax.text(nodes[i,0] * resolution_multiplier, img_height - (nodes[i,1] * resolution_multiplier), node_list[i])
 
     plt.savefig(output_filename, format=output_format)
 
@@ -108,6 +109,16 @@ def get_plot_filepath(user_output_filename, map_image_filename, is_thunder, root
     plot_file_path = os.path.abspath(root_dir + "/../generated/plots/" + plot_filename)
     return plot_file_path
 
+def get_YAML_data(filepath):
+    data = None
+    with open(filepath, 'r') as stream:
+        try:
+            data = yaml.safe_load(stream)
+            print("Loaded YAML data from file", filepath)
+        except yaml.YAMLError as exc:
+            print(exc)
+    return data
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--experience_db_filename", help="Filename of the experience database file (ex. thunder.db)")
@@ -116,7 +127,6 @@ def main():
     parser.add_argument("--is_thunder_db", help="Set this if plotting Thunder DB", action="store_true", default=False)
     parser.add_argument("--output_format", help="Fileformat (default svg) for output image (png/svg).", default='svg')
     parser.add_argument("--turning_radius", help="Turning Radius of the ReedsShep cars", default=4.0)
-    parser.add_argument("--map_resolution", help="Map_resolution", default=0.1)
     args = parser.parse_args()
 
     dir_name, _ = os.path.split(os.path.abspath(sys.argv[0]))
@@ -126,7 +136,8 @@ def main():
     is_thunder = args.is_thunder_db
     experience_db_path = get_experience_db_path(args.experience_db_filename, args.map_image_filename, is_thunder, dir_name)
     map_file_path = os.path.abspath(dir_name + "/../maps/" + args.map_image_filename)
-    map_resolution = args.map_resolution
+    yaml_file_path = os.path.splitext(map_file_path)[0] + ".yaml"
+    resolution_multiplier = float(1.0/get_YAML_data(yaml_file_path)['resolution'])
 
     plot_file_path = get_plot_filepath(args.output_filename, args.map_image_filename, is_thunder, dir_name)
 
@@ -144,14 +155,14 @@ def main():
                      '1' if is_thunder else "0",
                      experience_db_path,
                      map_file_path,
-                     str(map_resolution),
+                     str(resolution_multiplier),
                      graph_files_output_dir])
 
     print("\nPlotting the Graphml file contents onto the map")
     if is_thunder:
-        plot_Thunder_graph(graph_files_output_dir + "/", map_file_path, plot_file_path, plot_output_format)
+        plot_Thunder_graph(graph_files_output_dir + "/", map_file_path, plot_file_path, plot_output_format, resolution_multiplier)
     else:
-        plot_Lightning_graph(graph_files_output_dir + "/", map_file_path, plot_file_path, plot_output_format)
+        plot_Lightning_graph(graph_files_output_dir + "/", map_file_path, plot_file_path, plot_output_format, resolution_multiplier)
 
     print("Plot successfully generated and can be found at:\n", plot_file_path)
 

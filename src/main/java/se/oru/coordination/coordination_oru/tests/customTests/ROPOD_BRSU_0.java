@@ -24,7 +24,7 @@ import se.oru.coordination.coordination_oru.util.Missions;
 import se.oru.coordination.coordination_oru.util.RVizVisualization;
 
 @DemoDescription(desc = "Robots trying to move between two openspaces connected by narrow corridor.")
-public class NarrowCorridor {
+public class ROPOD_BRSU_0 {
 
 	private static boolean deleteDir(File dir) {
 	    if (dir.isDirectory()) {
@@ -89,17 +89,17 @@ public class NarrowCorridor {
 			}
 		});
 
-		Coordinate footprint1 = new Coordinate(-1.0,0.5);
-		Coordinate footprint2 = new Coordinate(1.0,0.5);
-		Coordinate footprint3 = new Coordinate(1.0,-0.5);
-		Coordinate footprint4 = new Coordinate(-1.0,-0.5);
+		Coordinate footprint1 = new Coordinate(-0.25,0.25);
+		Coordinate footprint2 = new Coordinate(0.25,0.25);
+		Coordinate footprint3 = new Coordinate(0.25,-0.25);
+		Coordinate footprint4 = new Coordinate(-0.25,-0.25);
 		tec.setDefaultFootprint(footprint1, footprint2, footprint3, footprint4);
 
 		//Need to setup infrastructure that maintains the representation
 		tec.setupSolver(0, 100000000);
 
 		//Setup a simple GUI (null means empty map, otherwise provide yaml file)
-		String yamlFile = "maps/test-map.yaml";
+		String yamlFile = "maps/BRSU_Floor0.yaml";
 		//JTSDrawingPanelVisualization viz = new JTSDrawingPanelVisualization();
 		//viz.setMap(yamlFile);
 		RVizVisualization viz = new RVizVisualization();
@@ -114,7 +114,7 @@ public class NarrowCorridor {
         tec.setBreakDeadlocks(true);
         tec.setQuiet(true);
 		
-		Missions.loadLocationAndPathData("missions/narrow_corridor_locations.txt");
+		Missions.loadLocationAndPathData("missions/BRSU_Floor0.txt");
 
 		//MetaCSPLogging.setLevel(tec.getClass().getSuperclass(), Level.FINEST);
 
@@ -126,7 +126,8 @@ public class NarrowCorridor {
 		omplPlanner.setRadius(0.1);
 		omplPlanner.setFootprint(tec.getDefaultFootprint());
 		omplPlanner.setTurningRadius(4.0);
-		omplPlanner.setDistanceBetweenPathPoints(0.3);
+        omplPlanner.setDistanceBetweenPathPoints(0.3);
+        omplPlanner.setHolonomicRobot(true); // ROPOD Robots are holonomic
 		
 		//In case deadlocks occur, we make the coordinator capable of re-planning on the fly (experimental, not working properly yet)
 		tec.setMotionPlanner(omplPlanner);
@@ -142,17 +143,13 @@ public class NarrowCorridor {
         int numOfRobotsPerSide = 5;
 		int[] robotIDs = new int[] {1,2,3,4,5, 6, 7, 8, 9, 10};
 		int locationCounter = 0;
-		//int[] robotIDs = new int[] {1,2};
+        String[] startPositions = new String[]{"RE_S_0", "RE_S_1", "AH_S_0", "AW_S_0", "SA_S_0", "AH_S_1", "P3_S_0", "P1_S_0", "P2_S_0", "SA_S_1"};
+        String[] goalPositions = new String[]{"AH_E_0", "AW_E_0", "SA_E_1", "RE_E_1", "AH_E_1", "P3_E_0", "P1_E_0", "P2_E_0", "SA_E_0", "RE_E_0"};
 		for (int robotID : robotIDs) {
             tec.setForwardModel(robotID, new ConstantAccelerationForwardModel(MAX_ACCEL, MAX_VEL, CONTROL_PERIOD, tec.getTemporalResolution(), 3));
 
-            String startLocName = "L_S_"+locationCounter;
-            String endLocName = "R_E_"+ (/*(numOfRobotsPerSide - 1) - */locationCounter);
-            if (robotID > numOfRobotsPerSide)
-            {
-                startLocName = "R_S_"+(locationCounter - numOfRobotsPerSide);
-                endLocName = "L_E_"+(/*(numOfRobotsPerSide - 1) - */(locationCounter - numOfRobotsPerSide));
-            }
+            String startLocName = startPositions[robotID-1];
+            String endLocName = goalPositions[robotID-1];
 
             Pose startLoc = Missions.getLocation(startLocName);
             Pose endLoc = Missions.getLocation(endLocName);

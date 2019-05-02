@@ -61,7 +61,7 @@ class OMPL_Wrapper():
             xLen = np.abs(start[0] - end[0])
             yLen = np.abs(start[1] - end[1])
 
-            numSamples = int(max(xLen, yLen) * 5)
+            numSamples = 4
             xCoords.extend(np.linspace(start[0], end[0], numSamples).tolist())
             yCoords.extend(np.linspace(start[1], end[1], numSamples).tolist())
 
@@ -113,24 +113,35 @@ class OMPL_Wrapper():
             self.invoke(self.start_training_poses[p_idx], self.goal_training_poses[p_idx])
         print("\n============ Training Complete ============")
 
+def get_footprint(args):
+    xmin = args.footprint[0]
+    xmax = args.footprint[1]
+    ymin = args.footprint[2]
+    ymax = args.footprint[3]
+
+    footprint = np.array([[xmin, ymax],
+                          [xmax, ymax],
+                          [xmax, ymin],
+                          [xmin, ymin]])
+    return footprint
+
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("map_filename", type=str, help="Filename of the map image that should be used for experience generation (ex. map1.png)")
-    parser.add_argument("--robot_radius", type=float, help="Radius of the robot (in pixels) to be used for collision detection", default=1.0)
-    parser.add_argument("--turning_radius", type=float, help="Turning radius of the vehicle in case of ReedsSheep type car", default=1.0)
-    parser.add_argument("--dist_between_points", type=float, help="Max distance between two poses in the generated path", default=0.5)
+    parser.add_argument("--robot_radius", type=float, help="Radius of the robot (in pixels) to be used for collision detection", default=0.1)
+    parser.add_argument("--turning_radius", type=float, help="Turning radius of the vehicle in case of ReedsSheep type car", default=4.0)
+    parser.add_argument("--dist_between_points", type=float, help="Max distance between two poses in the generated path", default=0.3)
     parser.add_argument("--planner_type", type=int, help="Type of planner to be used for experience generation (LIGHTNING:1, THUNDER:2), Default: Lightning", default=1)
     parser.add_argument("--is_holonomic_robot", type=bool, help="Flag to specify if the robot is holonomic. Default: True", default=True)
     parser.add_argument("--training_dataset_count", type=int, help="Number of problems present in the training dataset. Default: 10", default=10)
+    parser.add_argument("--footprint", nargs="*", type=float, help="Robot footprint as a list of xmin xmax ymin ymax", default=[-1.0, 1.0, -0.5, 0.5])
     args = parser.parse_args()
 
     root_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../")
     map_filepath = os.path.abspath(root_dir + "/maps/" + args.map_filename)
-    footprint = np.array([[-1.0,0.5],
-                        [1.0,0.5],
-                        [1.0,-0.5],
-                        [-1.0,-0.5]])
+    footprint = get_footprint(args)
+
     experience_db_name = os.path.splitext(args.map_filename)[0]
     training_dataset = os.path.abspath(root_dir + "/generated/trainingData/" + experience_db_name + "-" + str(args.training_dataset_count) + "Problems.txt")
 
