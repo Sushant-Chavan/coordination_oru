@@ -187,6 +187,26 @@ cd build/
 rm -rf * && cmake .. && make && sudo make install && sudo ldconfig
 ```
 
+### Training dataset generation
+It is possible to automatically generate random navigation problems which can be used to bootstrap the planning frameworks with some initial experinces. The start and goal poses for training can either be generated uniformly throughout the map or at user provided hotspots in the map. Hotspots can be easily added to a config file corresponding to the map and each entry of the file represents the centre(x and y) and the half width and half height of the bounding box. Samples are then generated using a multivariate_uniform distribution such that majority of the samples are generated within these hotspots.
+
+It is also possible to generate arbitrary number of planning problems. The required number of planning problems should be passed when invoking the script. Additionally, it is possible to generate a plot of the generated samples and planning problems to verify that the generated samples are valid and good for training the planning frameworks.
+
+To generate dataset consisting of 100 problems, without using hotspots, for the map named ```BRSU_Floor0.png``` along with debug image for verification use the command:
+```
+python3 generators/dataset/GenerateTrainingDataset.py BRSU_Floor0.png --nProblems 100  --dbg_image=True --robot_radius=25
+```
+
+To generate for different number of problems (for example 10 problems, 100 problems) simultatneously, modify the command as:
+```
+python3 generators/dataset/GenerateTrainingDataset.py BRSU_Floor0.png --nProblems 10 100  --dbg_image=True --robot_radius=25
+```
+
+To use the user provided hotspots, use the command:
+```
+python3 generators/dataset/GenerateTrainingDataset.py BRSU_Floor0.png --nProblems 100  --dbg_image=True --robot_radius=25 --use_hotspots=True
+```
+
 ## Sponsors
 This project is supported by
 
