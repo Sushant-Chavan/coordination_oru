@@ -3,6 +3,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse
 import argparse
 import glob
 import subprocess
@@ -18,6 +19,7 @@ class DatasetGenerator():
         self.map_filename = args.map_filename
         self.nProblemsList = args.nProblems
         self.robot_radius = int(args.robot_radius)
+        self.oversamplingFactor = args.oversampling
         self.save_dbg_image = args.dbg_image
 
         self.map_file_path = os.path.abspath(self.root_dir + "/maps/" + self.map_filename)
@@ -29,6 +31,27 @@ class DatasetGenerator():
 
         yaml_file_path = os.path.splitext(self.map_file_path)[0] + ".yaml"
         self.resolution = float(self.get_YAML_data(yaml_file_path)['resolution'])
+
+        self.samples = None
+        self.hotspot_means = None
+        self.hotspot_covs = None
+        '''Set the right sigma interval so that majority of the
+           samples that are generated with hotspots are within the given bounds'''
+        self.sigma_interval = 2.0
+
+        if args.use_hotspots:
+            self.get_hotspot_info()
+
+    def get_hotspot_info(self):
+        filepath = os.path.splitext(self.map_file_path)[0] + "_Hotspots.txt"
+        file_exists = os.path.isfile(filepath)
+        assert file_exists, "Hotspot file %s does not exist" % filepath
+        if file_exists:
+            data = np.loadtxt(filepath, delimiter=',')
+            self.hotspot_means = data[:, 0:2]
+            self.hotspot_covs = np.zeros((data.shape[0], 2, 2))
+            self.hotspot_covs[:, 0, 0] = (data[:, 2]/self.sigma_interval)**2
+            self.hotspot_covs[:, 1, 1] = (data[:, 3]/self.sigma_interval)**2
 
     def get_YAML_data(self, filepath):
         data = None
@@ -65,38 +88,88 @@ class DatasetGenerator():
 
         return collides_with_obstacle
 
-    def discard_invalid_samples(self, maxNumSamples):
+    def discard_samples_near_obstacle(self, samples, maxNumSamples, print_progress=False):
         filtered_sample_indices = []
-        for s_id in range(self.samples.shape[0]):
-            pos = self.samples[s_id]
+        for s_id in range(samples.shape[0]):
+            pos = samples[s_id]
             # Check if point lies on the obstacles
             if np.linalg.norm(self.get_color_vector(pos)) > 0.0:
                 # Check if point is close to the obstacle
                 if not self.close_to_obstacles(pos):
                     filtered_sample_indices.append(s_id)
                     # Periodically print number of samples generated
-                    if len(filtered_sample_indices) % 100 == 0:
+                    if print_progress and (len(filtered_sample_indices) % 100) == 0:
                         print("\tGenerated", len(filtered_sample_indices), "samples")
                     # Check if we obtained the max required number of samples
                     if len(filtered_sample_indices) >= maxNumSamples:
                         break
 
-        self.samples = self.samples[filtered_sample_indices,:]
+        return samples[filtered_sample_indices,:]
 
-    def generate_samples(self, nSamples):
+    def discard_outside_map_samples(self, samples):
+        filtered_sample_indices = []
+        for s_id in range(samples.shape[0]):
+            pos = samples[s_id]
+            if (pos[0] > 0) and (pos[0] < self.img_width) and \
+               (pos[1] > 0) and (pos[1] < self.img_height):
+                filtered_sample_indices.append(s_id)
+
+        return samples[filtered_sample_indices,:]
+
+    def generate_random_samples(self, nSamples):
         # Oversample to account for samples that will discarded due to obstacles
-        sampleSize = nSamples * 4
+        sampleSize = int(nSamples * self.oversamplingFactor)
 
         self.samples = np.zeros((sampleSize, 3))
         self.samples[:,0] = np.random.randint(0, self.img_width, self.samples.shape[0])
         self.samples[:,1] = np.random.randint(0, self.img_height, self.samples.shape[0])
         self.samples[:,2] = np.random.uniform(-np.pi, np.pi, self.samples.shape[0])
-        self.discard_invalid_samples(nSamples)
+        self.samples = self.discard_samples_near_obstacle(self.samples, nSamples, print_progress=True)
 
         # Set the resolution
-        print("Before resolution: ", self.samples[0])
         self.samples[:, 0:2] = self.samples[:, 0:2] * self.resolution
-        print("After resolution: ", self.samples[0])
+
+        print("Discarded", nSamples - self.samples.shape[0], "samples as they were on/close to obstacles")
+
+    def get_bivariate_samples(self, nSamples, mean, cov):
+        samples = None
+        while (samples is None) or (samples.shape[0] < nSamples):
+            requiredSamples = nSamples if samples is None else (nSamples - samples.shape[0])
+            # Oversample to account for samples that will discarded due to obstacles
+            overSampledSize = int(requiredSamples * self.oversamplingFactor)
+            newSamples = np.zeros((overSampledSize, 3))
+            newSamples[:, 0:2] = np.random.multivariate_normal(mean, cov, overSampledSize)
+            newSamples[:,2] = np.random.uniform(-np.pi, np.pi, overSampledSize)
+            newSamples = self.discard_outside_map_samples(newSamples)
+            newSamples = self.discard_samples_near_obstacle(newSamples, requiredSamples)
+            if samples is None:
+                samples = newSamples
+            else:
+                samples = np.vstack((samples, newSamples))
+
+        assert(samples.shape[0] == nSamples)
+        return samples
+
+    def generate_focussed_samples(self, nSamples):
+        # Ensure that the number of means and covariances is same
+        nMeans = self.hotspot_means.shape[0]
+        nCov = self.hotspot_covs.shape[0]
+        assert(nMeans == nCov)
+
+        # Divide all samples equallly among the different hotspot centers
+        sampleSize = int(float(nSamples) / nMeans)
+
+        for i in range(nMeans):
+            size = sampleSize if (i != (nMeans-1)) else (nSamples - (sampleSize * (nMeans - 1)))
+            newSamples = self.get_bivariate_samples(size, self.hotspot_means[i], self.hotspot_covs[i])
+            if self.samples is None:
+                self.samples = newSamples
+            else:
+                self.samples = np.vstack((self.samples, newSamples))
+            print("\tGenerated", newSamples.shape[0], "samples for hotspot", i+1, "of", nMeans)
+
+        # Set the resolution
+        self.samples[:, 0:2] = self.samples[:, 0:2] * self.resolution
 
         print("Discarded", nSamples - self.samples.shape[0], "samples as they were on/close to obstacles")
 
@@ -166,6 +239,27 @@ class DatasetGenerator():
     def plot_map(self, ax):
         ax.imshow(self.img)
 
+    def get_cov_ellipse(self, cov, centre, nstd, **kwargs):
+        '''Source of this snippet for plotting ellipses: 
+        https://scipython.com/book/chapter-7-matplotlib/examples/bmi-data-with-confidence-ellipses/
+        '''
+        # Find and sort eigenvalues and eigenvectors into descending order
+        eigvals, eigvecs = np.linalg.eigh(cov)
+        order = eigvals.argsort()[::-1]
+        eigvals, eigvecs = eigvals[order], eigvecs[:, order]
+
+        # The anti-clockwise angle to rotate our ellipse by 
+        vx, vy = eigvecs[:,0][0], eigvecs[:,0][1]
+        theta = np.arctan2(vy, vx)
+
+        # Width and height of ellipse to draw
+        width, height = 2 * nstd * np.sqrt(eigvals)
+        ell= Ellipse(xy=centre, width=width, height=height,
+                       angle=np.degrees(theta), linewidth=5, **kwargs)
+        ell.set_facecolor('none')
+        ell.set_edgecolor('r')
+        return ell
+
     def plot_samples(self, ax, filter_samples=True):
         if filter_samples:
             start_pose_ids = self.problems[:, 0].astype(int)
@@ -197,14 +291,21 @@ class DatasetGenerator():
             y = np.array([start[1], goal[1]]) / self.resolution
             plt.plot(x, y)
 
-    def save_debug_map(self, file_path=None):
+    def save_debug_map(self, file_path=None, plot_problems=True, plot_ellipses=True):
         print("\nGenerating debug map...")
         f = plt.figure(figsize=(20, 20))
         ax = f.subplots()
 
         self.plot_map(ax)
         self.plot_samples(ax)
-        self.plot_problems(ax)
+
+        if plot_problems:
+            self.plot_problems(ax)
+
+        if plot_ellipses and self.hotspot_covs is not None:
+            for i in range(self.hotspot_covs.shape[0]):
+                ax.add_artist(self.get_cov_ellipse(self.hotspot_covs[i],
+                 self.hotspot_means[i], self.sigma_interval))
 
         if file_path is None:
             file_path = self.root_dir + "/generated/trainingData/debugMaps/" + self.map_name +\
@@ -216,16 +317,23 @@ class DatasetGenerator():
         for n in self.nProblemsList:
             self.nProblems = n
             print("\n========= Generating Training Dataset ==========")
-            print("Map:\t\t", self.map_filename)
-            print("Num of problems:", self.nProblems)
-            print("Robot radius:\t", self.robot_radius)
+            print("Map:\t\t\t", self.map_filename)
+            print("Num of problems:\t", self.nProblems)
+            print("Robot radius:\t\t", self.robot_radius)
+            print("Oversampling rate:\t", self.oversamplingFactor)
             print("------------------------------------------------")
 
-            oversamplingFactor = 2
-            nSamples = self.nProblems * 2 * oversamplingFactor
+            # Add some wiggle room for creating problems. Ideally we need (nProblems * 2) samples for nProblems.
+            # We generate more samples than needed to spread out the problems more evenly
+            wiggle_factor = 2
+            nSamples = self.nProblems * 2 * wiggle_factor
 
-            print("Generating", nSamples, "samples (with oversampling factor of", oversamplingFactor, ")...")
-            self.generate_samples(nSamples)
+            if self.hotspot_means is not None:
+                print("Generating", nSamples, "samples (with wiggle factor of", wiggle_factor, "), at the hotspots...")
+                self.generate_focussed_samples(nSamples)
+            else:
+                print("Generating", nSamples, "samples (with wiggle factor of", wiggle_factor, "), uniformly over the map...")
+                self.generate_random_samples(nSamples)
             print("Successfully generated", self.samples.shape[0], "samples")
 
             print("\nGenerating", self.nProblems, "unique problems from generated samples...")
@@ -244,7 +352,9 @@ def main():
     parser.add_argument("map_filename", type=str, help="Filename of the map image that should be used for dataset generation (ex. map1.png)")
     parser.add_argument("--nProblems", required=True, nargs="*", type=int, help="Number of training problems to be generated (ex. 10 100 1000)", default=[100])
     parser.add_argument("--robot_radius", type=int, help="Radius of the robot (in pixels) to be used for collision detection", default=10)
+    parser.add_argument("--oversampling", type=float, help="Oversampling factor so to account for samples that will discarded due to their proximity to obstacles. (Default=4.0)", default=4.0)
     parser.add_argument("--dbg_image", type=bool, help="Generate a debug image to visualize generated dataset (Disabled by default)", default=False)
+    parser.add_argument("--use_hotspots", type=bool, help="Flag to activate use of hotspots for dataset generation (Disabled by default)", default=False)
     args = parser.parse_args()
 
     data_gen = DatasetGenerator(args)
