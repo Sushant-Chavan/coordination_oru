@@ -207,6 +207,16 @@ To use the user provided hotspots, use the command:
 python3 generators/dataset/GenerateTrainingDataset.py BRSU_Floor0.png --nProblems 100  --dbg_image=True --robot_radius=25 --use_hotspots=True
 ```
 
+### Training the planning frameworks using the training datasets
+The planning frameworks can be trained using the training dataset for any given framework. The experiences gained during training can help bootstrap and accelerate the planning of future plans. When generating the training experiences, the planning from recall of the planning framework is disabled so that we generate clean, unbiased solutions for each training problem.
+
+To generate experiences for a map named ```BRSU_Floor0.png```, for 10 experiences using a robot whose footprint has a bounding box of -0.25 0.25 -0.25 0.25 (coresponding to min_x, max_x, min_y, max_y) for the Thunder framework, use the command:
+```
+python3 generators/dataset/GenerateExperiences.py BRSU_Floor0.png --training_dataset_count=10 --footprint -0.25 0.25 -0.25 0.25 --planner_type=2
+```
+Check the help of this script for details about additional params
+
+
 ## Sponsors
 This project is supported by
 
