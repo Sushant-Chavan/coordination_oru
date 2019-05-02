@@ -3,6 +3,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse
 import argparse
 import glob
 import subprocess
@@ -187,6 +188,27 @@ class DatasetGenerator():
     def plot_map(self, ax):
         ax.imshow(self.img)
 
+    def get_cov_ellipse(self, cov, centre, nstd, **kwargs):
+        '''Source of this snippet for plotting ellipses: 
+        https://scipython.com/book/chapter-7-matplotlib/examples/bmi-data-with-confidence-ellipses/
+        '''
+        # Find and sort eigenvalues and eigenvectors into descending order
+        eigvals, eigvecs = np.linalg.eigh(cov)
+        order = eigvals.argsort()[::-1]
+        eigvals, eigvecs = eigvals[order], eigvecs[:, order]
+
+        # The anti-clockwise angle to rotate our ellipse by 
+        vx, vy = eigvecs[:,0][0], eigvecs[:,0][1]
+        theta = np.arctan2(vy, vx)
+
+        # Width and height of ellipse to draw
+        width, height = 2 * nstd * np.sqrt(eigvals)
+        ell= Ellipse(xy=centre, width=width, height=height,
+                       angle=np.degrees(theta), linewidth=5, **kwargs)
+        ell.set_facecolor('none')
+        ell.set_edgecolor('r')
+        return ell
+
     def plot_samples(self, ax, filter_samples=True):
         if filter_samples:
             start_pose_ids = self.problems[:, 0].astype(int)
@@ -218,14 +240,21 @@ class DatasetGenerator():
             y = np.array([start[1], goal[1]]) / self.resolution
             plt.plot(x, y)
 
-    def save_debug_map(self, file_path=None):
+    def save_debug_map(self, file_path=None, plot_problems=True, plot_ellipses=True):
         print("\nGenerating debug map...")
         f = plt.figure(figsize=(20, 20))
         ax = f.subplots()
 
         self.plot_map(ax)
         self.plot_samples(ax)
-        self.plot_problems(ax)
+
+        if plot_problems:
+            self.plot_problems(ax)
+
+        if plot_ellipses and self.hotspot_covs is not None:
+            for i in range(self.hotspot_covs.shape[0]):
+                ax.add_artist(self.get_cov_ellipse(self.hotspot_covs[i],
+                 self.hotspot_means[i], self.sigma_interval))
 
         if file_path is None:
             file_path = self.root_dir + "/generated/trainingData/debugMaps/" + self.map_name +\
