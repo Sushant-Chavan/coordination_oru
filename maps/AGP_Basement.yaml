@@ -1,0 +1,6 @@
+image: AGP_Basement.png
+resolution: 0.02
+origin: [-25, -148.1864276137203, 0.0]
+negate: 0
+occupied_thresh: 0.9
+free_thresh: 0.10

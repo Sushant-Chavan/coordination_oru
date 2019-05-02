@@ -28,6 +28,7 @@ public class OMPLPlanner extends AbstractMotionPlanner {
 	private double distanceBetweenPathPoints = 0.5;
 	private double turningRadius = 1.0;
 	private Coordinate[] collisionCircleCenters = null;
+    private boolean isHolonomicRobot = false;
 	
 	public static OMPLPlannerLib INSTANCE = null;
 	static {
@@ -97,6 +98,14 @@ public class OMPLPlanner extends AbstractMotionPlanner {
         return extensionBits[0];
     }
 
+    public void setHolonomicRobot(boolean isHolonomicRobot) {
+        this.isHolonomicRobot = isHolonomicRobot;
+    }
+
+    public boolean getHolonomicRobot() {
+        return this.isHolonomicRobot;
+    }
+
     public enum PLANNER_TYPE{
         SIMPLE,
         LIGHTNING,
@@ -106,7 +115,7 @@ public class OMPLPlanner extends AbstractMotionPlanner {
 	@Override
 	public boolean doPlanning() {
         ArrayList<PoseSteering> finalPath = new ArrayList<PoseSteering>();  
-        PLANNER_TYPE plannerType = PLANNER_TYPE.THUNDER;
+        PLANNER_TYPE plannerType = PLANNER_TYPE.LIGHTNING;
         String experienceDBName = this.getOriginalFilename();
         int mode = this.isReplan ? 1 : 0;
 		for (int i = 0; i < this.goal.length; i++) {
@@ -137,13 +146,13 @@ public class OMPLPlanner extends AbstractMotionPlanner {
                         start_.getY(), start_.getTheta(), goal_.getX(), goal_.getY(),
                         goal_.getTheta(), path, pathLength, distanceBetweenPathPoints,
                         turningRadius, plannerType.ordinal(), experienceDBName,
-                        mode, true)) return false;
+                        mode, this.isHolonomicRobot)) return false;
 				}
 				else {
                     if (!INSTANCE.plan_multiple_circles_nomap(xCoords, yCoords, numCoords,
                         start_.getX(), start_.getY(), start_.getTheta(), goal_.getX(),
                         goal_.getY(), goal_.getTheta(), path, pathLength, distanceBetweenPathPoints,
-                        turningRadius, plannerType.ordinal(), mode, true)) return false;
+                        turningRadius, plannerType.ordinal(), mode, this.isHolonomicRobot)) return false;
 				}
 			}
 			final Pointer pathVals = path.getValue();
