@@ -30,6 +30,27 @@ class DatasetGenerator():
         yaml_file_path = os.path.splitext(self.map_file_path)[0] + ".yaml"
         self.resolution = float(self.get_YAML_data(yaml_file_path)['resolution'])
 
+        self.samples = None
+        self.hotspot_means = None
+        self.hotspot_covs = None
+        '''Set the right sigma interval so that majority of the
+           samples that are generated with hotspots are within the given bounds'''
+        self.sigma_interval = 2.0
+
+        if args.use_hotspots:
+            self.get_hotspot_info()
+
+    def get_hotspot_info(self):
+        filepath = os.path.splitext(self.map_file_path)[0] + "_Hotspots.txt"
+        file_exists = os.path.isfile(filepath)
+        assert file_exists, "Hotspot file %s does not exist" % filepath
+        if file_exists:
+            data = np.loadtxt(filepath, delimiter=',')
+            self.hotspot_means = data[:, 0:2]
+            self.hotspot_covs = np.zeros((data.shape[0], 2, 2))
+            self.hotspot_covs[:, 0, 0] = (data[:, 2]/self.sigma_interval)**2
+            self.hotspot_covs[:, 1, 1] = (data[:, 3]/self.sigma_interval)**2
+
     def get_YAML_data(self, filepath):
         data = None
         with open(filepath, 'r') as stream:
