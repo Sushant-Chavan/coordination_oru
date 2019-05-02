@@ -19,6 +19,7 @@ class DatasetGenerator():
         self.map_filename = args.map_filename
         self.nProblemsList = args.nProblems
         self.robot_radius = int(args.robot_radius)
+        self.oversamplingFactor = args.oversampling
         self.save_dbg_image = args.dbg_image
 
         self.map_file_path = os.path.abspath(self.root_dir + "/maps/" + self.map_filename)
@@ -87,7 +88,7 @@ class DatasetGenerator():
 
         return collides_with_obstacle
 
-    def discard_samples_near_obstacle(self, samples, maxNumSamples):
+    def discard_samples_near_obstacle(self, samples, maxNumSamples, print_progress=False):
         filtered_sample_indices = []
         for s_id in range(samples.shape[0]):
             pos = samples[s_id]
@@ -97,7 +98,7 @@ class DatasetGenerator():
                 if not self.close_to_obstacles(pos):
                     filtered_sample_indices.append(s_id)
                     # Periodically print number of samples generated
-                    if len(filtered_sample_indices) % 100 == 0:
+                    if print_progress and (len(filtered_sample_indices) % 100) == 0:
                         print("\tGenerated", len(filtered_sample_indices), "samples")
                     # Check if we obtained the max required number of samples
                     if len(filtered_sample_indices) >= maxNumSamples:
@@ -117,13 +118,13 @@ class DatasetGenerator():
 
     def generate_random_samples(self, nSamples):
         # Oversample to account for samples that will discarded due to obstacles
-        sampleSize = nSamples * 4
+        sampleSize = int(nSamples * self.oversamplingFactor)
 
         self.samples = np.zeros((sampleSize, 3))
         self.samples[:,0] = np.random.randint(0, self.img_width, self.samples.shape[0])
         self.samples[:,1] = np.random.randint(0, self.img_height, self.samples.shape[0])
         self.samples[:,2] = np.random.uniform(-np.pi, np.pi, self.samples.shape[0])
-        self.samples = self.discard_samples_near_obstacle(self.samples, nSamples)
+        self.samples = self.discard_samples_near_obstacle(self.samples, nSamples, print_progress=True)
 
         # Set the resolution
         self.samples[:, 0:2] = self.samples[:, 0:2] * self.resolution
@@ -135,7 +136,7 @@ class DatasetGenerator():
         while (samples is None) or (samples.shape[0] < nSamples):
             requiredSamples = nSamples if samples is None else (nSamples - samples.shape[0])
             # Oversample to account for samples that will discarded due to obstacles
-            overSampledSize = requiredSamples * 4
+            overSampledSize = int(requiredSamples * self.oversamplingFactor)
             newSamples = np.zeros((overSampledSize, 3))
             newSamples[:, 0:2] = np.random.multivariate_normal(mean, cov, overSampledSize)
             newSamples[:,2] = np.random.uniform(-np.pi, np.pi, overSampledSize)
@@ -316,19 +317,22 @@ class DatasetGenerator():
         for n in self.nProblemsList:
             self.nProblems = n
             print("\n========= Generating Training Dataset ==========")
-            print("Map:\t\t", self.map_filename)
-            print("Num of problems:", self.nProblems)
-            print("Robot radius:\t", self.robot_radius)
+            print("Map:\t\t\t", self.map_filename)
+            print("Num of problems:\t", self.nProblems)
+            print("Robot radius:\t\t", self.robot_radius)
+            print("Oversampling rate:\t", self.oversamplingFactor)
             print("------------------------------------------------")
 
-            oversamplingFactor = 2
-            nSamples = self.nProblems * 2 * oversamplingFactor
+            # Add some wiggle room for creating problems. Ideally we need (nProblems * 2) samples for nProblems.
+            # We generate more samples than needed to spread out the problems more evenly
+            wiggle_factor = 2
+            nSamples = self.nProblems * 2 * wiggle_factor
 
             if self.hotspot_means is not None:
-                print("Generating", nSamples, "samples (with oversampling factor of", oversamplingFactor, ") at the hotspots...")
+                print("Generating", nSamples, "samples (with wiggle factor of", wiggle_factor, "), at the hotspots...")
                 self.generate_focussed_samples(nSamples)
             else:
-                print("Generating", nSamples, "samples (with oversampling factor of", oversamplingFactor, ") uniformly over the map...")
+                print("Generating", nSamples, "samples (with wiggle factor of", wiggle_factor, "), uniformly over the map...")
                 self.generate_random_samples(nSamples)
             print("Successfully generated", self.samples.shape[0], "samples")
 
@@ -348,6 +352,7 @@ def main():
     parser.add_argument("map_filename", type=str, help="Filename of the map image that should be used for dataset generation (ex. map1.png)")
     parser.add_argument("--nProblems", required=True, nargs="*", type=int, help="Number of training problems to be generated (ex. 10 100 1000)", default=[100])
     parser.add_argument("--robot_radius", type=int, help="Radius of the robot (in pixels) to be used for collision detection", default=10)
+    parser.add_argument("--oversampling", type=float, help="Oversampling factor so to account for samples that will discarded due to their proximity to obstacles. (Default=4.0)", default=4.0)
     parser.add_argument("--dbg_image", type=bool, help="Generate a debug image to visualize generated dataset (Disabled by default)", default=False)
     parser.add_argument("--use_hotspots", type=bool, help="Flag to activate use of hotspots for dataset generation (Disabled by default)", default=False)
     args = parser.parse_args()
