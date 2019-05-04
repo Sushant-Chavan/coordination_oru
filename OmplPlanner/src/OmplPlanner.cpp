@@ -198,6 +198,16 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
                       PLANNER_TYPE plannerType, const char *experienceDBName,
                       MODE mode, bool isHolonomicRobot)
 {
+
+    std::string logFilename = getLogFileName(experienceDBName, plannerType);
+
+    std::string probInfo = getProblemInfo(
+        mapFilename, mapResolution, robotRadius, xCoords, yCoords, numCoords,
+        startX, startY, startTheta, goalX, goalY, goalTheta, path, pathLength,
+        distanceBetweenPathPoints, turningRadius, plannerType, experienceDBName,
+        mode, isHolonomicRobot);
+    log(logFilename, probInfo);
+
     double pLen = 0.0;
     int numInterpolationPoints = 0;
     bool isReplan = (mode == MODE::REPLANNING);
