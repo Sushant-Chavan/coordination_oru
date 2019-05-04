@@ -12,6 +12,11 @@
 #include <ompl/geometric/planners/rrt/LazyRRT.h>
 #include <ompl/geometric/planners/rrt/pRRT.h>
 
+#include <chrono>
+#include <ctime>
+#include <fstream>
+#include <iostream>
+
 using namespace mrpt::maps;
 using namespace std;
 
