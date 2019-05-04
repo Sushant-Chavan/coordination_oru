@@ -12,7 +12,10 @@ import os
 import yaml
 
 def get_node_list(graph):
-    return sorted(list(graph.nodes))
+    nodes = []
+    for i in range(len(graph.nodes)):
+        nodes.append('n' + str(i))
+    return nodes
 
 def get_edge_list(graph):
     return sorted(list(graph.edges))
@@ -34,7 +37,7 @@ def get_node_data(graph):
             data = np.vstack((data, get_node_data_as_list(graph, n)))
     return data
 
-def plot_Thunder_graph(graph_path, map_filename, output_filename, output_format, resolution_multiplier=10):
+def plot_Thunder_graph(graph_path, map_filename, output_filename, output_format, resolution_multiplier=10, plot_node_ids=True):
     img = plt.imread(map_filename)
     img_height = img.shape[0]
     img_width = img.shape[1]
@@ -52,13 +55,14 @@ def plot_Thunder_graph(graph_path, map_filename, output_filename, output_format,
         # Discard the theta values
         nodes = nodes[:, 0:2]
 
-        ax.scatter(nodes[:,0] * resolution_multiplier, img_height - (nodes[:,1] * resolution_multiplier))
+        ax.scatter(nodes[:,0] * resolution_multiplier, img_height - (nodes[:,1] * resolution_multiplier), s=100/resolution_multiplier)
 
         node_list = get_node_list(graph)
         node_ids_map = {}
         for i in range(len(node_list)):
             node_ids_map[node_list[i]] = i
-            ax.text(nodes[i,0] * resolution_multiplier, img_height - (nodes[i,1] * resolution_multiplier), node_list[i])
+            if plot_node_ids:
+                ax.text(nodes[i,0] * resolution_multiplier, img_height - (nodes[i,1] * resolution_multiplier), node_list[i], size=50/resolution_multiplier)
 
         for e in edges:
             start = node_ids_map[e[0]]
@@ -67,7 +71,7 @@ def plot_Thunder_graph(graph_path, map_filename, output_filename, output_format,
             x = np.array([nodes[start,0], nodes[end,0]]) * resolution_multiplier
             y = img_height - np.array([nodes[start,1], nodes[end,1]]) * resolution_multiplier
 
-            ax.plot(x, y)
+            ax.plot(x, y, linewidth=20/resolution_multiplier)
 
     plt.savefig(output_filename, format=output_format)
 
@@ -87,8 +91,8 @@ def plot_Lightning_graph(graph_path, map_filename, output_filename, output_forma
 
         nodes = nodes[:, 0:2]
 
-        ax.scatter(nodes[:,0] * resolution_multiplier, img_height - (nodes[:,1] * resolution_multiplier))
-        ax.plot(nodes[:,0] * resolution_multiplier, img_height - (nodes[:,1] * resolution_multiplier))
+        ax.scatter(nodes[:,0] * resolution_multiplier, img_height - (nodes[:,1] * resolution_multiplier), s=100/resolution_multiplier)
+        ax.plot(nodes[:,0] * resolution_multiplier, img_height - (nodes[:,1] * resolution_multiplier), linewidth=10/resolution_multiplier)
 
         # Render node ID's
         # node_list = get_node_list(graph)
@@ -124,16 +128,18 @@ def main():
     parser.add_argument("--experience_db_filename", help="Filename of the experience database file (ex. thunder.db)")
     parser.add_argument("--map_image_filename", help="Filename of the map image that was used for generating the experience database (ex. map1.png)", default="map1.png")
     parser.add_argument("--output_filename", help="File name of the output file (ex. plot.svg)", default=None)
-    parser.add_argument("--is_thunder_db", help="Set this if plotting Thunder DB", action="store_true", default=False)
+    parser.add_argument("--thunder", help="Set this if plotting Thunder DB", action="store_true", default=False)
     parser.add_argument("--output_format", help="Fileformat (default svg) for output image (png/svg).", default='svg')
     parser.add_argument("--turning_radius", help="Turning Radius of the ReedsShep cars", default=4.0)
+    parser.add_argument("--non_holonomic", help="Set if the robot is non-holonomic (default: False)", action="store_true", default=False)
     args = parser.parse_args()
 
     dir_name, _ = os.path.split(os.path.abspath(sys.argv[0]))
     graph_files_output_dir = os.path.abspath(dir_name + "/../generated/graphFiles")
 
     turning_radius = args.turning_radius
-    is_thunder = args.is_thunder_db
+    is_thunder = args.thunder
+    holonomic = not args.non_holonomic
     experience_db_path = get_experience_db_path(args.experience_db_filename, args.map_image_filename, is_thunder, dir_name)
     map_file_path = os.path.abspath(dir_name + "/../maps/" + args.map_image_filename)
     yaml_file_path = os.path.splitext(map_file_path)[0] + ".yaml"
@@ -155,8 +161,9 @@ def main():
                      '1' if is_thunder else "0",
                      experience_db_path,
                      map_file_path,
-                     str(resolution_multiplier),
-                     graph_files_output_dir])
+                     str(1.0/resolution_multiplier),
+                     graph_files_output_dir,
+                     '1' if holonomic else "0"])
 
     print("\nPlotting the Graphml file contents onto the map")
     if is_thunder:

@@ -316,6 +316,7 @@ class DatasetGenerator():
     def generate_dataset(self):
         for n in self.nProblemsList:
             self.nProblems = n
+            self.samples = None
             print("\n========= Generating Training Dataset ==========")
             print("Map:\t\t\t", self.map_filename)
             print("Num of problems:\t", self.nProblems)
