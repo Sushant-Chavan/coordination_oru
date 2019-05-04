@@ -74,6 +74,120 @@ og::SimpleSetup *getPlanningSetup(PLANNER_TYPE type, ob::StateSpacePtr space,
     return ssPtr;
 }
 
+std::string getLogFileName(const char *experienceDBName,
+                           PLANNER_TYPE plannerType)
+{
+    std::stringstream filename;
+    filename << "generated/experienceLogs/";
+    filename << experienceDBName;
+    switch (plannerType) {
+    case PLANNER_TYPE::EXPERIENCE_LIGHTNING:
+        filename << "_lightning";
+        break;
+    case PLANNER_TYPE::EXPERIENCE_THUNDER:
+        filename << "_thunder";
+        break;
+    default:
+        filename << "_unknownPlanner";
+        break;
+    }
+    filename << ".log";
+
+    return filename.str();
+}
+
+void log(const std::string &logFilename, const std::string &log)
+{
+    if (log.empty())
+        return;
+
+    // Open the log file
+    std::ofstream logfile;
+    logfile.open(logFilename.c_str(), std::ios_base::app);
+    if (!logfile) {
+        std::cout << "File " << logFilename
+                  << " does not exist. Creating a new one..." << std::endl;
+        logfile.open(logFilename.c_str());
+        if (!logfile) {
+            std::cout << "Could not create a new logfile " << logFilename
+                      << std::endl;
+            return;
+        }
+    }
+
+    // Log the data
+    logfile << log.c_str();
+
+    // Close the log file
+    logfile.close();
+}
+
+std::string getProblemInfo(const char *mapFilename, double mapResolution,
+                           double robotRadius, double *xCoords, double *yCoords,
+                           int numCoords, double startX, double startY,
+                           double startTheta, double goalX, double goalY,
+                           double goalTheta, PathPose **path, int *pathLength,
+                           double distanceBetweenPathPoints,
+                           double turningRadius, PLANNER_TYPE plannerType,
+                           const char *experienceDBName, MODE mode,
+                           bool isHolonomicRobot)
+{
+    if (plannerType < PLANNER_TYPE::EXPERIENCE_LIGHTNING ||
+        plannerType >= PLANNER_TYPE::PLANNER_TYPE_COUNT ||
+        mode != MODE::NORMAL) {
+        return "";
+    }
+
+    // Construct the log message
+    std::stringstream log;
+
+    log << "\n\n====== Start of planning instance ======\n";
+    log << "Map Filename: " << mapFilename << "\n";
+    log << "Map Resolution: " << mapResolution << "\n";
+    log << "Robot Radius: " << robotRadius << "\n";
+    log << "Collision Centers: ";
+    for (int i = 0; i < numCoords; i++) {
+        log << "(" << xCoords[i] << ", " << yCoords[i] << ") ";
+    }
+    log << "\n";
+    log << "Start Pose: (" << startX << ", " << startY << ", " << startTheta
+        << ")"
+        << "\n";
+    log << "Goal Pose: (" << goalX << ", " << goalY << ", " << goalTheta << ")"
+        << "\n";
+    log << "Distance between points: " << distanceBetweenPathPoints << "\n";
+    log << "Turning Radius: " << turningRadius << "\n";
+    if (plannerType == PLANNER_TYPE::EXPERIENCE_LIGHTNING) {
+        log << "Planner Type: LIGHTNING"
+            << "\n";
+    }
+    else if (plannerType == PLANNER_TYPE::EXPERIENCE_THUNDER) {
+        log << "Planner Type: THUNDER"
+            << "\n";
+    }
+    else {
+        log << "Planner Type: UNKNOWN"
+            << "\n";
+    }
+    log << "Is Holonomic Robot: " << (isHolonomicRobot ? "True" : "False")
+        << "\n";
+    log << "-------------------------------------------------" << std::endl;
+
+    return log.str();
+}
+
+std::string
+getLogTime(const std::string &tag,
+           std::chrono::time_point< std::chrono::system_clock > &now)
+{
+    std::stringstream log;
+    log << tag << ": ";
+    now = std::chrono::system_clock::now();
+    std::time_t time_now = std::chrono::system_clock::to_time_t(now);
+    log << std::ctime(&time_now) << std::endl;
+    return log.str();
+}
+
 extern "C" bool
 plan_multiple_circles(const char *mapFilename, double mapResolution,
                       double robotRadius, double *xCoords, double *yCoords,
