@@ -29,15 +29,23 @@ typedef struct PathPose {
     double x;
     double y;
     double theta;
+
+    std::string asString()
+    {
+        std:stringstream ss;
+        ss << "(" << x << ", " << y << ", " << theta << ")";
+        return ss.str();
+    }
 } PathPose;
 
 enum PLANNER_TYPE {
     SIMPLE_SETUP = 0,
     EXPERIENCE_LIGHTNING,
-    EXPERIENCE_THUNDER
+    EXPERIENCE_THUNDER,
+    PLANNER_TYPE_COUNT
 };
 
-enum MODE { NORMAL = 0, REPLANNING, EXPERIENCE_GENERATION };
+enum MODE { NORMAL = 0, REPLANNING, EXPERIENCE_GENERATION, MODE_COUNT };
 
 extern "C" void cleanupPath(PathPose *path)
 {
@@ -193,6 +201,19 @@ getLogTime(const std::string &tag,
     return log.str();
 }
 
+std::string getPathToLog(PathPose **path, int pathLength)
+{
+    std::stringstream log;
+    log << "Solution contains " << pathLength << " nodes" << std::endl;
+    log << "Generated path: ";
+    for (int i = 0; i < pathLength; i++)
+    {
+        log << (*path)[i].asString() << " ";
+    }
+    log << std::endl;
+    return log.str();
+}
+
 extern "C" bool
 plan_multiple_circles(const char *mapFilename, double mapResolution,
                       double robotRadius, double *xCoords, double *yCoords,
@@ -337,7 +358,10 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     }
 
     std::chrono::time_point< std::chrono::system_clock > endTime;
-    log(logFilename, getLogTime("End time", endTime));
+    std::string endTimeLog = getLogTime("End time", endTime);
+    log(logFilename, getPathToLog(path, *pathLength));
+    log(logFilename, endTimeLog);
+
     std::chrono::duration< double > elapsed_seconds = endTime - startTime;
     std::stringstream ss;
     ss << "Planning took ";
