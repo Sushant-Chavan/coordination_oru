@@ -37,7 +37,7 @@ def get_node_data(graph):
             data = np.vstack((data, get_node_data_as_list(graph, n)))
     return data
 
-def plot_Thunder_graph(graph_path, map_filename, output_filename, output_format, resolution_multiplier=10):
+def plot_Thunder_graph(graph_path, map_filename, output_filename, output_format, resolution_multiplier=10, plot_node_ids=True):
     img = plt.imread(map_filename)
     img_height = img.shape[0]
     img_width = img.shape[1]
@@ -55,13 +55,14 @@ def plot_Thunder_graph(graph_path, map_filename, output_filename, output_format,
         # Discard the theta values
         nodes = nodes[:, 0:2]
 
-        ax.scatter(nodes[:,0] * resolution_multiplier, img_height - (nodes[:,1] * resolution_multiplier))
+        ax.scatter(nodes[:,0] * resolution_multiplier, img_height - (nodes[:,1] * resolution_multiplier), s=100/resolution_multiplier)
 
         node_list = get_node_list(graph)
         node_ids_map = {}
         for i in range(len(node_list)):
             node_ids_map[node_list[i]] = i
-            ax.text(nodes[i,0] * resolution_multiplier, img_height - (nodes[i,1] * resolution_multiplier), node_list[i])
+            if plot_node_ids:
+                ax.text(nodes[i,0] * resolution_multiplier, img_height - (nodes[i,1] * resolution_multiplier), node_list[i], size=50/resolution_multiplier)
 
         for e in edges:
             start = node_ids_map[e[0]]
@@ -70,7 +71,7 @@ def plot_Thunder_graph(graph_path, map_filename, output_filename, output_format,
             x = np.array([nodes[start,0], nodes[end,0]]) * resolution_multiplier
             y = img_height - np.array([nodes[start,1], nodes[end,1]]) * resolution_multiplier
 
-            ax.plot(x, y)
+            ax.plot(x, y, linewidth=20/resolution_multiplier)
 
     plt.savefig(output_filename, format=output_format)
 
@@ -90,8 +91,8 @@ def plot_Lightning_graph(graph_path, map_filename, output_filename, output_forma
 
         nodes = nodes[:, 0:2]
 
-        ax.scatter(nodes[:,0] * resolution_multiplier, img_height - (nodes[:,1] * resolution_multiplier))
-        ax.plot(nodes[:,0] * resolution_multiplier, img_height - (nodes[:,1] * resolution_multiplier))
+        ax.scatter(nodes[:,0] * resolution_multiplier, img_height - (nodes[:,1] * resolution_multiplier), s=100/resolution_multiplier)
+        ax.plot(nodes[:,0] * resolution_multiplier, img_height - (nodes[:,1] * resolution_multiplier), linewidth=10/resolution_multiplier)
 
         # Render node ID's
         # node_list = get_node_list(graph)
