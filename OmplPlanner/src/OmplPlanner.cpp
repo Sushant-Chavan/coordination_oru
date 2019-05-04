@@ -32,15 +32,12 @@ enum PLANNER_TYPE {
     EXPERIENCE_THUNDER
 };
 
-enum MODE {
-    NORMAL = 0,
-    REPLANNING,
-    EXPERIENCE_GENERATION
-};
+enum MODE { NORMAL = 0, REPLANNING, EXPERIENCE_GENERATION };
 
-extern "C" void cleanupPath(PathPose* path) {
-  std::cout << "Cleaning up memory.." << std::endl;
-  free(path);
+extern "C" void cleanupPath(PathPose *path)
+{
+    std::cout << "Cleaning up memory.." << std::endl;
+    free(path);
 }
 
 og::SimpleSetup *getPlanningSetup(PLANNER_TYPE type, ob::StateSpacePtr space,
@@ -148,8 +145,7 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
         ePtr->setRepairPlanner(repairPlanner);
 
         // Disable planning from recall if we are generating experiences
-        if (mode == MODE::EXPERIENCE_GENERATION)
-        {
+        if (mode == MODE::EXPERIENCE_GENERATION) {
             ePtr->enablePlanningFromRecall(false);
         }
     }
@@ -166,14 +162,14 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     // this call is optional, but we put it in to get more output information
     ssPtr->getSpaceInformation()->setStateValidityCheckingResolution(0.005);
     ssPtr->setup();
-    //ssPtr->print();
+    // ssPtr->print();
 
     // attempt to solve the problem within 30 seconds of planning time
     ob::PlannerStatus solved = ssPtr->solve(30.0);
 
     if (solved) {
         std::cout << "Found solution:" << std::endl;
-        //ssPtr->simplifySolution();
+        // ssPtr->simplifySolution();
         og::PathGeometric pth = ssPtr->getSolutionPath();
         pLen = pth.length();
         numInterpolationPoints = ((double)pLen) / distanceBetweenPathPoints;
@@ -274,8 +270,7 @@ extern "C" bool plan_multiple_circles_nomap(
         ePtr->setRepairPlanner(repairPlanner);
 
         // Disable planning from recall if we are generating experiences
-        if (mode == MODE::EXPERIENCE_GENERATION)
-        {
+        if (mode == MODE::EXPERIENCE_GENERATION) {
             ePtr->enablePlanningFromRecall(false);
         }
     }
@@ -292,7 +287,7 @@ extern "C" bool plan_multiple_circles_nomap(
     // this call is optional, but we put it in to get more output information
     ssPtr->getSpaceInformation()->setStateValidityCheckingResolution(0.005);
     ssPtr->setup();
-    //ssPtr->print();
+    // ssPtr->print();
 
     // attempt to solve the problem within 30 seconds of planning time
     ob::PlannerStatus solved = ssPtr->solve(30.0);
