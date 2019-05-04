@@ -152,6 +152,10 @@ std::string getProblemInfo(const char *mapFilename, double mapResolution,
         return "";
     }
 
+    // Setup OMPL logging stream to the log file
+    ompl::msg::OutputHandlerFile OH(getLogFileName(experienceDBName, plannerType).c_str());
+    ompl::msg::useOutputHandler(&OH);
+
     // Construct the log message
     std::stringstream log;
 
@@ -226,9 +230,6 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
                       MODE mode, bool isHolonomicRobot)
 {
     std::string logFilename = getLogFileName(experienceDBName, plannerType);
-
-    ompl::msg::OutputHandlerFile OH(logFilename.c_str());
-    ompl::msg::useOutputHandler(&OH);
 
     std::string probInfo = getProblemInfo(
         mapFilename, mapResolution, robotRadius, xCoords, yCoords, numCoords,
@@ -348,7 +349,12 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
 
         if (ePtr != NULL) {
             ePtr->doPostProcessing();
-            ePtr->save();
+            ePtr->saveIfChanged();
+
+            // Log the planning logs to the log file
+            std::ostringstream stream;
+            ePtr->printLogs(stream);
+            log(logFilename, stream.str());
         }
     }
     else {
