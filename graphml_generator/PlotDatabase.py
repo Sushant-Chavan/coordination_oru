@@ -12,7 +12,10 @@ import os
 import yaml
 
 def get_node_list(graph):
-    return sorted(list(graph.nodes))
+    nodes = []
+    for i in range(len(graph.nodes)):
+        nodes.append('n' + str(i))
+    return nodes
 
 def get_edge_list(graph):
     return sorted(list(graph.edges))
@@ -155,7 +158,7 @@ def main():
                      '1' if is_thunder else "0",
                      experience_db_path,
                      map_file_path,
-                     str(resolution_multiplier),
+                     str(1.0/resolution_multiplier),
                      graph_files_output_dir])
 
     print("\nPlotting the Graphml file contents onto the map")
