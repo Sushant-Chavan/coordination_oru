@@ -127,16 +127,18 @@ def main():
     parser.add_argument("--experience_db_filename", help="Filename of the experience database file (ex. thunder.db)")
     parser.add_argument("--map_image_filename", help="Filename of the map image that was used for generating the experience database (ex. map1.png)", default="map1.png")
     parser.add_argument("--output_filename", help="File name of the output file (ex. plot.svg)", default=None)
-    parser.add_argument("--is_thunder_db", help="Set this if plotting Thunder DB", action="store_true", default=False)
+    parser.add_argument("--thunder", help="Set this if plotting Thunder DB", action="store_true", default=False)
     parser.add_argument("--output_format", help="Fileformat (default svg) for output image (png/svg).", default='svg')
     parser.add_argument("--turning_radius", help="Turning Radius of the ReedsShep cars", default=4.0)
+    parser.add_argument("--non_holonomic", help="Set if the robot is non-holonomic (default: False)", action="store_true", default=False)
     args = parser.parse_args()
 
     dir_name, _ = os.path.split(os.path.abspath(sys.argv[0]))
     graph_files_output_dir = os.path.abspath(dir_name + "/../generated/graphFiles")
 
     turning_radius = args.turning_radius
-    is_thunder = args.is_thunder_db
+    is_thunder = args.thunder
+    holonomic = not args.non_holonomic
     experience_db_path = get_experience_db_path(args.experience_db_filename, args.map_image_filename, is_thunder, dir_name)
     map_file_path = os.path.abspath(dir_name + "/../maps/" + args.map_image_filename)
     yaml_file_path = os.path.splitext(map_file_path)[0] + ".yaml"
@@ -159,7 +161,8 @@ def main():
                      experience_db_path,
                      map_file_path,
                      str(1.0/resolution_multiplier),
-                     graph_files_output_dir])
+                     graph_files_output_dir,
+                     '1' if holonomic else "0"])
 
     print("\nPlotting the Graphml file contents onto the map")
     if is_thunder:
