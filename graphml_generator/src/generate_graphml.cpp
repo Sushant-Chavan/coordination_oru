@@ -61,15 +61,17 @@ int main(int argc, char **argv)
     std::string mapFileName = "maps/map1.png";
     double resolution = 0.1;
     std::string outputDir = "/../../generated/graphFiles";
+    bool isHolonomicRobot = true;
 
     // Parse user params
-    if (argc == 7) {
+    if (argc == 8) {
         turningRadius = atof(argv[1]);
         useThunder = (atoi(argv[2]) != 0);
         databaseFilename = std::string(argv[3]);
         mapFileName = std::string(argv[4]);
         resolution = atof(argv[5]);
         outputDir = std::string(argv[6]);
+        isHolonomicRobot = (atoi(argv[7]) != 0);
     }
     else {
         std::cout << argc << std::endl;
@@ -81,12 +83,16 @@ int main(int argc, char **argv)
                      "mapFilePath(string)\n"
                      "mapResolution(float)\n"
                      "outputDirectory(string) without trailing backslash\n"
+                     "isHolonomicRobot(bool) (0--> False, 1 --> True)\n"
                   << std::endl;
         return 1;
     }
 
-    // Create a ReedsShepp state space
-    ob::StateSpacePtr space(new ob::ReedsSheppStateSpace(turningRadius));
+    // Create a state space
+    ob::StateSpacePtr space =
+    isHolonomicRobot
+        ? ob::StateSpacePtr(new ob::SE2StateSpace())
+        : ob::StateSpacePtr(new ob::ReedsSheppStateSpace(turningRadius));
 
     // Get the bounds from the map and set it to the statespace
     ob::RealVectorBounds bounds = getMapBounds(mapFileName, resolution);
