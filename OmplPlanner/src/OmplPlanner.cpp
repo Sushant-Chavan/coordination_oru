@@ -212,6 +212,9 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     int numInterpolationPoints = 0;
     bool isReplan = (mode == MODE::REPLANNING);
 
+    std::chrono::time_point< std::chrono::system_clock > startTime;
+    log(logFilename, getLogTime("Start time", startTime));
+
     ob::StateSpacePtr space =
         isHolonomicRobot
             ? ob::StateSpacePtr(new ob::SE2StateSpace())
@@ -327,6 +330,14 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
         delete ssPtr;
         ssPtr = NULL;
     }
+
+    std::chrono::time_point< std::chrono::system_clock > endTime;
+    log(logFilename, getLogTime("End time", endTime));
+    std::chrono::duration< double > elapsed_seconds = endTime - startTime;
+    std::stringstream ss;
+    ss << "Planning took ";
+    ss << elapsed_seconds.count() << " seconds" << std::endl;
+    log(logFilename, ss.str());
 
     return solved ? 1 : 0;
 }
