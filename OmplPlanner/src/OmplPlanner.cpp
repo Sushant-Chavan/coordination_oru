@@ -11,6 +11,7 @@
 #include <ompl/geometric/planners/rrt/LBTRRT.h>
 #include <ompl/geometric/planners/rrt/LazyRRT.h>
 #include <ompl/geometric/planners/rrt/pRRT.h>
+#include<ompl/util/Console.h>
 
 #include <chrono>
 #include <ctime>
@@ -224,8 +225,10 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
                       PLANNER_TYPE plannerType, const char *experienceDBName,
                       MODE mode, bool isHolonomicRobot)
 {
-
     std::string logFilename = getLogFileName(experienceDBName, plannerType);
+
+    ompl::msg::OutputHandlerFile OH(logFilename.c_str());
+    ompl::msg::useOutputHandler(&OH);
 
     std::string probInfo = getProblemInfo(
         mapFilename, mapResolution, robotRadius, xCoords, yCoords, numCoords,
