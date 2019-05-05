@@ -2,6 +2,8 @@ package se.oru.coordination.coordination_oru.tests.customTests;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Calendar;
 import java.util.Comparator;
@@ -58,7 +60,37 @@ public class University {
             writer.close();
         }
         catch (Exception e) { e.printStackTrace(); }
-	}
+    }
+    
+    private static void appendToFile(String filePath, String text) {
+		File file = new File(filePath);
+		FileWriter fr = null;
+		try {
+			// Below constructor argument decides whether to append or override
+			fr = new FileWriter(file, true);
+			fr.write(text);
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				fr.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+    }
+    
+    private static String getLogFileName(String experienceDBName, OMPLPlanner.PLANNER_TYPE type) {
+        String plannerID = "_unknownPlanner";
+        if (type == OMPLPlanner.PLANNER_TYPE.LIGHTNING)
+            plannerID = "_lightning";
+        else if (type == OMPLPlanner.PLANNER_TYPE.THUNDER)
+            plannerID = "_thunder";
+
+        String filename = "generated/experienceLogs/" + experienceDBName + plannerID + ".log";
+        return filename;
+    }
 	
 	public static void main(String[] args) throws InterruptedException {
 
@@ -143,7 +175,9 @@ public class University {
         omplPlanner.setPlannerType(plannerType);
 		
 		//In case deadlocks occur, we make the coordinator capable of re-planning on the fly (experimental, not working properly yet)
-		tec.setMotionPlanner(omplPlanner);
+        tec.setMotionPlanner(omplPlanner);
+        
+        final String logFilename = getLogFileName(omplPlanner.getOriginalFilename(), plannerType);
 		
 		boolean cachePaths = false;
 		String outputDir = "paths";
@@ -201,8 +235,10 @@ public class University {
 			File f = new File(pathFilename);
 			if(!cachePaths || (cachePaths && !f.exists())) { 
 				omplPlanner.setStart(startLoc);
-				omplPlanner.setGoals(endLoc);
-				omplPlanner.plan();
+                omplPlanner.setGoals(endLoc);
+                appendToFile(logFilename, "Planning requested for robot " + robotID + " from " + startLocName + " to " + endLocName + "\n");
+                omplPlanner.plan();
+                appendToFile(logFilename, "Planning complete for robot " + robotID + " from " + startLocName + " to " + endLocName + "\n");
 				path = omplPlanner.getPath();
 				pathInv = omplPlanner.getPathInv();
 				if (cachePaths) {
@@ -217,9 +253,7 @@ public class University {
 			
 			Mission m = new Mission(robotID, path, startLocName, endLocName, Missions.getLocation(startLocName), Missions.getLocation(endLocName));
             Missions.enqueueMission(m);
-            if (numOfSimulationIterations > 1)
-            {
-                // Add the reverse path as mission
+            if (numOfSimulationIterations > 1) {
                 Mission m1 = new Mission(robotID, pathInv, endLocName, startLocName, Missions.getLocation(endLocName), Missions.getLocation(startLocName));
                 Missions.enqueueMission(m1);
             }
@@ -252,18 +286,29 @@ public class University {
 					// if (robotID%2 == 0 && numOfSimulationIterations > 1) totalIterations = numOfSimulationIterations -1;
 					String lastDestination = "R_"+(robotID-1);
 					long startTime = Calendar.getInstance().getTimeInMillis();
-					while (true && totalIterations > 0) {
+					while (true) {
 						synchronized(tec) {
 							if (tec.isFree(robotID)) {
 								if (!firstTime) {
+                                    appendToFile(logFilename, "Mission " + 
+                                    Integer.toString(numOfSimulationIterations - totalIterations) + 
+                                    " for robot ID " + Integer.toString(robotID) + " completed at " +
+                                    Calendar.getInstance().getTime().toString() + ".\n");
 									long elapsed = Calendar.getInstance().getTimeInMillis()-startTime;
-									System.out.println("Time to reach " + lastDestination + " (Robot" + robotID + "): " + elapsed);
+									appendToFile(logFilename, "Time to reach " + lastDestination + " (Robot" + robotID + "): " + elapsed/1000.0 + "s\n");
 									String stat = "";
 									for (int i = 1; i < robotID; i++) stat += "\t";
 									stat += elapsed;
-									writeStat(statFilename, stat);
-								}
-								startTime = Calendar.getInstance().getTimeInMillis();
+                                    writeStat(statFilename, stat);
+                                    if (totalIterations <= 0)
+                                    {
+                                        break;
+                                    }
+                                }
+                                startTime = Calendar.getInstance().getTimeInMillis();
+                                appendToFile(logFilename, "Starting Mission " + 
+                                Integer.toString(numOfSimulationIterations - totalIterations + 1) + 
+                                " for robot ID " + Integer.toString(robotID) + " at " + Calendar.getInstance().getTime().toString() + "\n");
 								firstTime = false;
 								Mission m = Missions.getMission(robotID,sequenceNumber);
 								tec.addMissions(m);
@@ -278,7 +323,8 @@ public class University {
 						try { Thread.sleep(100); }
 						catch (InterruptedException e) { e.printStackTrace(); }
 					}
-					System.out.println("Robot" + robotID + " is done!");
+                    System.out.println("Robot" + robotID + " is done!");
+                    appendToFile(logFilename, "Robot" + robotID + " is done!\n");
 				}
 			};
 			//Start the thread!
