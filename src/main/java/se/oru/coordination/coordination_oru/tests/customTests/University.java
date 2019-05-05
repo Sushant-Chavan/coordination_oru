@@ -66,7 +66,19 @@ public class University {
 		double MAX_VEL = 14.0;
 		int CONTROL_PERIOD = 1000;
 
-        final int numOfSimulationIterations = (args != null) ? Integer.parseInt(args[0]) : 20;
+        // Setup the test according to supplied params
+        int nSims = 20;
+        OMPLPlanner.PLANNER_TYPE pType = OMPLPlanner.PLANNER_TYPE.LIGHTNING;
+        if (args != null)
+        {
+            nSims = Integer.parseInt(args[0]);
+            if (args.length >= 2)
+            {
+                pType = OMPLPlanner.PLANNER_TYPE.valueOf(Integer.parseInt(args[1]));
+            }
+        }
+        final int numOfSimulationIterations = nSims;
+        final OMPLPlanner.PLANNER_TYPE plannerType = pType;
 		//Instantiate a trajectory envelope coordinator.
 		//The TrajectoryEnvelopeCoordinatorSimulation implementation provides
 		// -- the factory method getNewTracker() which returns a trajectory envelope tracker
@@ -127,7 +139,8 @@ public class University {
 		omplPlanner.setRadius(0.1);
 		omplPlanner.setFootprint(tec.getDefaultFootprint());
 		omplPlanner.setTurningRadius(4.0);
-		omplPlanner.setDistanceBetweenPathPoints(0.3);
+        omplPlanner.setDistanceBetweenPathPoints(0.3);
+        omplPlanner.setPlannerType(plannerType);
 		
 		//In case deadlocks occur, we make the coordinator capable of re-planning on the fly (experimental, not working properly yet)
 		tec.setMotionPlanner(omplPlanner);

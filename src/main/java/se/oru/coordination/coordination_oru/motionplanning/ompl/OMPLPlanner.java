@@ -2,6 +2,8 @@ package se.oru.coordination.coordination_oru.motionplanning.ompl;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.metacsp.multi.spatioTemporal.paths.Pose;
 import org.metacsp.multi.spatioTemporal.paths.PoseSteering;
@@ -107,10 +109,31 @@ public class OMPLPlanner extends AbstractMotionPlanner {
         return this.isHolonomicRobot;
     }
 
-    public enum PLANNER_TYPE{
-        SIMPLE,
-        LIGHTNING,
-        THUNDER
+    public enum PLANNER_TYPE {
+        SIMPLE(0),
+        LIGHTNING(1),
+        THUNDER(2);
+    
+        private int value;
+        private static Map map = new HashMap();
+    
+        private PLANNER_TYPE(int value) {
+            this.value = value;
+        }
+    
+        static {
+            for (PLANNER_TYPE planner_type : PLANNER_TYPE.values()) {
+                map.put(planner_type.value, planner_type);
+            }
+        }
+    
+        public static PLANNER_TYPE valueOf(int planner_type) {
+            return (PLANNER_TYPE) map.get(planner_type);
+        }
+    
+        public int getValue() {
+            return value;
+        }
     }
 
     public void setPlannerType(PLANNER_TYPE type) {
