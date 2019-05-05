@@ -11,7 +11,7 @@
 #include <ompl/geometric/planners/rrt/LBTRRT.h>
 #include <ompl/geometric/planners/rrt/LazyRRT.h>
 #include <ompl/geometric/planners/rrt/pRRT.h>
-#include<ompl/util/Console.h>
+#include <ompl/util/Console.h>
 
 #include <chrono>
 #include <ctime>
@@ -33,7 +33,7 @@ typedef struct PathPose {
 
     std::string asString()
     {
-        std:stringstream ss;
+        std::stringstream ss;
         ss << "(" << x << ", " << y << ", " << theta << ")";
         return ss.str();
     }
@@ -152,10 +152,6 @@ std::string getProblemInfo(const char *mapFilename, double mapResolution,
         return "";
     }
 
-    // Setup OMPL logging stream to the log file
-    ompl::msg::OutputHandlerFile OH(getLogFileName(experienceDBName, plannerType).c_str());
-    ompl::msg::useOutputHandler(&OH);
-
     // Construct the log message
     std::stringstream log;
 
@@ -209,13 +205,12 @@ getLogTime(const std::string &tag,
 std::string getPathToLog(PathPose **path, int pathLength)
 {
     std::stringstream log;
-    log << "Solution contains " << pathLength << " nodes" << std::endl;
-    log << "Generated path: ";
-    for (int i = 0; i < pathLength; i++)
-    {
+    log << "\nSolution contains " << pathLength << " nodes" << std::endl;
+    log << "Generated path: \n";
+    for (int i = 0; i < pathLength; i++) {
         log << (*path)[i].asString() << " ";
     }
-    log << std::endl;
+    log << "\n" << std::endl;
     return log.str();
 }
 
@@ -230,6 +225,17 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
                       MODE mode, bool isHolonomicRobot)
 {
     std::string logFilename = getLogFileName(experienceDBName, plannerType);
+
+    if (plannerType >= PLANNER_TYPE::EXPERIENCE_LIGHTNING &&
+        plannerType < PLANNER_TYPE::PLANNER_TYPE_COUNT &&
+        mode == MODE::NORMAL) {
+        // Setup OMPL logging stream to the log file
+        ompl::msg::useOutputHandler(new ompl::msg::OutputHandlerFile(
+            getLogFileName(experienceDBName, plannerType).c_str()));
+    }
+    else {
+        ompl::msg::noOutputHandler();
+    }
 
     std::string probInfo = getProblemInfo(
         mapFilename, mapResolution, robotRadius, xCoords, yCoords, numCoords,
@@ -353,6 +359,7 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
 
             // Log the planning logs to the log file
             std::ostringstream stream;
+            stream << "\n";
             ePtr->printLogs(stream);
             log(logFilename, stream.str());
         }
@@ -376,6 +383,7 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     ss << "Planning took ";
     ss << elapsed_seconds.count() << " seconds" << std::endl;
     log(logFilename, ss.str());
+    log(logFilename, "========================================\n\n");
 
     return solved ? 1 : 0;
 }
