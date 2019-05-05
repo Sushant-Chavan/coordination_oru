@@ -48,6 +48,8 @@ enum PLANNER_TYPE {
 
 enum MODE { NORMAL = 0, REPLANNING, EXPERIENCE_GENERATION, MODE_COUNT };
 
+bool LOGGING_ACTIVE = true;
+
 extern "C" void cleanupPath(PathPose *path)
 {
     std::cout << "Cleaning up memory.." << std::endl;
@@ -112,7 +114,7 @@ std::string getLogFileName(const char *experienceDBName,
 
 void log(const std::string &logFilename, const std::string &log)
 {
-    if (log.empty())
+    if (log.empty() || !LOGGING_ACTIVE)
         return;
 
     // Open the log file
@@ -232,9 +234,11 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
         // Setup OMPL logging stream to the log file
         ompl::msg::useOutputHandler(new ompl::msg::OutputHandlerFile(
             getLogFileName(experienceDBName, plannerType).c_str()));
+        LOGGING_ACTIVE = true;
     }
     else {
         ompl::msg::noOutputHandler();
+        LOGGING_ACTIVE = false;
     }
 
     std::string probInfo = getProblemInfo(
