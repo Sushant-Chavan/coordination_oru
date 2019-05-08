@@ -200,7 +200,7 @@ getLogTime(const std::string &tag,
     log << tag << ": ";
     now = std::chrono::system_clock::now();
     std::time_t time_now = std::chrono::system_clock::to_time_t(now);
-    log << std::ctime(&time_now) << std::endl;
+    log << std::put_time(std::localtime(&time_now), "%d-%m-%Y %T")<< std::endl;
     return log.str();
 }
 
