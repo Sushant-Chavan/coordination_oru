@@ -15,7 +15,6 @@ class logParser:
         self.logs = None
 
         self.get_tags(self.tags_filpath)
-        print(self.tags)
 
     def get_tags(self, tags_filpath):
         assert(tags_filpath is not None and (len(tags_filpath) != 0))
@@ -41,6 +40,13 @@ class logParser:
 
         with open(filename, 'w') as f:
             f.writelines(self.logs)
+
+    def _extract_start_times(self):
+        times = []
+        for l in self.logs:
+            if "Start time: " in l:
+                times.append((l.split(": ")[1]).strip())
+        return times
 
     def _extract_map_filenames(self):
         map_names = []
@@ -122,11 +128,13 @@ class logParser:
 
         nPlans = sum('Planning took' in s for s in self.logs)
         indices = np.arange(1, nPlans+1, 1)
-        columns = ["Map Filename", "Map Resolution", "Start X", "Start Y", "Start Theta",
+        columns = ["Start Time", "Map Filename", "Map Resolution", "Start X", "Start Y", "Start Theta",
                    "Goal X", "Goal Y", "Goal Theta", "Planner Type", "Holonomic", 
                    "Planning Time", "Path simplification time", "From recall", "Total planning time"]
         df = pd.DataFrame(index=indices, columns=columns)
         df = df.fillna("-")
+
+        df["Start Time"] = self._extract_start_times()
         df["Map Filename"] = self._extract_map_filenames()
         df["Map Resolution"] = self._extract_map_resolutions()
 
