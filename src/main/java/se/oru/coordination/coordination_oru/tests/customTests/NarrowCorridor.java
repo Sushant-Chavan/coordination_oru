@@ -82,7 +82,7 @@ public class NarrowCorridor {
     }
     
     private static String getLogFileName(String experienceDBName, OMPLPlanner.PLANNER_TYPE type) {
-        String plannerID = "_unknownPlanner";
+        String plannerID = "_simple";
         if (type == OMPLPlanner.PLANNER_TYPE.LIGHTNING)
             plannerID = "_lightning";
         else if (type == OMPLPlanner.PLANNER_TYPE.THUNDER)

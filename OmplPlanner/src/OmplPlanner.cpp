@@ -104,7 +104,7 @@ std::string getLogFileName(const char *experienceDBName,
         filename << "_thunder";
         break;
     default:
-        filename << "_unknownPlanner";
+        filename << "_simple";
         break;
     }
     filename << ".log";
@@ -148,7 +148,7 @@ std::string getProblemInfo(const char *mapFilename, double mapResolution,
                            const char *experienceDBName, MODE mode,
                            bool isHolonomicRobot)
 {
-    if (plannerType < PLANNER_TYPE::EXPERIENCE_LIGHTNING ||
+    if (plannerType < PLANNER_TYPE::SIMPLE_SETUP ||
         plannerType >= PLANNER_TYPE::PLANNER_TYPE_COUNT ||
         mode != MODE::NORMAL) {
         return "";
@@ -182,7 +182,7 @@ std::string getProblemInfo(const char *mapFilename, double mapResolution,
             << "\n";
     }
     else {
-        log << "Planner Type: UNKNOWN"
+        log << "Planner Type: SIMPLE (RRT*)"
             << "\n";
     }
     log << "Is Holonomic Robot: " << (isHolonomicRobot ? "True" : "False")
@@ -228,7 +228,7 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
 {
     std::string logFilename = getLogFileName(experienceDBName, plannerType);
 
-    if (plannerType >= PLANNER_TYPE::EXPERIENCE_LIGHTNING &&
+    if (plannerType >= PLANNER_TYPE::SIMPLE_SETUP &&
         plannerType < PLANNER_TYPE::PLANNER_TYPE_COUNT &&
         mode == MODE::NORMAL) {
         // Setup OMPL logging stream to the log file
@@ -240,6 +240,8 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
         ompl::msg::noOutputHandler();
         LOGGING_ACTIVE = false;
     }
+
+    std::cout << "Logging status: " << LOGGING_ACTIVE << logFilename << std::endl;
 
     std::string probInfo = getProblemInfo(
         mapFilename, mapResolution, robotRadius, xCoords, yCoords, numCoords,
