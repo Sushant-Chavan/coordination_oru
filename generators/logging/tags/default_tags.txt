@@ -6,6 +6,7 @@ Planner Type:
 Is Holonomic Robot:
 Start time: 
 Possible solution found in
+Solution found in 
 SimpleSetup: Path simplification took
 THUNDER RESULTS: 
 and was generated from planner

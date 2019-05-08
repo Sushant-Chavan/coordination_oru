@@ -7,7 +7,7 @@ import sys
 import argparse
 import pandas as pd
 
-# A class to extract relevant lines from a complete log file of a 
+# A class to extract relevant lines from a complete log file of a test run and generate a CSV logg file
 class logParser:
     def __init__(self, tags_filpath):
         self.tags_filpath = tags_filpath
@@ -93,7 +93,8 @@ class logParser:
     def _extract_planning_times(self):
         times = []
         for l in self.logs:
-            if "Possible solution found in " in l:
+            if "Possible solution found in " in l or\
+                "Solution found in " in l:
                 times.append(float(l.strip().split()[-2]))
         return times
 
@@ -152,10 +153,13 @@ class logParser:
         df["Holonomic"] = self._extract_robot_kinematics()
         df["Planning Time"] = self._extract_planning_times()
         df["Path simplification time"] = self._extract_path_simplification_times()
-        df["From recall"] = self._extract_from_recall_stats()
+        recall_stats = self._extract_from_recall_stats()
+        if len(recall_stats) > 0:
+            df["From recall"] = recall_stats
         df["Total planning time"] = self._extract_total_planning_times()
 
         df.to_csv(csv_filepath)
+        print("Planning logs CSV generated/extended at", csv_filepath)
 
     def generate_execution_csv(self):
         pass
@@ -163,16 +167,27 @@ class logParser:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("map_filename", type=str, help="Filename of the map image that should be used for experience generation (ex. map1.png)")
+    parser.add_argument("planner", type=int, help="ID of the planner (SIMPLE:0, LIGHTNING:1, THUNDER:2)")
     parser.add_argument("--tags_filename", type=str, help="Radius of the robot (in pixels) to be used for collision detection", default="default_tags.txt")
-    parser.add_argument("--thunder", help="Set this if used with logs of Thunder planners", action="store_true", default=False)
     args = parser.parse_args()
+
+    planner_names = ["simple", "lightning", "thunder"]
 
     root_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../")
     map_name = os.path.splitext(args.map_filename)[0]
 
     tags_filepath = root_dir + "/generators/logging/tags/" + args.tags_filename
-    planner_name = "thunder" if args.thunder else "lightning"
+    planner_name = planner_names[args.planner]
     log_filepath = root_dir + "/generated/experienceLogs/" + map_name + "_" + planner_name + ".log"
+
+    if not os.path.isfile(tags_filepath):
+        print("Log tags file does not exist! \nPath specified was:\n", tags_filepath)
+        return
+
+    if not os.path.isfile(log_filepath):
+        print("Log file does not exist! \nPath specified was:\n", log_filepath)
+        return
+
     summary_log_filename = os.path.splitext(log_filepath)[0] + "_summary.log"
     csv_log_filename = os.path.splitext(log_filepath)[0] + ".csv"
 
