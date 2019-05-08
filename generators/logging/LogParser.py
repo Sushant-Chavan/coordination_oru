@@ -42,9 +42,113 @@ class logParser:
         with open(filename, 'w') as f:
             f.writelines(self.logs)
 
-    def generate_planning_csv(self):
-        pass
-    
+    def _extract_map_filenames(self):
+        map_names = []
+        for l in self.logs:
+            if "Map Filename: " in l:
+                map_names.append((l.split(": ")[1]).strip())
+        return map_names
+
+    def _extract_map_resolutions(self):
+        map_res = []
+        for l in self.logs:
+            if "Map Resolution: " in l:
+                map_res.append(float((l.split(": ")[1]).strip()))
+        return map_res
+
+    def _get_pose_from_string(self, string):
+        pose = string[1:-1]
+        elements = pose.split(',')
+        elements = [float(e) for e in elements]
+        return elements
+
+    def _extract_poses(self, tag="Start Pose: "):
+        poses = []
+        for l in self.logs:
+            if tag in l:
+                p = (l.split(": ")[1]).strip()
+                poses.append(self._get_pose_from_string(p))
+        return np.array(poses)
+
+    def _extract_planner_types(self):
+        planners = []
+        for l in self.logs:
+            if "Planner Type: " in l:
+                planners.append((l.split(": ")[1]).strip())
+        return planners
+
+    def _extract_robot_kinematics(self):
+        kinemetics = []
+        for l in self.logs:
+            if "Is Holonomic Robot: " in l:
+                kinemetics.append(1 if (l.split(": ")[1]).strip() == "TRUE" else 0)
+        return kinemetics
+
+    def _extract_planning_times(self):
+        times = []
+        for l in self.logs:
+            if "Possible solution found in " in l:
+                times.append(float(l.strip().split()[-2]))
+        return times
+
+    def _extract_path_simplification_times(self):
+        times = []
+        for l in self.logs:
+            if "SimpleSetup: Path simplification took" in l:
+                times.append(float(l.strip().split()[5]))
+        return times
+
+    def _extract_from_recall_stats(self):
+        recall = []
+        for l in self.logs:
+            if "and was generated from planner" in l:
+                last_element = l.strip().split()[-1]
+                if ((last_element == "LightningRetrieveRepair") or 
+                    (last_element == "Thunder_Retrieve_Repair")):
+                    recall.append(1)
+                else:
+                    recall.append(0)
+        return recall
+
+    def _extract_total_planning_times(self):
+        times = []
+        for l in self.logs:
+            if "Planning took " in l:
+                times.append(float(l.strip().split()[-2]))
+        return times
+
+    def generate_planning_csv(self, csv_filepath):
+        assert(self.logs is not None)
+
+        nPlans = sum('Planning took' in s for s in self.logs)
+        indices = np.arange(1, nPlans+1, 1)
+        columns = ["Map Filename", "Map Resolution", "Start X", "Start Y", "Start Theta",
+                   "Goal X", "Goal Y", "Goal Theta", "Planner Type", "Holonomic", 
+                   "Planning Time", "Path simplification time", "From recall", "Total planning time"]
+        df = pd.DataFrame(index=indices, columns=columns)
+        df = df.fillna("-")
+        df["Map Filename"] = self._extract_map_filenames()
+        df["Map Resolution"] = self._extract_map_resolutions()
+
+        start_poses = self._extract_poses(tag='Start Pose: ')
+        df["Start X"] = start_poses[:, 0]
+        df["Start Y"] = start_poses[:, 1]
+        df["Start Theta"] = start_poses[:, 2]
+
+        goal_poses = self._extract_poses(tag='Goal Pose: ')
+        df["Goal X"] = goal_poses[:, 0]
+        df["Goal Y"] = goal_poses[:, 1]
+        df["Goal Theta"] = goal_poses[:, 2]
+
+        df["Planner Type"] = self._extract_planner_types()
+        df["Holonomic"] = self._extract_robot_kinematics()
+        df["Planning Time"] = self._extract_planning_times()
+        df["Path simplification time"] = self._extract_path_simplification_times()
+        df["From recall"] = self._extract_from_recall_stats()
+        df["Total planning time"] = self._extract_total_planning_times()
+
+        df.to_csv(csv_filepath)
+
     def generate_execution_csv(self):
         pass
 
@@ -62,10 +166,12 @@ def main():
     planner_name = "thunder" if args.thunder else "lightning"
     log_filepath = root_dir + "/generated/experienceLogs/" + map_name + "_" + planner_name + ".log"
     summary_log_filename = os.path.splitext(log_filepath)[0] + "_summary.log"
+    csv_log_filename = os.path.splitext(log_filepath)[0] + ".csv"
 
     lp = logParser(tags_filepath)
     lp.extract_tagged_lines(log_filepath)
-    lp.dump_log_summary(summary_log_filename)
+    # lp.dump_log_summary(summary_log_filename)
+    lp.generate_planning_csv(csv_log_filename)
 
 if __name__ == "__main__":
     main()
