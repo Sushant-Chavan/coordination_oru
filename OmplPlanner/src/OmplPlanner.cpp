@@ -338,7 +338,8 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
 
     if (solved) {
         std::cout << "Found solution:" << std::endl;
-        // ssPtr->simplifySolution();
+        if (plannerType == PLANNER_TYPE::SIMPLE_SETUP)
+            ssPtr->simplifySolution();
         og::PathGeometric pth = ssPtr->getSolutionPath();
         pLen = pth.length();
         numInterpolationPoints = ((double)pLen) / distanceBetweenPathPoints;
