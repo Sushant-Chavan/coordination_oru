@@ -182,6 +182,7 @@ public class NarrowCorridor {
         tec.setMotionPlanner(omplPlanner);
         
         final String logFilename = getLogFileName(omplPlanner.getOriginalFilename(), plannerType);
+        appendToFile(logFilename, "\n\nTest \"NarrowCorridor\" started at " + getCurrentTime() + "\n");
 		
 		boolean cachePaths = false;
 		String outputDir = "paths";

@@ -6,6 +6,7 @@ import os
 import sys
 import argparse
 import pandas as pd
+import re
 
 # A class to extract relevant lines from a complete log file of a test run and generate a CSV logg file
 class logParser:
@@ -13,6 +14,9 @@ class logParser:
         self.tags_filpath = tags_filpath
         self.tags = None
         self.logs = None
+
+        # In addtion to the tags, also extract the start of test tags
+        self.test_start_regex = re.compile("Test (.*) started at")
 
         self.get_tags(self.tags_filpath)
 
@@ -30,7 +34,7 @@ class logParser:
         self.logs = []
         for l in lines:
             for t in self.tags:
-                if t in l:
+                if (t in l) or re.match(self.test_start_regex, l):
                     self.logs.append(l)
                     break
         return self.logs
@@ -40,6 +44,33 @@ class logParser:
 
         with open(filename, 'w') as f:
             f.writelines(self.logs)
+
+    def _extract_test_start_times(self):
+        ln_to_testN_map = {}
+        for i, l in enumerate(self.logs):
+            if re.match(self.test_start_regex, l):
+                test_name = (l.split("\"")[1]).strip()
+                test_time = (l.split("at")[-1]).strip()
+                ln_to_testN_map[i] = (test_name, test_time)
+
+        planning_ln = []
+        for i, l in enumerate(self.logs):
+            if "Start time: " in l:
+                planning_ln.append(i)
+
+        keys = sorted(ln_to_testN_map.keys())
+        test_mapping = np.zeros(len(planning_ln))
+        for i, l_num in enumerate(planning_ln):
+            for j, k in enumerate(keys):
+                if k < l_num:
+                    test_mapping[i] = k
+                else:
+                    break
+
+        test_names = [ln_to_testN_map[k][0] for k in test_mapping]
+        test_times = [ln_to_testN_map[k][1] for k in test_mapping]
+
+        return test_names, test_times
 
     def _extract_start_times(self):
         times = []
@@ -129,13 +160,15 @@ class logParser:
 
         nPlans = sum('Planning took' in s for s in self.logs)
         indices = np.arange(1, nPlans+1, 1)
-        columns = ["Start Time", "Map Filename", "Map Resolution", "Start X", "Start Y", "Start Theta",
+        columns = ["Test Name", "Test Start Time",  "Planning Start Time", "Map Filename", "Map Resolution", "Start X", "Start Y", "Start Theta",
                    "Goal X", "Goal Y", "Goal Theta", "Planner Type", "Holonomic", 
                    "Planning Time", "Path simplification time", "From recall", "Total planning time"]
         df = pd.DataFrame(index=indices, columns=columns)
         df = df.fillna("-")
 
-        df["Start Time"] = self._extract_start_times()
+        df["Test Name"], df["Test Start Time"] = self._extract_test_start_times()
+
+        df["Planning Start Time"] = self._extract_start_times()
         df["Map Filename"] = self._extract_map_filenames()
         df["Map Resolution"] = self._extract_map_resolutions()
 
