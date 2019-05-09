@@ -43,7 +43,8 @@ class DatasetGenerator():
             self.get_hotspot_info()
 
     def get_hotspot_info(self):
-        filepath = os.path.splitext(self.map_file_path)[0] + "_Hotspots.txt"
+        path, name = os.path.split(self.map_file_path)
+        filepath = path + "/config/Training/" + os.path.splitext(name)[0] + "_Hotspots.txt"
         file_exists = os.path.isfile(filepath)
         assert file_exists, "Hotspot file %s does not exist" % filepath
         if file_exists:
