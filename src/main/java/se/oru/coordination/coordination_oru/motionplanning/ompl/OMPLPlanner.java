@@ -2,6 +2,8 @@ package se.oru.coordination.coordination_oru.motionplanning.ompl;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.metacsp.multi.spatioTemporal.paths.Pose;
 import org.metacsp.multi.spatioTemporal.paths.PoseSteering;
@@ -29,6 +31,7 @@ public class OMPLPlanner extends AbstractMotionPlanner {
 	private double turningRadius = 1.0;
 	private Coordinate[] collisionCircleCenters = null;
     private boolean isHolonomicRobot = false;
+    private PLANNER_TYPE plannerType = PLANNER_TYPE.LIGHTNING;
 	
 	public static OMPLPlannerLib INSTANCE = null;
 	static {
@@ -106,16 +109,44 @@ public class OMPLPlanner extends AbstractMotionPlanner {
         return this.isHolonomicRobot;
     }
 
-    public enum PLANNER_TYPE{
-        SIMPLE,
-        LIGHTNING,
-        THUNDER
+    public enum PLANNER_TYPE {
+        SIMPLE(0),
+        LIGHTNING(1),
+        THUNDER(2);
+    
+        private int value;
+        private static Map map = new HashMap();
+    
+        private PLANNER_TYPE(int value) {
+            this.value = value;
+        }
+    
+        static {
+            for (PLANNER_TYPE planner_type : PLANNER_TYPE.values()) {
+                map.put(planner_type.value, planner_type);
+            }
+        }
+    
+        public static PLANNER_TYPE valueOf(int planner_type) {
+            return (PLANNER_TYPE) map.get(planner_type);
+        }
+    
+        public int getValue() {
+            return value;
+        }
+    }
+
+    public void setPlannerType(PLANNER_TYPE type) {
+        this.plannerType = type;
+    }
+
+    public PLANNER_TYPE getPlannerType() {
+        return this.plannerType;
     }
 
 	@Override
 	public boolean doPlanning() {
-        ArrayList<PoseSteering> finalPath = new ArrayList<PoseSteering>();  
-        PLANNER_TYPE plannerType = PLANNER_TYPE.LIGHTNING;
+        ArrayList<PoseSteering> finalPath = new ArrayList<PoseSteering>();
         String experienceDBName = this.getOriginalFilename();
         int mode = this.isReplan ? 1 : 0;
 		for (int i = 0; i < this.goal.length; i++) {
@@ -145,14 +176,14 @@ public class OMPLPlanner extends AbstractMotionPlanner {
                         robotRadius, xCoords, yCoords, numCoords, start_.getX(),
                         start_.getY(), start_.getTheta(), goal_.getX(), goal_.getY(),
                         goal_.getTheta(), path, pathLength, distanceBetweenPathPoints,
-                        turningRadius, plannerType.ordinal(), experienceDBName,
+                        turningRadius, this.plannerType.ordinal(), experienceDBName,
                         mode, this.isHolonomicRobot)) return false;
 				}
 				else {
                     if (!INSTANCE.plan_multiple_circles_nomap(xCoords, yCoords, numCoords,
                         start_.getX(), start_.getY(), start_.getTheta(), goal_.getX(),
                         goal_.getY(), goal_.getTheta(), path, pathLength, distanceBetweenPathPoints,
-                        turningRadius, plannerType.ordinal(), mode, this.isHolonomicRobot)) return false;
+                        turningRadius, this.plannerType.ordinal(), mode, this.isHolonomicRobot)) return false;
 				}
 			}
 			final Pointer pathVals = path.getValue();

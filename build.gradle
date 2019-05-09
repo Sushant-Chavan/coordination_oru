@@ -88,7 +88,12 @@ dependencies {
 run {
     if (project.hasProperty("demo")) {
         if (project.hasProperty("itr")) {
-            args(demo, itr)
+            if (project.hasProperty("planner")) {
+                args(demo, itr, planner)
+            }
+            else {
+                args(demo, itr)
+            }
         }
         else {
             args(demo)

@@ -2,7 +2,10 @@ package se.oru.coordination.coordination_oru.tests.customTests;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Comparator;
 
@@ -57,7 +60,42 @@ public class ROPOD_BRSU_0 {
             writer.close();
         }
         catch (Exception e) { e.printStackTrace(); }
-	}
+    }
+    
+    private static void appendToFile(String filePath, String text) {
+		File file = new File(filePath);
+		FileWriter fr = null;
+		try {
+			// Below constructor argument decides whether to append or override
+			fr = new FileWriter(file, true);
+			fr.write(text);
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				fr.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+    }
+    
+    private static String getLogFileName(String experienceDBName, OMPLPlanner.PLANNER_TYPE type) {
+        String plannerID = "_simple";
+        if (type == OMPLPlanner.PLANNER_TYPE.LIGHTNING)
+            plannerID = "_lightning";
+        else if (type == OMPLPlanner.PLANNER_TYPE.THUNDER)
+            plannerID = "_thunder";
+
+        String filename = "generated/experienceLogs/" + experienceDBName + plannerID + ".log";
+        return filename;
+    }
+
+    private static String getCurrentTime() {
+        SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy kk:mm:ss");
+	    return sdf.format(Calendar.getInstance().getTime());
+    }
 	
 	public static void main(String[] args) throws InterruptedException {
 
@@ -65,7 +103,20 @@ public class ROPOD_BRSU_0 {
 		double MAX_VEL = 14.0;
         int CONTROL_PERIOD = 1000;
 
-        final int numOfSimulationIterations = (args != null) ? Integer.parseInt(args[0]) : 20;
+        // Setup the test according to supplied params
+        int nSims = 20;
+        OMPLPlanner.PLANNER_TYPE pType = OMPLPlanner.PLANNER_TYPE.LIGHTNING;
+        if (args != null)
+        {
+            nSims = Integer.parseInt(args[0]);
+            if (args.length >= 2)
+            {
+                pType = OMPLPlanner.PLANNER_TYPE.valueOf(Integer.parseInt(args[1]));
+            }
+        }
+        final int numOfSimulationIterations = nSims;
+        final OMPLPlanner.PLANNER_TYPE plannerType = pType;
+
 		//Instantiate a trajectory envelope coordinator.
 		//The TrajectoryEnvelopeCoordinatorSimulation implementation provides
 		// -- the factory method getNewTracker() which returns a trajectory envelope tracker
@@ -128,9 +179,13 @@ public class ROPOD_BRSU_0 {
 		omplPlanner.setTurningRadius(4.0);
         omplPlanner.setDistanceBetweenPathPoints(0.3);
         omplPlanner.setHolonomicRobot(true); // ROPOD Robots are holonomic
+        omplPlanner.setPlannerType(plannerType);
 		
 		//In case deadlocks occur, we make the coordinator capable of re-planning on the fly (experimental, not working properly yet)
-		tec.setMotionPlanner(omplPlanner);
+        tec.setMotionPlanner(omplPlanner);
+        
+        final String logFilename = getLogFileName(omplPlanner.getOriginalFilename(), plannerType);
+        appendToFile(logFilename, "\n\nTest \"ROPOD_BRSU_0\" started at " + getCurrentTime() + "\n");
 		
 		boolean cachePaths = false;
 		String outputDir = "paths";
@@ -167,8 +222,10 @@ public class ROPOD_BRSU_0 {
 			File f = new File(pathFilename);
 			if(!cachePaths || (cachePaths && !f.exists())) { 
 				omplPlanner.setStart(startLoc);
-				omplPlanner.setGoals(endLoc);
-				omplPlanner.plan();
+                omplPlanner.setGoals(endLoc);
+                appendToFile(logFilename, "Planning requested for robot " + robotID + " from " + startLocName + " to " + endLocName + "\n");
+                omplPlanner.plan();
+                appendToFile(logFilename, "Planning complete for robot " + robotID + " from " + startLocName + " to " + endLocName + "\n");
 				path = omplPlanner.getPath();
 				pathInv = omplPlanner.getPathInv();
 				if (cachePaths) {
@@ -216,18 +273,29 @@ public class ROPOD_BRSU_0 {
 					// if (robotID%2 == 0 && numOfSimulationIterations > 1) totalIterations = numOfSimulationIterations -1;
 					String lastDestination = "R_"+(robotID-1);
 					long startTime = Calendar.getInstance().getTimeInMillis();
-					while (true && totalIterations > 0) {
+					while (true) {
 						synchronized(tec) {
 							if (tec.isFree(robotID)) {
 								if (!firstTime) {
+                                    appendToFile(logFilename, "Mission " + 
+                                    Integer.toString(numOfSimulationIterations - totalIterations) + 
+                                    " for robot ID " + Integer.toString(robotID) + " completed at " +
+                                    getCurrentTime() + ".\n");
 									long elapsed = Calendar.getInstance().getTimeInMillis()-startTime;
-									System.out.println("Time to reach " + lastDestination + " (Robot" + robotID + "): " + elapsed);
+									appendToFile(logFilename, "Time to reach " + lastDestination + " (Robot" + robotID + "): " + elapsed/1000.0 + "s\n");
 									String stat = "";
 									for (int i = 1; i < robotID; i++) stat += "\t";
 									stat += elapsed;
-									writeStat(statFilename, stat);
-								}
-								startTime = Calendar.getInstance().getTimeInMillis();
+                                    writeStat(statFilename, stat);
+                                    if (totalIterations <= 0)
+                                    {
+                                        break;
+                                    }
+                                }
+                                startTime = Calendar.getInstance().getTimeInMillis();
+                                appendToFile(logFilename, "Starting Mission " + 
+                                Integer.toString(numOfSimulationIterations - totalIterations + 1) + 
+                                " for robot ID " + Integer.toString(robotID) + " at " + getCurrentTime() + "\n");
 								firstTime = false;
 								Mission m = Missions.getMission(robotID,sequenceNumber);
 								tec.addMissions(m);
@@ -242,7 +310,8 @@ public class ROPOD_BRSU_0 {
 						try { Thread.sleep(100); }
 						catch (InterruptedException e) { e.printStackTrace(); }
 					}
-					System.out.println("Robot" + robotID + " is done!");
+                    System.out.println("Robot" + robotID + " is done!");
+                    appendToFile(logFilename, "Robot" + robotID + " is done!\n");
 				}
 			};
 			//Start the thread!

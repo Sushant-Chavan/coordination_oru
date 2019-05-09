@@ -11,6 +11,12 @@
 #include <ompl/geometric/planners/rrt/LBTRRT.h>
 #include <ompl/geometric/planners/rrt/LazyRRT.h>
 #include <ompl/geometric/planners/rrt/pRRT.h>
+#include <ompl/util/Console.h>
+
+#include <chrono>
+#include <ctime>
+#include <fstream>
+#include <iostream>
 
 using namespace mrpt::maps;
 using namespace std;
@@ -24,23 +30,30 @@ typedef struct PathPose {
     double x;
     double y;
     double theta;
+
+    std::string asString()
+    {
+        std::stringstream ss;
+        ss << "(" << x << ", " << y << ", " << theta << ")";
+        return ss.str();
+    }
 } PathPose;
 
 enum PLANNER_TYPE {
     SIMPLE_SETUP = 0,
     EXPERIENCE_LIGHTNING,
-    EXPERIENCE_THUNDER
+    EXPERIENCE_THUNDER,
+    PLANNER_TYPE_COUNT
 };
 
-enum MODE {
-    NORMAL = 0,
-    REPLANNING,
-    EXPERIENCE_GENERATION
-};
+enum MODE { NORMAL = 0, REPLANNING, EXPERIENCE_GENERATION, MODE_COUNT };
 
-extern "C" void cleanupPath(PathPose* path) {
-  std::cout << "Cleaning up memory.." << std::endl;
-  free(path);
+bool LOGGING_ACTIVE = true;
+
+extern "C" void cleanupPath(PathPose *path)
+{
+    std::cout << "Cleaning up memory.." << std::endl;
+    free(path);
 }
 
 og::SimpleSetup *getPlanningSetup(PLANNER_TYPE type, ob::StateSpacePtr space,
@@ -77,6 +90,132 @@ og::SimpleSetup *getPlanningSetup(PLANNER_TYPE type, ob::StateSpacePtr space,
     return ssPtr;
 }
 
+std::string getLogFileName(const char *experienceDBName,
+                           PLANNER_TYPE plannerType)
+{
+    std::stringstream filename;
+    filename << "generated/experienceLogs/";
+    filename << experienceDBName;
+    switch (plannerType) {
+    case PLANNER_TYPE::EXPERIENCE_LIGHTNING:
+        filename << "_lightning";
+        break;
+    case PLANNER_TYPE::EXPERIENCE_THUNDER:
+        filename << "_thunder";
+        break;
+    default:
+        filename << "_simple";
+        break;
+    }
+    filename << ".log";
+
+    return filename.str();
+}
+
+void log(const std::string &logFilename, const std::string &log)
+{
+    if (log.empty() || !LOGGING_ACTIVE)
+        return;
+
+    // Open the log file
+    std::ofstream logfile;
+    logfile.open(logFilename.c_str(), std::ios_base::app);
+    if (!logfile) {
+        std::cout << "File " << logFilename
+                  << " does not exist. Creating a new one..." << std::endl;
+        logfile.open(logFilename.c_str());
+        if (!logfile) {
+            std::cout << "Could not create a new logfile " << logFilename
+                      << std::endl;
+            return;
+        }
+    }
+
+    // Log the data
+    logfile << log.c_str();
+
+    // Close the log file
+    logfile.close();
+}
+
+std::string getProblemInfo(const char *mapFilename, double mapResolution,
+                           double robotRadius, double *xCoords, double *yCoords,
+                           int numCoords, double startX, double startY,
+                           double startTheta, double goalX, double goalY,
+                           double goalTheta, PathPose **path, int *pathLength,
+                           double distanceBetweenPathPoints,
+                           double turningRadius, PLANNER_TYPE plannerType,
+                           const char *experienceDBName, MODE mode,
+                           bool isHolonomicRobot)
+{
+    if (plannerType < PLANNER_TYPE::SIMPLE_SETUP ||
+        plannerType >= PLANNER_TYPE::PLANNER_TYPE_COUNT ||
+        mode != MODE::NORMAL) {
+        return "";
+    }
+
+    // Construct the log message
+    std::stringstream log;
+
+    log << "\n\n====== Start of planning instance ======\n";
+    log << "Map Filename: " << mapFilename << "\n";
+    log << "Map Resolution: " << mapResolution << "\n";
+    log << "Robot Radius: " << robotRadius << "\n";
+    log << "Collision Centers: ";
+    for (int i = 0; i < numCoords; i++) {
+        log << "(" << xCoords[i] << ", " << yCoords[i] << ") ";
+    }
+    log << "\n";
+    log << "Start Pose: (" << startX << ", " << startY << ", " << startTheta
+        << ")"
+        << "\n";
+    log << "Goal Pose: (" << goalX << ", " << goalY << ", " << goalTheta << ")"
+        << "\n";
+    log << "Distance between points: " << distanceBetweenPathPoints << "\n";
+    log << "Turning Radius: " << turningRadius << "\n";
+    if (plannerType == PLANNER_TYPE::EXPERIENCE_LIGHTNING) {
+        log << "Planner Type: LIGHTNING"
+            << "\n";
+    }
+    else if (plannerType == PLANNER_TYPE::EXPERIENCE_THUNDER) {
+        log << "Planner Type: THUNDER"
+            << "\n";
+    }
+    else {
+        log << "Planner Type: SIMPLE (RRT*)"
+            << "\n";
+    }
+    log << "Is Holonomic Robot: " << (isHolonomicRobot ? "True" : "False")
+        << "\n";
+    log << "-------------------------------------------------" << std::endl;
+
+    return log.str();
+}
+
+std::string
+getLogTime(const std::string &tag,
+           std::chrono::time_point< std::chrono::system_clock > &now)
+{
+    std::stringstream log;
+    log << tag << ": ";
+    now = std::chrono::system_clock::now();
+    std::time_t time_now = std::chrono::system_clock::to_time_t(now);
+    log << std::put_time(std::localtime(&time_now), "%d-%m-%Y %T") << std::endl;
+    return log.str();
+}
+
+std::string getPathToLog(PathPose **path, int pathLength)
+{
+    std::stringstream log;
+    log << "\nSolution contains " << pathLength << " nodes" << std::endl;
+    log << "Generated path: \n";
+    for (int i = 0; i < pathLength; i++) {
+        log << (*path)[i].asString() << " ";
+    }
+    log << "\n" << std::endl;
+    return log.str();
+}
+
 extern "C" bool
 plan_multiple_circles(const char *mapFilename, double mapResolution,
                       double robotRadius, double *xCoords, double *yCoords,
@@ -87,9 +226,36 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
                       PLANNER_TYPE plannerType, const char *experienceDBName,
                       MODE mode, bool isHolonomicRobot)
 {
+    std::string logFilename = getLogFileName(experienceDBName, plannerType);
+
+    if (plannerType >= PLANNER_TYPE::SIMPLE_SETUP &&
+        plannerType < PLANNER_TYPE::PLANNER_TYPE_COUNT &&
+        mode == MODE::NORMAL) {
+        // Setup OMPL logging stream to the log file
+        ompl::msg::useOutputHandler(new ompl::msg::OutputHandlerFile(
+            getLogFileName(experienceDBName, plannerType).c_str()));
+        LOGGING_ACTIVE = true;
+    }
+    else {
+        ompl::msg::noOutputHandler();
+        LOGGING_ACTIVE = false;
+    }
+
+    std::cout << "Logging status: " << LOGGING_ACTIVE << logFilename << std::endl;
+
+    std::string probInfo = getProblemInfo(
+        mapFilename, mapResolution, robotRadius, xCoords, yCoords, numCoords,
+        startX, startY, startTheta, goalX, goalY, goalTheta, path, pathLength,
+        distanceBetweenPathPoints, turningRadius, plannerType, experienceDBName,
+        mode, isHolonomicRobot);
+    log(logFilename, probInfo);
+
     double pLen = 0.0;
     int numInterpolationPoints = 0;
     bool isReplan = (mode == MODE::REPLANNING);
+
+    std::chrono::time_point< std::chrono::system_clock > startTime;
+    log(logFilename, getLogTime("Start time", startTime));
 
     ob::StateSpacePtr space =
         isHolonomicRobot
@@ -148,8 +314,7 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
         ePtr->setRepairPlanner(repairPlanner);
 
         // Disable planning from recall if we are generating experiences
-        if (mode == MODE::EXPERIENCE_GENERATION)
-        {
+        if (mode == MODE::EXPERIENCE_GENERATION) {
             ePtr->enablePlanningFromRecall(false);
         }
     }
@@ -166,14 +331,15 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     // this call is optional, but we put it in to get more output information
     ssPtr->getSpaceInformation()->setStateValidityCheckingResolution(0.005);
     ssPtr->setup();
-    //ssPtr->print();
+    // ssPtr->print();
 
     // attempt to solve the problem within 30 seconds of planning time
     ob::PlannerStatus solved = ssPtr->solve(30.0);
 
     if (solved) {
         std::cout << "Found solution:" << std::endl;
-        //ssPtr->simplifySolution();
+        if (plannerType == PLANNER_TYPE::SIMPLE_SETUP)
+            ssPtr->simplifySolution();
         og::PathGeometric pth = ssPtr->getSolutionPath();
         pLen = pth.length();
         numInterpolationPoints = ((double)pLen) / distanceBetweenPathPoints;
@@ -196,7 +362,13 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
 
         if (ePtr != NULL) {
             ePtr->doPostProcessing();
-            ePtr->save();
+            ePtr->saveIfChanged();
+
+            // Log the planning logs to the log file
+            std::ostringstream stream;
+            stream << "\n";
+            ePtr->printLogs(stream);
+            log(logFilename, stream.str());
         }
     }
     else {
@@ -207,6 +379,18 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
         delete ssPtr;
         ssPtr = NULL;
     }
+
+    std::chrono::time_point< std::chrono::system_clock > endTime;
+    std::string endTimeLog = getLogTime("End time", endTime);
+    log(logFilename, getPathToLog(path, *pathLength));
+    log(logFilename, endTimeLog);
+
+    std::chrono::duration< double > elapsed_seconds = endTime - startTime;
+    std::stringstream ss;
+    ss << "Planning took ";
+    ss << elapsed_seconds.count() << " seconds" << std::endl;
+    log(logFilename, ss.str());
+    log(logFilename, "========================================\n\n");
 
     return solved ? 1 : 0;
 }
@@ -274,8 +458,7 @@ extern "C" bool plan_multiple_circles_nomap(
         ePtr->setRepairPlanner(repairPlanner);
 
         // Disable planning from recall if we are generating experiences
-        if (mode == MODE::EXPERIENCE_GENERATION)
-        {
+        if (mode == MODE::EXPERIENCE_GENERATION) {
             ePtr->enablePlanningFromRecall(false);
         }
     }
@@ -292,7 +475,7 @@ extern "C" bool plan_multiple_circles_nomap(
     // this call is optional, but we put it in to get more output information
     ssPtr->getSpaceInformation()->setStateValidityCheckingResolution(0.005);
     ssPtr->setup();
-    //ssPtr->print();
+    // ssPtr->print();
 
     // attempt to solve the problem within 30 seconds of planning time
     ob::PlannerStatus solved = ssPtr->solve(30.0);
