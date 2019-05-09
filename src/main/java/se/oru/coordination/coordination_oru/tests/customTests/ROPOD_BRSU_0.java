@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Comparator;
 
@@ -81,7 +82,7 @@ public class ROPOD_BRSU_0 {
     }
     
     private static String getLogFileName(String experienceDBName, OMPLPlanner.PLANNER_TYPE type) {
-        String plannerID = "_unknownPlanner";
+        String plannerID = "_simple";
         if (type == OMPLPlanner.PLANNER_TYPE.LIGHTNING)
             plannerID = "_lightning";
         else if (type == OMPLPlanner.PLANNER_TYPE.THUNDER)
@@ -89,6 +90,11 @@ public class ROPOD_BRSU_0 {
 
         String filename = "generated/experienceLogs/" + experienceDBName + plannerID + ".log";
         return filename;
+    }
+
+    private static String getCurrentTime() {
+        SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy kk:mm:ss");
+	    return sdf.format(Calendar.getInstance().getTime());
     }
 	
 	public static void main(String[] args) throws InterruptedException {
@@ -179,6 +185,7 @@ public class ROPOD_BRSU_0 {
         tec.setMotionPlanner(omplPlanner);
         
         final String logFilename = getLogFileName(omplPlanner.getOriginalFilename(), plannerType);
+        appendToFile(logFilename, "\n\nTest \"ROPOD_BRSU_0\" started at " + getCurrentTime() + "\n");
 		
 		boolean cachePaths = false;
 		String outputDir = "paths";
@@ -273,7 +280,7 @@ public class ROPOD_BRSU_0 {
                                     appendToFile(logFilename, "Mission " + 
                                     Integer.toString(numOfSimulationIterations - totalIterations) + 
                                     " for robot ID " + Integer.toString(robotID) + " completed at " +
-                                    Calendar.getInstance().getTime().toString() + ".\n");
+                                    getCurrentTime() + ".\n");
 									long elapsed = Calendar.getInstance().getTimeInMillis()-startTime;
 									appendToFile(logFilename, "Time to reach " + lastDestination + " (Robot" + robotID + "): " + elapsed/1000.0 + "s\n");
 									String stat = "";
@@ -288,7 +295,7 @@ public class ROPOD_BRSU_0 {
                                 startTime = Calendar.getInstance().getTimeInMillis();
                                 appendToFile(logFilename, "Starting Mission " + 
                                 Integer.toString(numOfSimulationIterations - totalIterations + 1) + 
-                                " for robot ID " + Integer.toString(robotID) + " at " + Calendar.getInstance().getTime().toString() + "\n");
+                                " for robot ID " + Integer.toString(robotID) + " at " + getCurrentTime() + "\n");
 								firstTime = false;
 								Mission m = Missions.getMission(robotID,sequenceNumber);
 								tec.addMissions(m);
