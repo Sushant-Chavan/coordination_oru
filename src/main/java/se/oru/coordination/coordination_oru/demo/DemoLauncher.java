@@ -23,7 +23,10 @@ public class DemoLauncher {
 	
 	private static void printUsage() {
 
-        System.out.println("Usage: \n./gradlew run -Pdemo=<demo> \n\tOR \n./gradlew run -Pdemo=<demo> -Pitr=N \n\nN represents the number of simulation iterations.\nAvailable options for <demo>");
+        System.out.println("Usage: \n./gradlew run -Pdemo=<demo> \n\tOR \n./gradlew run -Pdemo=<demo> -Pitr=N -Pplanner=ID" +
+        "\n\nN represents the number of simulation iterations."+
+        "\nID represents the planner to be used (SIMPLE:0, LIGHTNING:1, THUNDER:2)"+
+        "\nAvailable options for <demo>");
 
 		List<ClassLoader> classLoadersList = new LinkedList<ClassLoader>();
 		classLoadersList.add(ClasspathHelper.contextClassLoader());
@@ -63,19 +66,20 @@ public class DemoLauncher {
 	public static void main(String[] args) throws ClassNotFoundException {
 		
 		//Forces to loads the class so that license and (c) are printed even if no demo is invoked
-		Class.forName("se.oru.coordination.coordination_oru.TrajectoryEnvelopeCoordinator");
+        Class.forName("se.oru.coordination.coordination_oru.TrajectoryEnvelopeCoordinator");
 
-		if (args.length < 1 || args.length > 2) printUsage();
-		else {
+		if (args.length == 1 || args.length == 3) {
 			String className = args[0];
 			try {
 				Class<?> cl = Class.forName(testsPackage+"."+className);
 				Method meth = cl.getMethod("main", String[].class);
                 String[] params = null;
-                if (args.length == 2)
+                if (args.length >= 2)
                 {
-                    params = new String[1];
-                    params[0] = args[1];
+                    params = new String[args.length - 1];
+                    for (int i = 0; i < params.length; i++){
+                        params[i] = args[i+1];
+                    }
                 }
 			    meth.invoke(null, (Object) params);
 			}
@@ -85,7 +89,9 @@ public class DemoLauncher {
 			catch (SecurityException e) { e.printStackTrace(); }
 			catch (IllegalArgumentException e) { e.printStackTrace(); }
 			catch (InvocationTargetException e) { e.printStackTrace(); }
-		}
+        }
+        else
+            printUsage();
 	}
 
 }
