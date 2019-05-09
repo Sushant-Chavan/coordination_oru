@@ -184,6 +184,7 @@ public class University {
         tec.setMotionPlanner(omplPlanner);
         
         final String logFilename = getLogFileName(omplPlanner.getOriginalFilename(), plannerType);
+        appendToFile(logFilename, "\n\nTest \"University\" started at " + getCurrentTime() + "\n");
 		
 		boolean cachePaths = false;
 		String outputDir = "paths";

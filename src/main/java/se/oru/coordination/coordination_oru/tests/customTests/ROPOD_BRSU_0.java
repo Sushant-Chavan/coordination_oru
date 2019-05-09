@@ -185,6 +185,7 @@ public class ROPOD_BRSU_0 {
         tec.setMotionPlanner(omplPlanner);
         
         final String logFilename = getLogFileName(omplPlanner.getOriginalFilename(), plannerType);
+        appendToFile(logFilename, "\n\nTest \"ROPOD_BRSU_0\" started at " + getCurrentTime() + "\n");
 		
 		boolean cachePaths = false;
 		String outputDir = "paths";
