@@ -1,0 +1,329 @@
+package se.oru.coordination.coordination_oru.tests.customTests;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Comparator;
+
+import org.metacsp.multi.spatioTemporal.paths.Pose;
+import org.metacsp.multi.spatioTemporal.paths.PoseSteering;
+
+import com.vividsolutions.jts.geom.Coordinate;
+
+import se.oru.coordination.coordination_oru.ConstantAccelerationForwardModel;
+import se.oru.coordination.coordination_oru.CriticalSection;
+import se.oru.coordination.coordination_oru.Mission;
+import se.oru.coordination.coordination_oru.RobotAtCriticalSection;
+import se.oru.coordination.coordination_oru.RobotReport;
+import se.oru.coordination.coordination_oru.demo.DemoDescription;
+import se.oru.coordination.coordination_oru.motionplanning.ompl.OMPLPlanner;
+import se.oru.coordination.coordination_oru.simulation2D.TrajectoryEnvelopeCoordinatorSimulation;
+import se.oru.coordination.coordination_oru.util.BrowserVisualization;
+import se.oru.coordination.coordination_oru.util.FleetVisualization;
+import se.oru.coordination.coordination_oru.util.Missions;
+import se.oru.coordination.coordination_oru.util.RVizVisualization;
+
+@DemoDescription(desc = "10 Robots start at their charging locations." + 
+"Each moves to a source location of a task followed by target location for the task."+
+"After this they come back to their charging locations.")
+public class BRSU_Floor0 extends TestBaseClass {
+    protected static int nSimulations_ = 1;
+    protected static OMPLPlanner.PLANNER_TYPE plannerType_ = OMPLPlanner.PLANNER_TYPE.LIGHTNING;
+    protected static int nRobots_ = 10;
+
+    protected static double MAX_ACCEL = 3.0;
+    protected static double MAX_VEL = 14.0;
+    protected static int CONTROL_PERIOD = 1000;
+
+    protected static Coordinate footprint1_ = new Coordinate(-0.25,0.25);
+    protected static Coordinate footprint2_ = new Coordinate(0.25,0.25);
+    protected static Coordinate footprint3_ = new Coordinate(0.25,-0.25);
+    protected static Coordinate footprint4_ = new Coordinate(-0.25,-0.25);
+
+    protected static String mapConfig_ = "maps/BRSU_Floor0.yaml";
+    protected static String missionConfig_ = "generated/testingData/BRSU_Floor0-10Problems.txt";
+    protected static String testName = "BRSU_Floor0";
+    protected static String logFilename_;
+    protected static FleetVisualization viz;
+
+    protected static OMPLPlanner omplPlanner_;
+    protected static TrajectoryEnvelopeCoordinatorSimulation tec_;
+
+    BRSU_Floor0() {
+
+    }
+
+    protected static void parseArguments(String[] args) {
+        if (args != null)
+        {
+            nSimulations_ = Integer.parseInt(args[0]);
+            if (args.length >= 2)
+            {
+                plannerType_ = OMPLPlanner.PLANNER_TYPE.valueOf(Integer.parseInt(args[1]));
+            }
+        }
+    }
+
+    protected static void setupTEC() {
+        //Instantiate a trajectory envelope coordinator.
+        //The TrajectoryEnvelopeCoordinatorSimulation implementation provides
+        // -- the factory method getNewTracker() which returns a trajectory envelope tracker
+        // -- the getCurrentTimeInMillis() method, which is used by the coordinator to keep time
+        //You still need to add one or more comparators to determine robot orderings thru critical sections (comparators are evaluated in the order in which they are added)
+        tec_ = new TrajectoryEnvelopeCoordinatorSimulation(CONTROL_PERIOD,1000.0,MAX_VEL,MAX_ACCEL);
+        //tec_ = new TrajectoryEnvelopeCoordinatorSimulation(MAX_VEL,MAX_ACCEL);
+        tec_.addComparator(new Comparator<RobotAtCriticalSection> () {
+            @Override
+            public int compare(RobotAtCriticalSection o1, RobotAtCriticalSection o2) {
+                CriticalSection cs = o1.getCriticalSection();
+                RobotReport robotReport1 = o1.getTrajectoryEnvelopeTracker().getRobotReport();
+                RobotReport robotReport2 = o2.getTrajectoryEnvelopeTracker().getRobotReport();
+                return ((cs.getTe1Start()-robotReport1.getPathIndex())-(cs.getTe2Start()-robotReport2.getPathIndex()));
+            }
+        });
+        tec_.addComparator(new Comparator<RobotAtCriticalSection> () {
+            @Override
+            public int compare(RobotAtCriticalSection o1, RobotAtCriticalSection o2) {
+                return (o2.getTrajectoryEnvelopeTracker().getTrajectoryEnvelope().getRobotID()-o1.getTrajectoryEnvelopeTracker().getTrajectoryEnvelope().getRobotID());
+            }
+        });
+
+        tec_.setDefaultFootprint(footprint1_, footprint2_, footprint3_, footprint4_);
+
+        //Need to setup infrastructure that maintains the representation
+        tec_.setupSolver(0, 100000000);
+
+        setupVisualization();
+        tec_.setVisualization(viz);
+
+        tec_.setUseInternalCriticalPoints(true);
+        tec_.setYieldIfParking(false);
+        tec_.setBreakDeadlocks(true);
+        tec_.setQuiet(true);
+
+        //MetaCSPLogging.setLevel(tec_.getClass().getSuperclass(), Level.FINEST);
+
+        //Instantiate a simple motion planner
+        setupMotionPlanner(tec_.getDefaultFootprint(), plannerType_, true);
+
+        //In case deadlocks occur, we make the coordinator capable of re-planning on the fly (experimental, not working properly yet)
+        tec_.setMotionPlanner(omplPlanner_);
+
+        logFilename_ = getLogFileName(omplPlanner_.getOriginalFilename(), plannerType_);
+    }
+
+    protected static void setupVisualization() {
+        //Setup a simple GUI (null means empty map, otherwise provide yaml file)
+
+        //viz = new JTSDrawingPanelVisualization();
+        //viz.setMap(mapConfig_);
+        
+        viz = new RVizVisualization();
+        viz.setMap(mapConfig_);
+
+        // viz = new BrowserVisualization();
+        // viz.setMap(yamlFile);
+        // viz.setInitialTransform(20.0, 9.0, 2.0);
+    }
+
+    protected static void setupMotionPlanner(Coordinate[] footprint,
+                                                  OMPLPlanner.PLANNER_TYPE plannerType,
+                                                  boolean isHolonomicRobot) {
+        //Instantiate a simple motion planner
+        omplPlanner_ = new OMPLPlanner();
+        omplPlanner_.setMapFilename("maps"+File.separator+Missions.getProperty("image", mapConfig_));
+        double res = Double.parseDouble(Missions.getProperty("resolution", mapConfig_));
+        omplPlanner_.setMapResolution(res);
+        omplPlanner_.setRadius(0.1);
+        omplPlanner_.setFootprint(footprint);
+        omplPlanner_.setTurningRadius(4.0);
+        omplPlanner_.setDistanceBetweenPathPoints(0.3);
+        omplPlanner_.setHolonomicRobot(isHolonomicRobot);
+        omplPlanner_.setPlannerType(plannerType);
+    }
+
+    protected static int[] addMissions() {
+        int numOfRobotsPerSide = 5;
+        int[] robotIDs = new int[] {1,2,3,4,5, 6, 7, 8, 9, 10};
+        int locationCounter = 0;
+        String[] startPositions = new String[]{"RE_S_0", "RE_S_1", "AH_S_0", "AW_S_0", "SA_S_0", "AH_S_1", "P3_S_0", "P1_S_0", "P2_S_0", "SA_S_1"};
+        String[] goalPositions = new String[]{"AH_E_0", "AW_E_0", "SA_E_1", "RE_E_1", "AH_E_1", "P3_E_0", "P1_E_0", "P2_E_0", "SA_E_0", "RE_E_0"};
+        for (int robotID : robotIDs) {
+            tec_.setForwardModel(robotID, new ConstantAccelerationForwardModel(MAX_ACCEL, MAX_VEL, CONTROL_PERIOD, tec_.getTemporalResolution(), 3));
+
+            String startLocName = startPositions[robotID-1];
+            String endLocName = goalPositions[robotID-1];
+
+            Pose startLoc = Missions.getLocation(startLocName);
+            Pose endLoc = Missions.getLocation(endLocName);
+
+            locationCounter += 1;
+
+            tec_.placeRobot(robotID, startLoc);
+            System.out.println("Placed Robot" + robotID + " in " + startLocName);
+
+            PoseSteering[] path = null;
+            PoseSteering[] pathInv = null;
+            omplPlanner_.setStart(startLoc);
+            omplPlanner_.setGoals(endLoc);
+            appendToFile(logFilename_, "Planning requested for robot " + robotID + " from " + startLocName + " to " + endLocName + "\n");
+            omplPlanner_.plan();
+            appendToFile(logFilename_, "Planning complete for robot " + robotID + " from " + startLocName + " to " + endLocName + "\n");
+            path = omplPlanner_.getPath();
+            pathInv = omplPlanner_.getPathInv();
+			
+			Mission m = new Mission(robotID, path, startLocName, endLocName, Missions.getLocation(startLocName), Missions.getLocation(endLocName));
+            Missions.enqueueMission(m);
+            if (nSimulations_ > 1) {
+                Mission m1 = new Mission(robotID, pathInv, endLocName, startLocName, Missions.getLocation(endLocName), Missions.getLocation(startLocName));
+                Missions.enqueueMission(m1);
+            }
+		}
+
+        System.out.println("Added missions " + Missions.getMissions());
+        
+        return robotIDs;
+    }
+
+    protected static int[] addMissions_new() {
+        int[] robotIDs = new int[nRobots_];
+        ArrayList<String> chargingPos = new ArrayList<String>();
+        ArrayList<String> sourcePos = new ArrayList<String>();
+        ArrayList<String> targetPos = new ArrayList<String>();
+
+        for (int i = 0; i < nRobots_; i++) {
+            robotIDs[i] = i+1;
+            chargingPos.add("C_"+Integer.toString(i));
+            sourcePos.add("S_"+Integer.toString(i));
+            targetPos.add("T_"+Integer.toString(i));
+        }
+
+        for (int robotID : robotIDs) {
+            tec_.setForwardModel(robotID, new ConstantAccelerationForwardModel(MAX_ACCEL, MAX_VEL, CONTROL_PERIOD, tec_.getTemporalResolution(), 3));
+
+            String chargingPosName = chargingPos.get(robotID-1);
+            String sourcePosName = sourcePos.get(robotID-1);
+            String targetPosName = targetPos.get(robotID-1);
+
+            Pose chargingPose = Missions.getLocation(chargingPosName);
+            Pose sourcePose = Missions.getLocation(sourcePosName);
+            Pose targetPose = Missions.getLocation(targetPosName);
+
+            tec_.placeRobot(robotID, chargingPose);
+            String robotTag = "[Robot-" + robotID + "]";
+            System.out.println(robotTag + " placed at " + chargingPosName);
+
+            // Setup charging station to source mission
+            omplPlanner_.setStart(chargingPose);
+            omplPlanner_.setGoals(sourcePose);
+            appendToFile(logFilename_, robotTag + " Start planning from " + chargingPosName + " to " + sourcePosName + "\n");
+            omplPlanner_.plan();
+            appendToFile(logFilename_, robotTag + " planning from " + chargingPosName + " to " + sourcePosName + " complete\n");
+            PoseSteering[] pathCtoS = omplPlanner_.getPath();
+            Mission missionCtoS = new Mission(robotID, pathCtoS, chargingPosName, sourcePosName, Missions.getLocation(chargingPosName), Missions.getLocation(sourcePosName));
+            Missions.enqueueMission(missionCtoS);
+
+            // Setup source to target mission
+            omplPlanner_.setStart(sourcePose);
+            omplPlanner_.setGoals(targetPose);
+            appendToFile(logFilename_, robotTag + " Start planning from " + sourcePosName + " to " + targetPosName + "\n");
+            omplPlanner_.plan();
+            appendToFile(logFilename_, robotTag + " planning from " + sourcePosName + " to " + targetPosName + " complete\n");
+            PoseSteering[] pathStoT = omplPlanner_.getPath();
+            Mission missionStoT = new Mission(robotID, pathStoT, sourcePosName, targetPosName, Missions.getLocation(sourcePosName), Missions.getLocation(targetPosName));
+            Missions.enqueueMission(missionStoT);
+
+            // Setup target to charging station mission
+            omplPlanner_.setStart(targetPose);
+            omplPlanner_.setGoals(chargingPose);
+            appendToFile(logFilename_, robotTag + " Start planning from " + targetPosName + " to " + chargingPosName + "\n");
+            omplPlanner_.plan();
+            appendToFile(logFilename_, robotTag + " planning from " + targetPosName + " to " + chargingPosName + " complete\n");
+            PoseSteering[] pathTtoC = omplPlanner_.getPath();
+            Mission missionTtoC= new Mission(robotID, pathTtoC, targetPosName, chargingPosName, Missions.getLocation(targetPosName), Missions.getLocation(chargingPosName));
+            Missions.enqueueMission(missionTtoC);
+		}
+
+        System.out.println("Added missions " + Missions.getMissions());
+        
+        return robotIDs;
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+
+        parseArguments(args);
+        setupTEC();
+
+        Missions.loadLocationAndPathData(missionConfig_);
+        appendToFile(logFilename_, "\n\nTest \"" + testName + "\" started at " + getCurrentTime() + "\n");
+
+        int[] robotIDs = addMissions_new();
+
+        //Sleep a little so we can start Rviz and perhaps screencapture ;)
+        //Create rviz config file by uncommenting the following line
+        RVizVisualization.writeRVizConfigFile(robotIDs);
+        //To visualize, run "rosrun rviz rviz -d ~/config.rviz"
+        Thread.sleep(5000);
+
+        //Start a mission dispatching thread for each robot, which will run forever
+        for (int i = 0; i < robotIDs.length; i++) {
+            final int robotID = robotIDs[i];
+            //For each robot, create a thread that dispatches the "next" mission when the robot is free
+
+            Thread t = new Thread() {
+                @Override
+                public void run() {
+                    boolean firstTime = true;
+                    int missionNumber = 0;
+                    int totalIterations = nSimulations_;
+                    String sourceLocation = "";
+                    String destinationLocation = "";
+                    long startTime = Calendar.getInstance().getTimeInMillis();
+                    String robotTag = "[ROBOT-" + robotID + "]";
+                    while (true) {
+                        synchronized(tec_) {
+                            if (tec_.isFree(robotID)) {
+                                if (!firstTime) {
+                                    appendToFile(logFilename_, robotTag + " Mission from " + sourceLocation +
+                                    " to " + destinationLocation + " completed at " + getCurrentTime() + "\n");
+                                    long elapsed = Calendar.getInstance().getTimeInMillis()-startTime;
+                                    appendToFile(logFilename_, robotTag + "Time to complete mission " + elapsed/1000.0 + "s\n");
+
+                                    missionNumber = (missionNumber+1)%Missions.getMissions(robotID).size();
+                                    if (missionNumber == 0)
+                                        totalIterations--;
+                                    if (totalIterations <= 0)
+                                    {
+                                        break;
+                                    }
+                                }
+                                startTime = Calendar.getInstance().getTimeInMillis();
+                                Mission m = Missions.getMission(robotID,missionNumber);
+                                sourceLocation = m.getFromLocation();
+                                destinationLocation = m.getToLocation();
+                                appendToFile(logFilename_, robotTag + " Start Mission " + missionNumber + " from " + sourceLocation +
+                                " to " + destinationLocation + " at " + getCurrentTime() + "\n");
+                                tec_.addMissions(m);
+                                tec_.computeCriticalSections();
+                                tec_.startTrackingAddedMissions();
+                                firstTime = false;
+                            }
+                        }
+                        //Sleep for a little (2 sec)
+                        try { Thread.sleep(100); }
+                        catch (InterruptedException e) { e.printStackTrace(); }
+                    }
+                    System.out.println("Robot" + robotID + " is done!");
+                    appendToFile(logFilename_, robotTag + " done!\n");
+                }
+            };
+            //Start the thread!
+            t.start();
+        }
+    }
+}
