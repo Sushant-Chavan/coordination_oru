@@ -26,10 +26,8 @@ import se.oru.coordination.coordination_oru.util.BrowserVisualization;
 import se.oru.coordination.coordination_oru.util.Missions;
 import se.oru.coordination.coordination_oru.util.RVizVisualization;
 
-@DemoDescription(desc = "10 Robots start at their charging locations." + 
-"Each moves to a source location of a task followed by target location for the task."+
-"After this they come back to their charging locations.")
-public class TestBaseClass {
+@DemoDescription(desc = "Base class for custom tests")
+public abstract class TestBaseClass {
     protected static void appendToFile(String filePath, String text) {
 		File file = new File(filePath);
 		FileWriter fr = null;
