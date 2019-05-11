@@ -221,6 +221,7 @@ public class BRSU_Floor0 extends TestBaseClass {
             // Setup charging station to source mission
             omplPlanner_.setStart(chargingPose);
             omplPlanner_.setGoals(sourcePose);
+            omplPlanner_.clearObstacles();
             appendToFile(logFilename_, robotTag + " Start planning from " + chargingPosName + " to " + sourcePosName + "\n");
             omplPlanner_.plan();
             appendToFile(logFilename_, robotTag + " planning from " + chargingPosName + " to " + sourcePosName + " complete\n");
@@ -254,6 +255,70 @@ public class BRSU_Floor0 extends TestBaseClass {
         return robotIDs;
     }
 
+    protected static int[] initializeRobots() {
+        int[] robotIDs = new int[nRobots_];
+        for (int i = 0; i < nRobots_; i++) {
+            robotIDs[i] = i+1;
+            tec_.setForwardModel(robotIDs[i], new ConstantAccelerationForwardModel(MAX_ACCEL, MAX_VEL, CONTROL_PERIOD, tec_.getTemporalResolution(), 3));
+            String chargingPosName = "C_" + Integer.toString(i);
+            Pose chargingPose = Missions.getLocation(chargingPosName);
+            tec_.placeRobot(robotIDs[i], chargingPose);
+            String robotTag = "[Robot-" + robotIDs[i] + "]";
+            System.out.println(robotTag + " placed at " + chargingPosName);
+            Missions.enqueueMission(getMission(robotIDs[i], 0));
+        }
+        return robotIDs;
+    }
+
+    protected static Mission getMission(int robotID, int missionNumber) {
+        String chargingPosName = "C_" + Integer.toString(robotID - 1);
+        String sourcePosName = "S_" + Integer.toString(robotID - 1);
+        String targetPosName = "T_" + Integer.toString(robotID - 1);
+
+        Pose chargingPose = Missions.getLocation(chargingPosName);
+        Pose sourcePose = Missions.getLocation(sourcePosName);
+        Pose targetPose = Missions.getLocation(targetPosName);
+
+        String robotTag = "[Robot-" + robotID + "]";
+
+        Mission mission = null;
+        if (missionNumber == 0) {
+            // Setup charging station to source mission
+            omplPlanner_.setStart(chargingPose);
+            omplPlanner_.setGoals(sourcePose);
+            appendToFile(logFilename_, robotTag + " Start planning from " + chargingPosName + " to " + sourcePosName + "\n");
+            omplPlanner_.plan();
+            appendToFile(logFilename_, robotTag + " planning from " + chargingPosName + " to " + sourcePosName + " complete\n");
+            PoseSteering[] pathCtoS = omplPlanner_.getPath();
+            mission = new Mission(robotID, pathCtoS, chargingPosName, sourcePosName, Missions.getLocation(chargingPosName), Missions.getLocation(sourcePosName));
+        }
+        else if (missionNumber == 1) {
+            // Setup source to target mission
+            omplPlanner_.setStart(sourcePose);
+            omplPlanner_.setGoals(targetPose);
+            appendToFile(logFilename_, robotTag + " Start planning from " + sourcePosName + " to " + targetPosName + "\n");
+            omplPlanner_.plan();
+            appendToFile(logFilename_, robotTag + " planning from " + sourcePosName + " to " + targetPosName + " complete\n");
+            PoseSteering[] pathStoT = omplPlanner_.getPath();
+            mission = new Mission(robotID, pathStoT, sourcePosName, targetPosName, Missions.getLocation(sourcePosName), Missions.getLocation(targetPosName));
+        }
+        else if (missionNumber == 2) {
+            // Setup target to charging station mission
+            omplPlanner_.setStart(targetPose);
+            omplPlanner_.setGoals(chargingPose);
+            appendToFile(logFilename_, robotTag + " Start planning from " + targetPosName + " to " + chargingPosName + "\n");
+            omplPlanner_.plan();
+            appendToFile(logFilename_, robotTag + " planning from " + targetPosName + " to " + chargingPosName + " complete\n");
+            PoseSteering[] pathTtoC = omplPlanner_.getPath();
+            mission = new Mission(robotID, pathTtoC, targetPosName, chargingPosName, Missions.getLocation(targetPosName), Missions.getLocation(chargingPosName));
+        }
+        else {
+            System.out.println("ERROR! Mission number must be less than 3!");
+        }
+
+        return mission;
+    }
+
     public static void main(String[] args) throws InterruptedException {
 
         parseArguments(args);
@@ -262,7 +327,8 @@ public class BRSU_Floor0 extends TestBaseClass {
         Missions.loadLocationAndPathData(missionConfig_);
         appendToFile(logFilename_, "\n\nTest \"" + testName + "\" started at " + getCurrentTime() + "\n");
 
-        int[] robotIDs = addMissions_new();
+        // int[] robotIDs = addMissions_new();
+        int[] robotIDs = initializeRobots();
 
         //Sleep a little so we can start Rviz and perhaps screencapture ;)
         //Create rviz config file by uncommenting the following line
@@ -285,6 +351,7 @@ public class BRSU_Floor0 extends TestBaseClass {
                     String destinationLocation = "";
                     long startTime = Calendar.getInstance().getTimeInMillis();
                     String robotTag = "[ROBOT-" + robotID + "]";
+                    int maxNumOfMissions = 3;
                     while (true) {
                         synchronized(tec_) {
                             if (tec_.isFree(robotID)) {
@@ -294,7 +361,7 @@ public class BRSU_Floor0 extends TestBaseClass {
                                     long elapsed = Calendar.getInstance().getTimeInMillis()-startTime;
                                     appendToFile(logFilename_, robotTag + "Time to complete mission " + elapsed/1000.0 + "s\n");
 
-                                    missionNumber = (missionNumber+1)%Missions.getMissions(robotID).size();
+                                    missionNumber = (missionNumber+1)%maxNumOfMissions;
                                     if (missionNumber == 0)
                                         totalIterations--;
                                     if (totalIterations <= 0)
@@ -303,7 +370,11 @@ public class BRSU_Floor0 extends TestBaseClass {
                                     }
                                 }
                                 startTime = Calendar.getInstance().getTimeInMillis();
-                                Mission m = Missions.getMission(robotID,missionNumber);
+
+                                if (Missions.getMissions(robotID).size() <= missionNumber)
+                                    Missions.enqueueMission(getMission(robotID, missionNumber));
+
+                                Mission m = Missions.getMission(robotID, missionNumber);
                                 sourceLocation = m.getFromLocation();
                                 destinationLocation = m.getToLocation();
                                 appendToFile(logFilename_, robotTag + " Start Mission " + missionNumber + " from " + sourceLocation +
