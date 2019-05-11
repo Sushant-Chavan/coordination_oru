@@ -162,8 +162,8 @@ public class BRSU_Floor0 extends TestBaseClass {
         Missions.loadLocationAndPathData(missionConfig_);
         appendToFile(logFilename_, "\n\nTest \"" + testName + "\" started at " + getCurrentTime() + "\n");
 
-        // int[] robotIDs = addMissions_new();
-        int[] robotIDs = initializeRobots();
+        int[] robotIDs = addMissions();
+        // int[] robotIDs = initializeRobots();
 
         //Sleep a little so we can start Rviz and perhaps screencapture ;)
         //Create rviz config file by uncommenting the following line
