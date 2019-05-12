@@ -59,7 +59,7 @@ public class BRSU_Floor0 extends TestBaseClass {
                                     appendToFile(logFilename_, robotTag + " Mission from " + sourceLocation +
                                     " to " + destinationLocation + " completed at " + getCurrentTime() + "\n");
                                     long elapsed = Calendar.getInstance().getTimeInMillis()-startTime;
-                                    appendToFile(logFilename_, robotTag + "Time to complete mission " + elapsed/1000.0 + "s\n");
+                                    appendToFile(logFilename_, robotTag + " Time to complete mission " + elapsed/1000.0 + "s\n");
 
                                     missionNumber = (missionNumber+1)%maxNumOfMissions;
                                     if (missionNumber == 0)
