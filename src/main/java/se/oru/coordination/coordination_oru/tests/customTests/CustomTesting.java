@@ -26,9 +26,10 @@ import se.oru.coordination.coordination_oru.util.FleetVisualization;
 import se.oru.coordination.coordination_oru.util.Missions;
 import se.oru.coordination.coordination_oru.util.RVizVisualization;
 
-@DemoDescription(desc = "Base class for custom tests")
-public abstract class TestBaseClass {
-    protected static int nSimulations_ = 1;
+@DemoDescription(desc = "Robots start at their charging locations." + 
+"Each moves to a source location of a task followed by target location for the task."+
+"After this they come back to their charging locations.")
+public abstract class CustomTesting {
     protected static OMPLPlanner.PLANNER_TYPE plannerType_ = OMPLPlanner.PLANNER_TYPE.LIGHTNING;
     protected static int nRobots_ = 10;
 
@@ -48,17 +49,23 @@ public abstract class TestBaseClass {
 
     protected static String mapConfig_;
     protected static String missionConfig_;
-    protected static String testName;
+    protected static String mapName_;
 
     protected static void parseArguments(String[] args) {
-        if (args != null)
+        if (args != null && args.length >= 3 )
         {
-            nSimulations_ = Integer.parseInt(args[0]);
-            if (args.length >= 2)
-            {
-                plannerType_ = OMPLPlanner.PLANNER_TYPE.valueOf(Integer.parseInt(args[1]));
-            }
+            nRobots_ = Integer.parseInt(args[0]);
+            plannerType_ = OMPLPlanner.PLANNER_TYPE.valueOf(Integer.parseInt(args[1]));
+            mapName_ = args[2];
         }
+        else {
+            System.out.println("ERROR: Insuficient number of arguments passed!!");
+        }
+    }
+
+    protected static void initializeTest() {
+        mapConfig_ = "maps/" + mapName_ + ".yaml";
+        missionConfig_ = "generated/testingData/" + mapName_ + "-" + nRobots_ + "Problems.txt";
     }
 
     protected static void setupTEC() {
@@ -302,4 +309,79 @@ public abstract class TestBaseClass {
 
         return mission;
     }
+
+    public static void main(String[] args) throws InterruptedException {
+        parseArguments(args);
+        initializeTest();
+        setupTEC();
+
+        Missions.loadLocationAndPathData(missionConfig_);
+        appendToFile(logFilename_, "\n\nTest \"" + mapName_ + "\" started at " + getCurrentTime() + "\n");
+
+        int[] robotIDs = addMissions();
+        // int[] robotIDs = initializeRobots();
+
+        //Sleep a little so we can start Rviz and perhaps screencapture ;)
+        //Create rviz config file by uncommenting the following line
+        RVizVisualization.writeRVizConfigFile(robotIDs);
+        //To visualize, run "rosrun rviz rviz -d ~/config.rviz"
+        Thread.sleep(5000);
+
+        //Start a mission dispatching thread for each robot, which will run forever
+        for (int i = 0; i < robotIDs.length; i++) {
+            final int robotID = robotIDs[i];
+            //For each robot, create a thread that dispatches the "next" mission when the robot is free
+
+            Thread t = new Thread() {
+                @Override
+                public void run() {
+                    boolean firstTime = true;
+                    int missionNumber = 0;
+                    String sourceLocation = "";
+                    String destinationLocation = "";
+                    long startTime = Calendar.getInstance().getTimeInMillis();
+                    String robotTag = "[ROBOT-" + robotID + "]";
+                    int maxNumOfMissions = 3;
+                    while (true) {
+                        synchronized(tec_) {
+                            if (tec_.isFree(robotID)) {
+                                if (!firstTime) {
+                                    appendToFile(logFilename_, robotTag + " Mission from " + sourceLocation +
+                                    " to " + destinationLocation + " completed at " + getCurrentTime() + "\n");
+                                    long elapsed = Calendar.getInstance().getTimeInMillis()-startTime;
+                                    appendToFile(logFilename_, robotTag + " Time to complete mission " + elapsed/1000.0 + "s\n");
+
+                                    missionNumber = missionNumber+1;
+                                    if (missionNumber >= maxNumOfMissions)
+                                        break;
+                                }
+                                startTime = Calendar.getInstance().getTimeInMillis();
+
+                                if (Missions.getMissions(robotID).size() <= missionNumber)
+                                    Missions.enqueueMission(getMission(robotID, missionNumber));
+
+                                Mission m = Missions.getMission(robotID, missionNumber);
+                                sourceLocation = m.getFromLocation();
+                                destinationLocation = m.getToLocation();
+                                appendToFile(logFilename_, robotTag + " Start Mission " + missionNumber + " from " + sourceLocation +
+                                " to " + destinationLocation + " at " + getCurrentTime() + "\n");
+                                tec_.addMissions(m);
+                                tec_.computeCriticalSections();
+                                tec_.startTrackingAddedMissions();
+                                firstTime = false;
+                            }
+                        }
+                        //Sleep for a little (2 sec)
+                        try { Thread.sleep(100); }
+                        catch (InterruptedException e) { e.printStackTrace(); }
+                    }
+                    System.out.println("Robot" + robotID + " is done!");
+                    appendToFile(logFilename_, robotTag + " done!\n");
+                }
+            };
+            //Start the thread!
+            t.start();
+        }
+    }
+
 }
