@@ -276,13 +276,13 @@ class DatasetGenerator():
         poses = poses / self.resolution
 
         # plot each individual poses as a point
-        ax.scatter(poses[:, 0], poses[:,1], s=self.robot_radius/2.0)
+        ax.scatter(poses[:, 0], poses[:,1], s=self.robot_radius*2.0)
 
         # plot arrows corresponding to the theta value associated with each pose
         for i in range(thetas.shape[0]):
             ax.arrow(poses[i, 0], poses[i,1],
-                    self.robot_radius*np.cos(thetas[i]), self.robot_radius*np.sin(thetas[i]),
-                    head_width=self.robot_radius/2.0, head_length=self.robot_radius/2.0, fc='k', ec='k')
+                    self.robot_radius*np.cos(thetas[i]), self.robot_radius*np.sin(thetas[i]), length_includes_head=True,
+                    head_width=self.robot_radius/3.0, head_length=self.robot_radius/3.0, fc='k', ec='k')
 
     def plot_problems(self, ax):
         for i, p in enumerate(self.problems):
