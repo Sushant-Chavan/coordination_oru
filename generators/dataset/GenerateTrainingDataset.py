@@ -233,7 +233,16 @@ class DatasetGenerator():
         y_pos.extend((height - goal_sample_poses[:, 1]).astype(float).tolist())
         theta.extend(goal_sample_poses[:, 2].astype(float).tolist())
 
-        df = pd.DataFrame(data={'Pose_Name':pose_names, 'X':x_pos, 'Y':y_pos, 'T':theta})
+        headers = ["Pose_name", "X", "Y", "Theta"]
+        indices = np.arange(0, len(x_pos), 1)
+
+        df = pd.DataFrame(index=indices, columns=headers)
+        df = df.fillna("-")
+        df["Pose_name"] = pose_names
+        df["X"] = x_pos
+        df["Y"] = y_pos
+        df["Theta"] = theta
+
         df.to_csv(file_path, sep="\t", header=False, index=False)
         print("Saved generated dataset at", file_path)
 

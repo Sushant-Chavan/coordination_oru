@@ -231,7 +231,6 @@ class DatasetGenerator():
         df["Y"] = y_pos
         df["Theta"] = theta
 
-        print(df)
         df.to_csv(file_path, sep="\t", header=False, index=False)
         print("Saved generated dataset at", file_path)
 
@@ -276,7 +275,7 @@ class DatasetGenerator():
         poses = poses / self.resolution
 
         # plot each individual poses as a point
-        ax.scatter(poses[:, 0], poses[:,1], s=self.robot_radius*2.0)
+        ax.scatter(poses[:, 0], poses[:,1], s=self.robot_radius/2.0)
 
         # plot arrows corresponding to the theta value associated with each pose
         for i in range(thetas.shape[0]):
