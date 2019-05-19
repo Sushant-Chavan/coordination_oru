@@ -23,9 +23,10 @@ public class DemoLauncher {
 	
 	private static void printUsage() {
 
-        System.out.println("Usage: \n./gradlew run -Pdemo=<demo> \n\tOR \n./gradlew run -Pdemo=<demo> -Pitr=N -Pplanner=ID" +
-        "\n\nN represents the number of simulation iterations."+
+        System.out.println("Usage: \n./gradlew run -Pdemo=<demo> \n\tOR \n./gradlew run -Pdemo=<demo> -PnRobots=N -Pplanner=ID -Pmap=mapName" +
+        "\n\nN represents the number of robots to be used in the simulations."+
         "\nID represents the planner to be used (SIMPLE:0, LIGHTNING:1, THUNDER:2)"+
+        "\nmapName represents the name of the map to be used for simulations eg. (AGP_Basement)"+
         "\nAvailable options for <demo>");
 
 		List<ClassLoader> classLoadersList = new LinkedList<ClassLoader>();
@@ -67,18 +68,20 @@ public class DemoLauncher {
 		
 		//Forces to loads the class so that license and (c) are printed even if no demo is invoked
         Class.forName("se.oru.coordination.coordination_oru.TrajectoryEnvelopeCoordinator");
+        System.out.println(Integer.toString(args.length) + args.toString());
 
-		if (args.length == 1 || args.length == 3) {
+		if (args.length == 1 || args.length == 4) {
 			String className = args[0];
 			try {
 				Class<?> cl = Class.forName(testsPackage+"."+className);
 				Method meth = cl.getMethod("main", String[].class);
                 String[] params = null;
-                if (args.length >= 2)
+                if (args.length >= 3)
                 {
                     params = new String[args.length - 1];
                     for (int i = 0; i < params.length; i++){
                         params[i] = args[i+1];
+                        System.out.println(args[i+1]);
                     }
                 }
 			    meth.invoke(null, (Object) params);

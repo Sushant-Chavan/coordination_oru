@@ -241,8 +241,6 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
         LOGGING_ACTIVE = false;
     }
 
-    std::cout << "Logging status: " << LOGGING_ACTIVE << logFilename << std::endl;
-
     std::string probInfo = getProblemInfo(
         mapFilename, mapResolution, robotRadius, xCoords, yCoords, numCoords,
         startX, startY, startTheta, goalX, goalY, goalTheta, path, pathLength,
@@ -337,7 +335,7 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     ob::PlannerStatus solved = ssPtr->solve(30.0);
 
     if (solved) {
-        std::cout << "Found solution:" << std::endl;
+        std::cout << "Found solution" << std::endl;
         if (plannerType == PLANNER_TYPE::SIMPLE_SETUP)
             ssPtr->simplifySolution();
         og::PathGeometric pth = ssPtr->getSolutionPath();
