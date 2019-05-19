@@ -86,17 +86,10 @@ dependencies {
 }
 
 run {
-    if (project.hasProperty("demo")) {
-        if (project.hasProperty("itr")) {
-            if (project.hasProperty("planner")) {
-                args(demo, itr, planner)
-            }
-            else {
-                args(demo, itr)
-            }
-        }
-        else {
-            args(demo)
-        }
+    if (project.hasProperty("demo") && project.hasProperty("nRobots") && project.hasProperty("planner") && project.hasProperty("map")) {
+        args(demo, nRobots, planner, map)
+    }
+    else if (project.hasProperty("demo")) {
+        args(demo)
     }
 }

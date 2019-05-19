@@ -17,10 +17,10 @@ class DatasetGenerator():
     def __init__(self, args):
         self.root_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../")
         self.map_filename = args.map_filename
-        self.nProblemsList = args.nProblems
         self.robot_radius = int(args.robot_radius)
         self.oversamplingFactor = args.oversampling
         self.save_dbg_image = args.dbg_image
+        self.nRobotsList = args.nRobots
 
         self.map_file_path = os.path.abspath(self.root_dir + "/maps/" + self.map_filename)
         self.map_name = os.path.splitext(self.map_filename)[0]
@@ -39,12 +39,21 @@ class DatasetGenerator():
            samples that are generated with hotspots are within the given bounds'''
         self.sigma_interval = 2.0
 
-        if args.use_hotspots:
-            self.get_hotspot_info()
+        self.get_hotspot_info()
+        self.load_charging_positions()
+
+    def load_charging_positions(self):
+        path, name = os.path.split(self.map_file_path)
+        filepath = path + "/config/Testing/" + os.path.splitext(name)[0] + "_ChargingStations.csv"
+        file_exists = os.path.isfile(filepath)
+        assert file_exists, "Charging station info file %s does not exist" % filepath
+        if file_exists:
+            df = pd.read_csv(filepath, sep=',')
+            self.charging_positions = df.values
 
     def get_hotspot_info(self):
         path, name = os.path.split(self.map_file_path)
-        filepath = path + "/config/Training/" + os.path.splitext(name)[0] + "_Hotspots.txt"
+        filepath = path + "/config/Testing/" + os.path.splitext(name)[0] + "_Hotspots.txt"
         file_exists = os.path.isfile(filepath)
         assert file_exists, "Hotspot file %s does not exist" % filepath
         if file_exists:
@@ -53,6 +62,13 @@ class DatasetGenerator():
             self.hotspot_covs = np.zeros((data.shape[0], 2, 2))
             self.hotspot_covs[:, 0, 0] = (data[:, 2]/self.sigma_interval)**2
             self.hotspot_covs[:, 1, 1] = (data[:, 3]/self.sigma_interval)**2
+
+            # Extract the source means and cov into different variables
+            # The first mean and cov in the hotspot is used as the source hotspot
+            self.source_mean = self.hotspot_means[0,:]
+            self.hotspot_means = self.hotspot_means[1:, :]
+            self.source_cov = self.hotspot_covs[0, :, :]
+            self.hotspot_covs= self.hotspot_covs[1:, :, :]
 
     def get_YAML_data(self, filepath):
         data = None
@@ -117,21 +133,6 @@ class DatasetGenerator():
 
         return samples[filtered_sample_indices,:]
 
-    def generate_random_samples(self, nSamples):
-        # Oversample to account for samples that will discarded due to obstacles
-        sampleSize = int(nSamples * self.oversamplingFactor)
-
-        self.samples = np.zeros((sampleSize, 3))
-        self.samples[:,0] = np.random.randint(0, self.img_width, self.samples.shape[0])
-        self.samples[:,1] = np.random.randint(0, self.img_height, self.samples.shape[0])
-        self.samples[:,2] = np.random.uniform(-np.pi, np.pi, self.samples.shape[0])
-        self.samples = self.discard_samples_near_obstacle(self.samples, nSamples, print_progress=True)
-
-        # Set the resolution
-        self.samples[:, 0:2] = self.samples[:, 0:2] * self.resolution
-
-        print("Discarded", nSamples - self.samples.shape[0], "samples as they were on/close to obstacles")
-
     def get_bivariate_samples(self, nSamples, mean, cov):
         samples = None
         while (samples is None) or (samples.shape[0] < nSamples):
@@ -151,87 +152,74 @@ class DatasetGenerator():
         assert(samples.shape[0] == nSamples)
         return samples
 
-    def generate_focussed_samples(self, nSamples):
+    def generate_focussed_samples(self):
         # Ensure that the number of means and covariances is same
         nMeans = self.hotspot_means.shape[0]
         nCov = self.hotspot_covs.shape[0]
         assert(nMeans == nCov)
 
-        # Divide all samples equallly among the different hotspot centers
-        sampleSize = int(float(nSamples) / nMeans)
+        # Ensure that the source mean and covariance is loaded
+        assert((self.source_cov is not None) and (self.source_mean is not None))
+
+        # Get samples for source positions
+        self.source_samples = self.get_bivariate_samples(self.nRobots, self.source_mean, self.source_cov)
+        # Set the resolution
+        self.source_samples[:, 0:2] = self.source_samples[:, 0:2] * self.resolution
+        print("\tGenerated", self.source_samples.shape[0], "samples for source hotspot")
+
+        # Divide all samples equally among the different target hotspot centers
+        sampleSize = int(float(self.nRobots) / nMeans)
 
         for i in range(nMeans):
-            size = sampleSize if (i != (nMeans-1)) else (nSamples - (sampleSize * (nMeans - 1)))
+            size = sampleSize if (i != (nMeans-1)) else (self.nRobots - (sampleSize * (nMeans - 1)))
             newSamples = self.get_bivariate_samples(size, self.hotspot_means[i], self.hotspot_covs[i])
             if self.samples is None:
                 self.samples = newSamples
             else:
                 self.samples = np.vstack((self.samples, newSamples))
-            print("\tGenerated", newSamples.shape[0], "samples for hotspot", i+1, "of", nMeans)
+            print("\tGenerated", newSamples.shape[0], "samples for target hotspot", i+1, "of", nMeans)
 
         # Set the resolution
         self.samples[:, 0:2] = self.samples[:, 0:2] * self.resolution
 
-        print("Discarded", nSamples - self.samples.shape[0], "samples as they were on/close to obstacles")
+        print("Discarded", self.nRobots - self.samples.shape[0], "samples as they were on/close to obstacles")
 
     def generate_problem_scenarios(self):
-        nSamples = self.samples.shape[0]
+        assert(self.charging_positions.shape[0] >= self.nRobots)
+        assert(self.source_samples.shape[0] == self.nRobots)
+        assert(self.samples.shape[0] == self.nRobots)
 
-        if nSamples < (self.nProblems * 2):
-            print("Insufficient number of samples generated! Min number of samples = 2 * nProblems")
-            print("Try increasing the oversampling factor to generate more samples")
-            return False
-
-        used_samples = np.full((1, nSamples), False)
-
-        self.problems = np.zeros((self.nProblems, 2))
-
-        for p_idx in range(self.nProblems):
-            start = 0
-            goal = 0
-
-            # Find a unique start position
-            while used_samples[0,start]:
-                start = np.random.randint(0, nSamples, 1)[0]
-            used_samples[0, start] = True
-                
-            # Find a unique goal position
-            while used_samples[0,goal]:
-                goal = np.random.randint(0, nSamples, 1)[0] 
-            used_samples[0, goal] = True
-
-            self.problems[p_idx, 0] = start
-            self.problems[p_idx, 1] = goal
-
-        self.problems = self.problems.astype(int)
-        return True
+        self.problems = np.arange(0, self.nRobots, 1).astype(int)
+        np.random.shuffle(self.problems)
 
     def save_dataset_to_file(self, file_path=None):
         print("\nSaving dataset to a file...")
 
         if file_path is None:
-            file_path = self.root_dir + "/generated/trainingData/" + self.map_name +\
+            file_path = self.root_dir + "/generated/testingData/" + self.map_name +\
                     "-" + str(self.problems.shape[0]) + "Problems.txt"
 
         height = self.img_height * self.resolution
 
         nProblems = self.problems.shape[0]
-        pose_names = ["Start_" + str(i) for i in range(nProblems)]
-        pose_names.extend(["Goal_" + str(i) for i in range(nProblems)])
+        pose_names = ["C_" + str(i) for i in range(nProblems)]
+        pose_names.extend(["S_" + str(i) for i in range(nProblems)])
+        pose_names.extend(["T_" + str(i) for i in range(nProblems)])
 
-        start_pose_ids = self.problems[:, 0].astype(int)
-        goal_pose_ids = self.problems[:, 1].astype(int)
+        source_positions = self.source_samples[self.problems, :]
+        target_positions = self.samples[self.problems, :]
 
-        start_sample_poses = self.samples[start_pose_ids, :]
-        goal_sample_poses = self.samples[goal_pose_ids, :]
+        x_pos = self.charging_positions[:self.nRobots, 0].astype(float).tolist()
+        y_pos = (height - self.charging_positions[:self.nRobots, 1]).astype(float).tolist()
+        theta = self.charging_positions[:self.nRobots, 2].astype(float).tolist()
 
-        x_pos = start_sample_poses[:, 0].astype(float).tolist()
-        y_pos = (height - start_sample_poses[:, 1]).astype(float).tolist()
-        theta = start_sample_poses[:, 2].astype(float).tolist()
+        x_pos.extend(source_positions[:, 0].astype(float).tolist())
+        y_pos.extend((height - source_positions[:, 1]).astype(float).tolist())
+        theta.extend(source_positions[:, 2].astype(float).tolist())
 
-        x_pos.extend(goal_sample_poses[:, 0].astype(float).tolist())
-        y_pos.extend((height - goal_sample_poses[:, 1]).astype(float).tolist())
-        theta.extend(goal_sample_poses[:, 2].astype(float).tolist())
+        x_pos.extend(target_positions[:, 0].astype(float).tolist())
+        y_pos.extend((height - target_positions[:, 1]).astype(float).tolist())
+        theta.extend(target_positions[:, 2].astype(float).tolist())
 
         headers = ["Pose_name", "X", "Y", "Theta"]
         indices = np.arange(0, len(x_pos), 1)
@@ -249,7 +237,7 @@ class DatasetGenerator():
     def plot_map(self, ax):
         ax.imshow(self.img)
 
-    def get_cov_ellipse(self, cov, centre, nstd, **kwargs):
+    def get_cov_ellipse(self, cov, centre, nstd, col='r', **kwargs):
         '''Source of this snippet for plotting ellipses: 
         https://scipython.com/book/chapter-7-matplotlib/examples/bmi-data-with-confidence-ellipses/
         '''
@@ -267,10 +255,10 @@ class DatasetGenerator():
         ell= Ellipse(xy=centre, width=width, height=height,
                        angle=np.degrees(theta), linewidth=5, **kwargs)
         ell.set_facecolor('none')
-        ell.set_edgecolor('r')
+        ell.set_edgecolor(col)
         return ell
 
-    def plot_samples(self, ax, filter_samples=True):
+    def plot_samples(self, ax, filter_samples=False):
         if filter_samples:
             start_pose_ids = self.problems[:, 0].astype(int)
             goal_pose_ids = self.problems[:, 1].astype(int)
@@ -280,6 +268,8 @@ class DatasetGenerator():
             poses = np.vstack((start_sample_poses, goal_sample_poses))
         else:
             poses = self.samples
+            poses = np.vstack((poses, self.source_samples))
+            poses = np.vstack((poses, self.charging_positions))
 
         thetas = poses[:, 2]
         poses = poses / self.resolution
@@ -290,15 +280,16 @@ class DatasetGenerator():
         # plot arrows corresponding to the theta value associated with each pose
         for i in range(thetas.shape[0]):
             ax.arrow(poses[i, 0], poses[i,1],
-                    self.robot_radius*np.cos(thetas[i]), self.robot_radius*np.sin(thetas[i]),
-                    head_width=self.robot_radius/2.0, head_length=self.robot_radius/2.0, fc='k', ec='k')
+                    self.robot_radius*np.cos(thetas[i]), self.robot_radius*np.sin(thetas[i]), length_includes_head=True,
+                    head_width=self.robot_radius/3.0, head_length=self.robot_radius/3.0, fc='k', ec='k')
 
     def plot_problems(self, ax):
-        for p in self.problems:
-            start = self.samples[p[0]]
-            goal = self.samples[p[1]]
-            x = np.array([start[0], goal[0]]) / self.resolution
-            y = np.array([start[1], goal[1]]) / self.resolution
+        for i, p in enumerate(self.problems):
+            charging = self.charging_positions[i]
+            source = self.source_samples[p]
+            target = self.samples[p]
+            x = np.array([charging[0], source[0], target[0], charging[0]]) / self.resolution
+            y = np.array([charging[1], source[1], target[1], charging[1]]) / self.resolution
             plt.plot(x, y)
 
     def save_debug_map(self, file_path=None, plot_problems=True, plot_ellipses=True):
@@ -316,56 +307,53 @@ class DatasetGenerator():
             for i in range(self.hotspot_covs.shape[0]):
                 ax.add_artist(self.get_cov_ellipse(self.hotspot_covs[i],
                  self.hotspot_means[i], self.sigma_interval))
+            ax.add_artist(self.get_cov_ellipse(self.source_cov,
+                 self.source_mean, self.sigma_interval, col='b'))
 
         if file_path is None:
-            file_path = self.root_dir + "/generated/trainingData/debugMaps/" + self.map_name +\
-                        "-" + str(self.nProblems) + "Problems.svg"
+            file_path = self.root_dir + "/generated/testingData/debugMaps/" + self.map_name +\
+                        "-" + str(self.nRobots) + "Problems.svg"
         plt.savefig(file_path, format='svg')
         print("Saved debug map at", file_path)
 
     def generate_dataset(self):
-        for n in self.nProblemsList:
-            self.nProblems = n
+        for n in self.nRobotsList:
+            self.nRobots = n
+            self.source_samples = None
             self.samples = None
-            print("\n========= Generating Training Dataset ==========")
+            print("\n========= Generating Testing Dataset ==========")
             print("Map:\t\t\t", self.map_filename)
-            print("Num of problems:\t", self.nProblems)
+            print("Num of robots:\t\t", self.nRobots)
             print("Robot radius:\t\t", self.robot_radius)
             print("Oversampling rate:\t", self.oversamplingFactor)
             print("------------------------------------------------")
 
-            # Add some wiggle room for creating problems. Ideally we need (nProblems * 2) samples for nProblems.
-            # We generate more samples than needed to spread out the problems more evenly
-            wiggle_factor = 2
-            nSamples = self.nProblems * 2 * wiggle_factor
+            if (self.nRobots <= self.charging_positions.shape[0]):
+                print("Requested to place", n, "robots for testing.")
+                print("Generating samples for source and target locations...")
+                self.generate_focussed_samples()
+                print("Successfully generated", self.source_samples.shape[0],\
+                    "samples for source locations and", self.samples.shape[0], "samples for target locations")
 
-            if self.hotspot_means is not None:
-                print("Generating", nSamples, "samples (with wiggle factor of", wiggle_factor, "), at the hotspots...")
-                self.generate_focussed_samples(nSamples)
+                print("\nGenerating", self.nRobots, "unique problems from generated samples...")
+                self.generate_problem_scenarios()
+                print("Successfully generated", self.problems.shape[0], "problems")
+
+                self.save_dataset_to_file()
+                if self.save_dbg_image:
+                    self.save_debug_map()
             else:
-                print("Generating", nSamples, "samples (with wiggle factor of", wiggle_factor, "), uniformly over the map...")
-                self.generate_random_samples(nSamples)
-            print("Successfully generated", self.samples.shape[0], "samples")
-
-            print("\nGenerating", self.nProblems, "unique problems from generated samples...")
-            success = self.generate_problem_scenarios()
-            if not success:
-                return
-            print("Successfully generated", self.problems.shape[0], "problems")
+                print("Number of robots must be less than the number of"
+                    " charging poses available! This map has a maximum of", self.charging_positions.shape[0], "charging positions")
             print("================================================")
-
-            self.save_dataset_to_file()
-            if self.save_dbg_image:
-                self.save_debug_map()
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("map_filename", type=str, help="Filename of the map image that should be used for dataset generation (ex. map1.png)")
-    parser.add_argument("--nProblems", required=True, nargs="*", type=int, help="Number of training problems to be generated (ex. 10 100 1000)", default=[100])
+    parser.add_argument("--nRobots", required=True, nargs="*", type=int, help="Number of robots to be used for testing", default=[10])
     parser.add_argument("--robot_radius", type=int, help="Radius of the robot (in pixels) to be used for collision detection", default=10)
     parser.add_argument("--oversampling", type=float, help="Oversampling factor so to account for samples that will discarded due to their proximity to obstacles. (Default=4.0)", default=4.0)
     parser.add_argument("--dbg_image", type=bool, help="Generate a debug image to visualize generated dataset (Disabled by default)", default=False)
-    parser.add_argument("--use_hotspots", type=bool, help="Flag to activate use of hotspots for dataset generation (Disabled by default)", default=False)
     args = parser.parse_args()
 
     data_gen = DatasetGenerator(args)
