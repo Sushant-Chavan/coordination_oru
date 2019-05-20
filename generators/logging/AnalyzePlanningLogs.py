@@ -8,7 +8,13 @@ import argparse
 import pandas as pd
 import re
 import matplotlib.pyplot as plt
+from ctypes import *
 
+# A class to pass the array of poses to the shared libarary for comparison
+class PathPose(Structure):
+    _fields_=[("x", c_double),
+              ("y", c_double),
+              ("theta", c_double)]
 
 class PlanData():
     def __init__(self, df):
@@ -55,9 +61,20 @@ class AnalyzePlanning:
         self.planner = None
         self.plan_stats = None
         self.nTests = None
+        self.cdll = None
 
         self.load_csv()
         self.load_planning_stats()
+        self.load_native_library()
+
+    def load_native_library(self):
+        self.cdll = cdll.LoadLibrary('libcomparePaths.so')
+        # comparePaths(PathPose **path1, int *pathLength1, PathPose **path2, int *pathLength2)
+        self.cdll.comparePaths.arguments = [POINTER(POINTER(PathPose)), POINTER(c_int), POINTER(POINTER(PathPose)), POINTER(c_int)]
+        self.cdll.comparePaths.restype = c_bool
+
+    def compare_paths(self, path1, path2):
+        print(self.cdll.comparePaths(0, 0, 0, 0))
 
     def load_csv(self):
         df = pd.read_csv(self.csv_path, index_col=None)
@@ -161,6 +178,7 @@ def main():
 
     ap = AnalyzePlanning(csv_abs_path)
     ap.plot_planning_times()
+    ap.compare_paths(None, None)
 
 if __name__ == "__main__":
     main()
