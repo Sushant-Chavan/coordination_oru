@@ -155,6 +155,16 @@ class logParser:
                 times.append(float(l.strip().split()[-2]))
         return times
 
+    def _extract_path(self):
+        paths = []
+        for l in self.logs:
+            if l[0] == "(":
+                clean_path = l.replace("(", "")
+                clean_path = clean_path.replace(")", ";")
+                clean_path = clean_path.replace(",", ";")
+                paths.append(clean_path)
+        return paths
+
     def generate_planning_csv(self, csv_filepath):
         assert(self.logs is not None)
 
@@ -162,7 +172,7 @@ class logParser:
         indices = np.arange(1, nPlans+1, 1)
         columns = ["Test Name", "Test Start Time",  "Planning Start Time", "Map Filename", "Map Resolution", "Start X", "Start Y", "Start Theta",
                    "Goal X", "Goal Y", "Goal Theta", "Planner Type", "Holonomic", 
-                   "Planning Time", "Path simplification time", "From recall", "Total planning time"]
+                   "Planning Time", "Path simplification time", "From recall", "Total planning time", "Path"]
         df = pd.DataFrame(index=indices, columns=columns)
         df = df.fillna("-")
 
@@ -190,6 +200,7 @@ class logParser:
         if len(recall_stats) > 0:
             df["From recall"] = recall_stats
         df["Total planning time"] = self._extract_total_planning_times()
+        df["Path"] = self._extract_path()
 
         df.to_csv(csv_filepath)
         print("Planning logs CSV generated/extended at", csv_filepath)
@@ -201,7 +212,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("map_filename", type=str, help="Filename of the map image that should be used for experience generation (ex. map1.png)")
     parser.add_argument("planner", type=int, help="ID of the planner (SIMPLE:0, LIGHTNING:1, THUNDER:2)")
-    parser.add_argument("--tags_filename", type=str, help="Radius of the robot (in pixels) to be used for collision detection", default="default_tags.txt")
+    parser.add_argument("--tags_filename", type=str, help="Filename of file containing tags used to filter the log", default="default_tags.txt")
     args = parser.parse_args()
 
     planner_names = ["simple", "lightning", "thunder"]
