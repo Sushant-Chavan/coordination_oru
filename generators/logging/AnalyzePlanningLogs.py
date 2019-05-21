@@ -27,6 +27,7 @@ class PlanData():
         self.simplification_time = None
         self.from_recall = None
         self.total_planning_time = None
+        self.path = None
 
         self.fill_data(df)
 
@@ -49,7 +50,14 @@ class PlanData():
         self.simplification_time = df["Path simplification time"].values[0]
         self.from_recall = (df["From recall"].values[0] != 0)
         self.total_planning_time = df["Total planning time"].values[0]
+        self.path = self.load_path(df["Path"].values[0])
 
+    def load_path(self, path_data):
+        path_data = path_data.strip()
+        values = [i for i in path_data.split(';')][:-1]
+        values = np.array([float(i) for i in values])
+        nPoses = int(values.size / 3)
+        return values.reshape((nPoses, 3))
 
 # A class to extract relevant lines from a complete log file of a test run and generate a CSV logg file
 class AnalyzePlanning:
