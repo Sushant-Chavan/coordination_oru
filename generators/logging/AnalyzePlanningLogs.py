@@ -80,14 +80,33 @@ class AnalyzePlanning:
         self.cdll.comparePaths.arguments = [POINTER(PathPose), c_int, POINTER(PathPose), c_int, c_bool, c_double]
         self.cdll.comparePaths.restype = c_bool
 
-    def compare_paths(self, path1, path2):
-        print(self.cdll.comparePaths(0, 0, 0, 0))
+    def compare_paths(self, plan1, plan2):
+        pose_array1, pose_array2 = [], []
+        for i in range(plan1.path.shape[0]):
+            pose = PathPose()
+            # pose.set_pose(plan1.path[i])
+            pose.x = plan1.path[i][0]
+            pose.y = plan1.path[i][1]
+            pose.theta = plan1.path[i][2]
+            pose_array1.append(pose)
+
+        for i in range(plan2.path.shape[0]):
+            pose = PathPose()
+            # pose.set_pose(plan2.path[i])
+            pose.x = plan2.path[i][0]
+            pose.y = plan2.path[i][1]
+            pose.theta = plan2.path[i][2]
+            pose_array2.append(pose)
+
+        return self.cdll.comparePaths((PathPose * len(pose_array1))(*pose_array1), len(pose_array1),
+                                     (PathPose * len(pose_array2))(*pose_array2), len(pose_array2),
+                                     bool(plan1.is_holonomic), c_double(4.0))
 
     def load_csv(self):
         df = pd.read_csv(self.csv_path, index_col=None)
         col = "Test Start Time"
         test_start_times = df[col].values.tolist()
-        test_ids = set(test_start_times)
+        test_ids = sorted(set(test_start_times))
 
         self.test_df = {}
         self.maps = {}
@@ -112,6 +131,25 @@ class AnalyzePlanning:
                 plan_stats[plan_num] = PlanData(plan_df)
                 plan_num += 1
             self.plan_stats[test_id] = plan_stats
+
+    def get_predictable_path_ratio(self):
+        print("Testing path predictability. This may take some time...")
+        nPlan_per_iteration = len(self.plan_stats[0])
+        match_ratio = np.zeros(nPlan_per_iteration)
+        for plan_id in range(nPlan_per_iteration):
+            num_of_matches = np.zeros(self.nTests)
+            for test_id in range(self.nTests):
+                for first_pass_test_id in range(self.nTests):
+                    if test_id != first_pass_test_id:
+                        res = self.compare_paths(self.plan_stats[test_id][plan_id],
+                                              self.plan_stats[first_pass_test_id][plan_id])
+                        if res:
+                            num_of_matches[test_id] += 1
+            max_match_test_id = np.argmax(num_of_matches)
+            match_ratio[plan_id] = num_of_matches[max_match_test_id] / (self.nTests - 1) # -1 because we dont test against self test_id
+            print("Plan ID:", plan_id, "Match ratio:", match_ratio[plan_id])
+
+        print("Path predictability tests complete!")
 
     def plot_planning_times(self):
         # One extra plot for plotting the average plot of all iterations
@@ -184,8 +222,8 @@ def main():
         return
 
     ap = AnalyzePlanning(csv_abs_path)
-    ap.plot_planning_times()
-    ap.compare_paths(None, None)
+    # ap.plot_planning_times()
+    ap.get_predictable_path_ratio()
 
 if __name__ == "__main__":
     main()
