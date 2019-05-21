@@ -77,8 +77,7 @@ class AnalyzePlanning:
 
     def load_native_library(self):
         self.cdll = cdll.LoadLibrary('libcomparePaths.so')
-        # comparePaths(PathPose **path1, int *pathLength1, PathPose **path2, int *pathLength2)
-        self.cdll.comparePaths.arguments = [POINTER(POINTER(PathPose)), POINTER(c_int), POINTER(POINTER(PathPose)), POINTER(c_int)]
+        self.cdll.comparePaths.arguments = [POINTER(PathPose), c_int, POINTER(PathPose), c_int, c_bool, c_double]
         self.cdll.comparePaths.restype = c_bool
 
     def compare_paths(self, path1, path2):
