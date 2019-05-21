@@ -77,14 +77,13 @@ class AnalyzePlanning:
 
     def load_native_library(self):
         self.cdll = cdll.LoadLibrary('libcomparePaths.so')
-        self.cdll.comparePaths.arguments = [POINTER(PathPose), c_int, POINTER(PathPose), c_int, c_bool, c_double]
+        self.cdll.comparePaths.arguments = [POINTER(PathPose), c_int, POINTER(PathPose), c_int, c_bool, c_double, c_double]
         self.cdll.comparePaths.restype = c_bool
 
-    def compare_paths(self, plan1, plan2):
+    def compare_paths(self, plan1, plan2, similarity_threshold):
         pose_array1, pose_array2 = [], []
         for i in range(plan1.path.shape[0]):
             pose = PathPose()
-            # pose.set_pose(plan1.path[i])
             pose.x = plan1.path[i][0]
             pose.y = plan1.path[i][1]
             pose.theta = plan1.path[i][2]
@@ -92,7 +91,6 @@ class AnalyzePlanning:
 
         for i in range(plan2.path.shape[0]):
             pose = PathPose()
-            # pose.set_pose(plan2.path[i])
             pose.x = plan2.path[i][0]
             pose.y = plan2.path[i][1]
             pose.theta = plan2.path[i][2]
@@ -100,7 +98,7 @@ class AnalyzePlanning:
 
         return self.cdll.comparePaths((PathPose * len(pose_array1))(*pose_array1), len(pose_array1),
                                      (PathPose * len(pose_array2))(*pose_array2), len(pose_array2),
-                                     bool(plan1.is_holonomic), c_double(4.0))
+                                     bool(plan1.is_holonomic), c_double(4.0), c_double(similarity_threshold))
 
     def load_csv(self):
         df = pd.read_csv(self.csv_path, index_col=None)
@@ -132,24 +130,44 @@ class AnalyzePlanning:
                 plan_num += 1
             self.plan_stats[test_id] = plan_stats
 
-    def get_predictable_path_ratio(self):
-        print("Testing path predictability. This may take some time...")
+    def get_predictable_path_ratio(self, similarity_threshold=0.25):
+        print("Generating path predictability ratios. This may take some time...")
         nPlan_per_iteration = len(self.plan_stats[0])
-        match_ratio = np.zeros(nPlan_per_iteration)
+        matches = np.zeros(nPlan_per_iteration)
         for plan_id in range(nPlan_per_iteration):
             num_of_matches = np.zeros(self.nTests)
             for test_id in range(self.nTests):
                 for first_pass_test_id in range(self.nTests):
                     if test_id != first_pass_test_id:
                         res = self.compare_paths(self.plan_stats[test_id][plan_id],
-                                              self.plan_stats[first_pass_test_id][plan_id])
+                                              self.plan_stats[first_pass_test_id][plan_id],
+                                              similarity_threshold)
                         if res:
                             num_of_matches[test_id] += 1
             max_match_test_id = np.argmax(num_of_matches)
-            match_ratio[plan_id] = num_of_matches[max_match_test_id] / (self.nTests - 1) # -1 because we dont test against self test_id
-            print("Plan ID:", plan_id, "Match ratio:", match_ratio[plan_id])
+            matches[plan_id] = num_of_matches[max_match_test_id]
+        print("Path predictability ratios generation complete!")
+        return matches, (self.nTests - 1)  # -1 because we dont test against self test_id
 
-        print("Path predictability tests complete!")
+    def plot_path_predictability_stats(self):
+        similarity_threshold = 0.25
+        success, nTests = self.get_predictable_path_ratio(similarity_threshold)
+        failure = (np.ones_like(success) * nTests) - success
+        x = np.arange(1, success.size+1, 1)
+
+        f = plt.figure(figsize=(10, 10))
+        ax = f.add_subplot(111)
+        ax.bar(x, success, color='g', label='Number of similar paths')
+        ax.bar(x, failure, bottom=success, color='r', label="Number of non-similar paths")
+        ax.plot(x, np.ones(len(x))*np.mean(success), color='b', linestyle="-", label="Average number of similar paths", linewidth=2.5)
+        ax.set_xlabel("Plan ID")
+        ax.set_ylabel("Number of similar/non-similar paths")
+        ax.set_title("Number of predictable paths with similarity threshold = {}".format(similarity_threshold))
+        ax.set_xticks(x)
+        ax.set_yticks(np.arange(0, nTests+1, 1))
+        ax.legend()
+        ax.grid()
+        plt.savefig("predictability.svg", format='svg')
 
     def plot_planning_times(self):
         # One extra plot for plotting the average plot of all iterations
@@ -176,7 +194,7 @@ class AnalyzePlanning:
             avg_itr_plan_times.append(avg_plan_times[0])
             avg_itr_sim_times.append(avg_simplification_times[0])
             avg_itr_total_times.append(avg_total_times[0])
-            x = np.arange(0, len(plan_times), 1)
+            x = np.arange(1, len(plan_times)+1, 1)
 
             ax.plot(x, np.log10(plan_times), label="Planning times", color="r")
             ax.plot(x, np.log10(simplification_times), label="Simplification times", color="b")
@@ -194,7 +212,7 @@ class AnalyzePlanning:
         avg_plan_time = np.ones(len(avg_itr_plan_times)) * np.mean(avg_itr_plan_times)
         avg_sim_time = np.ones(len(avg_itr_sim_times)) * np.mean(avg_itr_sim_times)
         avg_total_time = np.ones(len(avg_itr_sim_times)) * np.mean(avg_itr_total_times)
-        x = np.arange(0, len(avg_itr_plan_times), 1)
+        x = np.arange(1, len(avg_itr_plan_times)+1, 1)
         ax.plot(x, np.log10(avg_itr_plan_times), label="Planning times", color="r")
         ax.plot(x, np.log10(avg_itr_sim_times), label="Simplification times", color="b")
         ax.plot(x, np.log10(avg_itr_total_times), label="Total times", color="g")
@@ -223,7 +241,7 @@ def main():
 
     ap = AnalyzePlanning(csv_abs_path)
     # ap.plot_planning_times()
-    ap.get_predictable_path_ratio()
+    ap.plot_path_predictability_stats()
 
 if __name__ == "__main__":
     main()
