@@ -27,10 +27,17 @@ class logParser:
             # Remove whitespace characters like `\n` at the end of each line
             self.tags = [x.strip() for x in self.tags]
 
+    def validate_log(self, lines):
+        for l in lines:
+            assert ("tempMaps" not in l), "Found planning details of replanning stage. Please clean log before proceeding!!. Hint: Search for \"tempMaps\" in logs"
+
+
     def extract_tagged_lines(self, log_filepath):
         assert(self.tags is not None)
         with open(log_filepath) as f:
             lines = f.readlines()
+
+        self.validate_log(lines)
         self.logs = []
         for l in lines:
             for t in self.tags:
