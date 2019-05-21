@@ -118,7 +118,7 @@ class logParser:
         kinemetics = []
         for l in self.logs:
             if "Is Holonomic Robot: " in l:
-                kinemetics.append(1 if (l.split(": ")[1]).strip() == "TRUE" else 0)
+                kinemetics.append(1 if (l.split(": ")[1]).strip() == "True" else 0)
         return kinemetics
 
     def _extract_planning_times(self):
