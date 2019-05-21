@@ -31,13 +31,11 @@ typedef struct PathPose {
 
 extern "C" bool
 comparePaths(const PathPose *path1, int pathLength1, const PathPose *path2, int pathLength2,
-             bool isHolonomicRobot, double turningRadius)
+             bool isHolonomicRobot, double turningRadius, double similarityThreshold)
 {
     // std::cout << pathLength1 << " " << pathLength2 << std::endl;
     // std::cout << isHolonomicRobot << " " << turningRadius << std::endl;
     // std::cout << path1[0].asString() << "\t" << path2[0].asString() << std::endl;
-
-    const double similarityThreshold = 0.5;
 
     ob::StateSpacePtr space =
         isHolonomicRobot
