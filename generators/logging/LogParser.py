@@ -176,6 +176,8 @@ class logParser:
         assert(self.logs is not None)
 
         nPlans = sum('Planning took' in s for s in self.logs)
+        assert (nPlans % 3 == 0), "Expected number of plans to be a multiple of 3!!"
+
         indices = np.arange(1, nPlans+1, 1)
         columns = ["Test Name", "Test Start Time",  "Planning Start Time", "Map Filename", "Map Resolution", "Start X", "Start Y", "Start Theta",
                    "Goal X", "Goal Y", "Goal Theta", "Planner Type", "Holonomic", 
