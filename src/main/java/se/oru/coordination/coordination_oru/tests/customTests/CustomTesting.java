@@ -346,10 +346,10 @@ public abstract class CustomTesting {
                         synchronized(tec_) {
                             if (tec_.isFree(robotID)) {
                                 if (!firstTime) {
-                                    appendToFile(logFilename_, robotTag + " Mission from " + sourceLocation +
+                                    appendToFile(logFilename_, robotTag + " Mission " + missionNumber + " from " + sourceLocation +
                                     " to " + destinationLocation + " completed at " + getCurrentTime() + "\n");
                                     long elapsed = Calendar.getInstance().getTimeInMillis()-startTime;
-                                    appendToFile(logFilename_, robotTag + " Time to complete mission " + elapsed/1000.0 + "s\n");
+                                    appendToFile(logFilename_, robotTag + " Time to complete mission " + missionNumber + " : " + elapsed/1000.0 + "s\n");
 
                                     missionNumber = missionNumber+1;
                                     if (missionNumber >= maxNumOfMissions)

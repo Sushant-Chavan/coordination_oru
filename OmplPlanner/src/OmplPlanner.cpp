@@ -237,6 +237,12 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
         LOGGING_ACTIVE = true;
     }
     else {
+        if (mode == MODE::REPLANNING)
+        {
+            // First log that it is a replan and then disable logging
+            LOGGING_ACTIVE = true;
+            log(logFilename, "Replanning Triggered\n");
+        }
         ompl::msg::noOutputHandler();
         LOGGING_ACTIVE = false;
     }
