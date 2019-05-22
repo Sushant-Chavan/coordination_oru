@@ -242,11 +242,6 @@ class LogAnalyzer:
         planning_df = pd.read_csv(self.planning_csv_path, index_col=None)
         execution_df = pd.read_csv(self.execution_csv_path, index_col=None)
         self.load_fleet_missions(planning_df, execution_df)
-        for i in range(len(self.fleet_missions)):
-            print(self.fleet_missions[i].mission_execution_successful(),
-                  self.fleet_missions[i].nReplans,
-                  self.fleet_missions[i].get_percentage_of_mission_success(),
-                  self.fleet_missions[i].total_path_execution_time)
 
     def load_fleet_missions(self, planning_df, execution_df):
         col = "Test Start Time"
@@ -370,7 +365,6 @@ class LogAnalyzer:
 
         fleet_ids = np.arange(1, len(fleets)+1, 1)
         nunsuccessful_robots = np.ones_like(nsuccessful_robots)*fleets[0].nRobots - nsuccessful_robots
-        print(nunsuccessful_robots)
 
         fig = plt.figure(figsize=(15, 15))
         ax = fig.add_subplot(221)
@@ -464,8 +458,8 @@ def main():
         return
 
     la = LogAnalyzer(planning_csv_filename, execution_csv_filename)
-    # la.plot_path_predictability_stats()
-    # la.plot_fleet_planning_times()
+    la.plot_path_predictability_stats()
+    la.plot_fleet_planning_times()
     la.plot_execution_stats()
 
 if __name__ == "__main__":
