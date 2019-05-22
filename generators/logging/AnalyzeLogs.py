@@ -287,17 +287,18 @@ class LogAnalyzer:
             mean_height = np.ones_like(height) * np.mean(height)
             ax.plot(x, mean_height, label="Mean " + label, color=avg_line_col, linewidth=3.0)
 
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
+        if isinstance(bottom, int) and bottom == 0:
+            ax.set_xlabel(xlabel)
+            ax.set_ylabel(ylabel)
 
-        if xticks is not None:
-            ax.set_xticks(xticks)
-        if yticks is not None:
-            ax.set_yticks(yticks)
+            if xticks is not None:
+                ax.set_xticks(xticks)
+            if yticks is not None:
+                ax.set_yticks(yticks)
 
-        ax.set_title(title)
+            ax.set_title(title)
+            ax.grid()
         ax.legend()
-        ax.grid()
 
     def plot_fleet_planning_times(self, fleets=None):
         if fleets is None:
@@ -370,19 +371,22 @@ class LogAnalyzer:
         ax = fig.add_subplot(221)
         self.custom_line_plot(ax, fleet_ids, execution_times, label="Path execution time",
                          color='r', xlabel="Fleet ID", ylabel="Time in seconds",
-                         xticks=fleet_ids, useLog10Scale=False, avg_line_col='b')
+                         xticks=fleet_ids, useLog10Scale=False, avg_line_col='b',
+                         title="Path execution times")
         for i, m in enumerate(success_markers):
             ax.scatter(fleet_ids[i], execution_times[i], marker=m, c='g', s=100)
 
         ax = fig.add_subplot(222)
         self.custom_bar_plot(ax, fleet_ids, num_replans, label="Number of replannings triggered",
                          color='g', xlabel="Fleet ID", ylabel="Count",
-                         xticks=fleet_ids, avg_line_col='b')
+                         xticks=fleet_ids, avg_line_col='b',
+                         title="Replanning stats")
 
         ax = fig.add_subplot(223)
         self.custom_bar_plot(ax, fleet_ids, nsuccessful_robots, label="Number of successful robot missions",
                          color='g', xlabel="Fleet ID", ylabel="Count",
-                         xticks=fleet_ids, avg_line_col='b')
+                         xticks=fleet_ids, avg_line_col='b',
+                         title="Robot mission success stats")
         self.custom_bar_plot(ax, fleet_ids, nunsuccessful_robots, label="Number of unsuccessful robot missions",
                          bottom=nsuccessful_robots, color='r', xlabel="Fleet ID", ylabel="Count",
                          xticks=fleet_ids)
