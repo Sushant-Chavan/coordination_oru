@@ -352,13 +352,13 @@ def main():
         return
 
     summary_log_filename = os.path.splitext(log_filepath)[0] + "_summary.log"
-    csv_planning_log_filename = os.path.splitext(log_filepath)[0] + ".csv"
+    csv_planning_log_filename = os.path.splitext(log_filepath)[0] + "_planning.csv"
     csv_execution_log_filename = os.path.splitext(log_filepath)[0] + "_execution.csv"
 
     lp = logParser(tags_filepath)
     lp.extract_tagged_lines(log_filepath)
     # lp.dump_log_summary(summary_log_filename)
-    # lp.generate_planning_csv(csv_planning_log_filename)
+    lp.generate_planning_csv(csv_planning_log_filename)
     lp.generate_execution_csv(csv_execution_log_filename)
 
 if __name__ == "__main__":

@@ -60,7 +60,7 @@ class PlanData():
         return values.reshape((nPoses, 3))
 
 class RobotMissionData:
-    def __init__(self, df):
+    def __init__(self, planning_df, execution_df):
         self.plans = None
         self.average_path_planning_time = None
         self.average_path_simplification_time = None
@@ -70,10 +70,13 @@ class RobotMissionData:
         self.is_holonomic = None
         self.complete_path = None
         self.nPlans_from_recall = None
+        self.nSuccessful_mission_executions = None
+        self.mission_execution_durations = None
+        self.total_execution_time = None
 
-        self.fill_data(df)
+        self.fill_data(planning_df, execution_df)
 
-    def fill_data(self, df):
+    def fill_data(self, planning_df, execution_df):
         self.plans = []
         self.average_path_planning_time = 0
         self.average_path_simplification_time = 0
@@ -83,8 +86,8 @@ class RobotMissionData:
         self.nPlans_from_recall = 0
 
         plan_num = 0
-        for start_time in df["Planning Start Time"].values:
-            plan_df = df.loc[df["Planning Start Time"] == start_time]
+        for start_time in planning_df["Planning Start Time"].values:
+            plan_df = planning_df.loc[planning_df["Planning Start Time"] == start_time]
             plan_data = PlanData(plan_df)
             self.plans.append(plan_data)
 
@@ -106,8 +109,18 @@ class RobotMissionData:
         self.average_path_simplification_time = self.total_path_simplification_time / nPlans
         self.is_holonomic = self.plans[0].is_holonomic
 
+        # load execution infromation
+        self.nSuccessful_mission_executions = execution_df["Successful Misions"]
+        self.mission_execution_durations = np.zeros(3)
+        for i in range(3):
+            col = "Mission"+ str(i+1) + " Duration"
+            value = execution_df[col]
+            if value != "x":
+                self.mission_execution_durations[i] = value
+        self.total_execution_time = np.sum(self.mission_execution_durations)
+
 class FleetMissionData:
-    def __init__(self, df):
+    def __init__(self, planning_df, execution_df):
         self.robot_missions = None
         self.total_planning_time = None
         self.total_path_planning_time = None
@@ -117,14 +130,16 @@ class FleetMissionData:
         self.map = None
         self.planner = None
         self.nRobots = None
+        self.nReplans = None
 
-        self.fill_data(df)
+        self.fill_data(planning_df, execution_df)
 
-    def fill_data(self, df):
-        self.load_robot_missions(df)
+    def fill_data(self, planning_df, execution_df):
+        self.load_robot_missions(planning_df, execution_df)
 
-        self.map = df["Test Name"].values[0]
-        self.planner = df["Planner Type"].values[0]
+        self.map = planning_df["Test Name"].values[0]
+        self.planner = planning_df["Planner Type"].values[0]
+        self.nReplans = execution_df["Num of replans"].values[0]
 
         self.total_planning_time = 0
         self.total_path_planning_time = 0
@@ -141,24 +156,28 @@ class FleetMissionData:
         # self.total_path_simplification_time /= self.nRobots
         self.nPlans_from_scratch = (self.nRobots * 3) - self.nPlans_from_recall
 
-    def load_robot_missions(self, df):
-        nPlans = df.values.shape[0]
+    def load_robot_missions(self, planning_df, execution_df):
+        nPlans = planning_df.values.shape[0]
 
-        # Check if number of plans in df is a multiple of 3
+        # Check if number of plans in planning_df is a multiple of 3
         assert (nPlans % 3 == 0), "Expected number of plans in a fleet mission is a multiple of 3"
         self.nRobots = int(nPlans / 3)
 
         self.robot_missions = []
-        for i in range(0, nPlans, 3):
-            mission_df = df.iloc[i:i+3]
-            self.robot_missions.append(RobotMissionData(mission_df))
+        for i in range(0, self.nRobots, 1):
+            start = i * 3
+            end = start + 3
+            mission_planning_df = planning_df.iloc[start:end]
+            mission_execution_df = execution_df.iloc[i]
+            self.robot_missions.append(RobotMissionData(mission_planning_df, mission_execution_df))
 
         assert self.nRobots == len(self.robot_missions), "Number of missions loaded not equal to number of robots in fleet!!"
 
 # A class to extract relevant lines from a complete log file of a test run and generate a CSV logg file
-class AnalyzePlanning:
-    def __init__(self, csv_abs_path):
-        self.csv_path = csv_abs_path
+class LogAnalyzer:
+    def __init__(self, planning_csv_abs_path, execution_csv_abs_path):
+        self.planning_csv_path = planning_csv_abs_path
+        self.execution_csv_path = execution_csv_abs_path
 
         self.test_df = None
         self.maps = None
@@ -198,18 +217,21 @@ class AnalyzePlanning:
                                      bool(is_holonomic), c_double(4.0), c_double(similarity_threshold))
 
     def load_csv(self):
-        df = pd.read_csv(self.csv_path, index_col=None)
-        self.load_fleet_missions(df)
+        planning_df = pd.read_csv(self.planning_csv_path, index_col=None)
+        execution_df = pd.read_csv(self.execution_csv_path, index_col=None)
+        self.load_fleet_missions(planning_df, execution_df)
+        # print(self.fleet_missions[0].nReplans, self.fleet_missions[1].nReplans)
 
-    def load_fleet_missions(self, df):
+    def load_fleet_missions(self, planning_df, execution_df):
         col = "Test Start Time"
-        test_start_times = df[col].values.tolist()
+        test_start_times = planning_df[col].values.tolist()
         test_start_times = sorted(set(test_start_times))
 
         self.fleet_missions = []
         for fleet_id, start_time in enumerate(test_start_times):
-            fleet_df = df.loc[df[col] == start_time]
-            self.fleet_missions.append(FleetMissionData(fleet_df))
+            fleet_planning_df = planning_df.loc[planning_df[col] == start_time]
+            fleet_execution_df = execution_df.loc[execution_df[col] == start_time]
+            self.fleet_missions.append(FleetMissionData(fleet_planning_df, fleet_execution_df))
         print("Loaded", len(self.fleet_missions), "fleet missions")
 
     def custom_line_plot(self, ax, x, y, label=None, color=None, linestyle=None,
@@ -351,19 +373,28 @@ class AnalyzePlanning:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("csv_filename", type=str, help=" CSV logfile (Ex. BRSU_Floor0_lightning.csv)")
+    parser.add_argument("map", type=str, help=" Name of the map (Ex. BRSU_Floor0)")
+    parser.add_argument("planner", type=int, help="ID of the planner (SIMPLE:0, LIGHTNING:1, THUNDER:2)")
     args = parser.parse_args()
 
+    planner_names = ["simple", "lightning", "thunder"]
+    planning_csv_filename = args.map + "_" + planner_names[args.planner] + "_planning.csv"
+    execution_csv_filename = args.map + "_" + planner_names[args.planner] + "_execution.csv"
     log_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/experienceLogs/")
-    csv_abs_path = os.path.abspath(os.path.join(log_dir, args.csv_filename))
+    planning_csv_filename = os.path.abspath(os.path.join(log_dir, planning_csv_filename))
+    execution_csv_filename = os.path.abspath(os.path.join(log_dir, execution_csv_filename))
 
-    if not os.path.isfile(csv_abs_path):
-        print("CSV log file does not exist! \nPath specified was:\n", csv_abs_path)
+    if not os.path.isfile(planning_csv_filename):
+        print("Planning CSV log file does not exist! \nPath specified was:\n", planning_csv_filename)
         return
 
-    ap = AnalyzePlanning(csv_abs_path)
-    ap.plot_path_predictability_stats()
-    ap.plot_fleet_planning_times()
+    if not os.path.isfile(execution_csv_filename):
+        print("Execution CSV log file does not exist! \nPath specified was:\n", execution_csv_filename)
+        return
+
+    la = LogAnalyzer(planning_csv_filename, execution_csv_filename)
+    la.plot_path_predictability_stats()
+    la.plot_fleet_planning_times()
 
 if __name__ == "__main__":
     main()
