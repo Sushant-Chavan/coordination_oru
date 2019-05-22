@@ -27,10 +27,17 @@ class logParser:
             # Remove whitespace characters like `\n` at the end of each line
             self.tags = [x.strip() for x in self.tags]
 
+    def validate_log(self, lines):
+        for l in lines:
+            assert ("tempMaps" not in l), "Found planning details of replanning stage. Please clean log before proceeding!!. Hint: Search for \"tempMaps\" in logs"
+
+
     def extract_tagged_lines(self, log_filepath):
         assert(self.tags is not None)
         with open(log_filepath) as f:
             lines = f.readlines()
+
+        self.validate_log(lines)
         self.logs = []
         for l in lines:
             for t in self.tags:
@@ -118,7 +125,7 @@ class logParser:
         kinemetics = []
         for l in self.logs:
             if "Is Holonomic Robot: " in l:
-                kinemetics.append(1 if (l.split(": ")[1]).strip() == "TRUE" else 0)
+                kinemetics.append(1 if (l.split(": ")[1]).strip() == "True" else 0)
         return kinemetics
 
     def _extract_planning_times(self):
@@ -155,14 +162,26 @@ class logParser:
                 times.append(float(l.strip().split()[-2]))
         return times
 
+    def _extract_path(self):
+        paths = []
+        for l in self.logs:
+            if l[0] == "(":
+                clean_path = l.replace("(", "")
+                clean_path = clean_path.replace(")", ";")
+                clean_path = clean_path.replace(",", ";")
+                paths.append(clean_path)
+        return paths
+
     def generate_planning_csv(self, csv_filepath):
         assert(self.logs is not None)
 
         nPlans = sum('Planning took' in s for s in self.logs)
+        assert (nPlans % 3 == 0), "Expected number of plans to be a multiple of 3!!"
+
         indices = np.arange(1, nPlans+1, 1)
         columns = ["Test Name", "Test Start Time",  "Planning Start Time", "Map Filename", "Map Resolution", "Start X", "Start Y", "Start Theta",
                    "Goal X", "Goal Y", "Goal Theta", "Planner Type", "Holonomic", 
-                   "Planning Time", "Path simplification time", "From recall", "Total planning time"]
+                   "Planning Time", "Path simplification time", "From recall", "Total planning time", "Path"]
         df = pd.DataFrame(index=indices, columns=columns)
         df = df.fillna("-")
 
@@ -190,6 +209,7 @@ class logParser:
         if len(recall_stats) > 0:
             df["From recall"] = recall_stats
         df["Total planning time"] = self._extract_total_planning_times()
+        df["Path"] = self._extract_path()
 
         df.to_csv(csv_filepath)
         print("Planning logs CSV generated/extended at", csv_filepath)
@@ -201,7 +221,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("map_filename", type=str, help="Filename of the map image that should be used for experience generation (ex. map1.png)")
     parser.add_argument("planner", type=int, help="ID of the planner (SIMPLE:0, LIGHTNING:1, THUNDER:2)")
-    parser.add_argument("--tags_filename", type=str, help="Radius of the robot (in pixels) to be used for collision detection", default="default_tags.txt")
+    parser.add_argument("--tags_filename", type=str, help="Filename of file containing tags used to filter the log", default="default_tags.txt")
     args = parser.parse_args()
 
     planner_names = ["simple", "lightning", "thunder"]

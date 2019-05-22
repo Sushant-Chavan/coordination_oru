@@ -44,9 +44,9 @@ def initialize_test():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--nRobots", type=int, help="Number of robots to be used in the testing. Default: 3", default=3)
-    parser.add_argument("--planner", type=int, help="Type of planner to be used for testing (LIGHTNING:1, THUNDER:2), Default: Lightning", default=1)
+    parser.add_argument("--planner", type=int, help="Type of planner to be used for testing (SIMPLE: 0, LIGHTNING:1, THUNDER:2), Default: Lightning", default=1)
     parser.add_argument("--map", type=str, help="Name of the map used for testing. Default: BRSU_Floor0", default="BRSU_Floor0")
-    parser.add_argument("--nIterations", type=int, help="Number to test iterations to run. Default: 1", default=2)
+    parser.add_argument("--nIterations", type=int, help="Number to test iterations to run. Default: 2", default=2)
     parser.add_argument("--timeout", type=int, help="Maximum time allowed for each test in seconds. Default: 300", default=300)
     args = parser.parse_args()
 
