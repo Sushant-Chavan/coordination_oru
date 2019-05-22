@@ -76,6 +76,9 @@ class RobotMissionData:
 
         self.fill_data(planning_df, execution_df)
 
+    def mission_execution_successful(self):
+        return self.nSuccessful_mission_executions == 3
+
     def fill_data(self, planning_df, execution_df):
         self.plans = []
         self.average_path_planning_time = 0
@@ -131,6 +134,7 @@ class FleetMissionData:
         self.planner = None
         self.nRobots = None
         self.nReplans = None
+        self.total_path_execution_time = None
 
         self.fill_data(planning_df, execution_df)
 
@@ -145,12 +149,14 @@ class FleetMissionData:
         self.total_path_planning_time = 0
         self.total_path_simplification_time = 0
         self.nPlans_from_recall = 0
+        self.total_path_execution_time = 0
 
         for robot_id in range(self.nRobots):
             self.total_planning_time += self.robot_missions[robot_id].total_planning_time
             self.total_path_planning_time += self.robot_missions[robot_id].total_path_planning_time
             self.total_path_simplification_time += self.robot_missions[robot_id].total_path_simplification_time
             self.nPlans_from_recall += self.robot_missions[robot_id].nPlans_from_recall
+            self.total_path_execution_time += self.robot_missions[robot_id].total_execution_time
 
         # self.total_path_planning_time /= self.nRobots
         # self.total_path_simplification_time /= self.nRobots
@@ -172,6 +178,22 @@ class FleetMissionData:
             self.robot_missions.append(RobotMissionData(mission_planning_df, mission_execution_df))
 
         assert self.nRobots == len(self.robot_missions), "Number of missions loaded not equal to number of robots in fleet!!"
+
+    def mission_execution_successful(self):
+        for m in self.robot_missions:
+            if not m.mission_execution_successful():
+                return False
+        return True
+
+    def get_percentage_of_mission_success(self):
+        nSuccess = 0
+        max_success = self.nRobots
+
+        for robot_id in range(self.nRobots):
+            if self.robot_missions[robot_id].mission_execution_successful():
+                nSuccess += 1
+
+        return nSuccess * 100.0 /max_success, max_success
 
 # A class to extract relevant lines from a complete log file of a test run and generate a CSV logg file
 class LogAnalyzer:
@@ -220,7 +242,11 @@ class LogAnalyzer:
         planning_df = pd.read_csv(self.planning_csv_path, index_col=None)
         execution_df = pd.read_csv(self.execution_csv_path, index_col=None)
         self.load_fleet_missions(planning_df, execution_df)
-        # print(self.fleet_missions[0].nReplans, self.fleet_missions[1].nReplans)
+        for i in range(len(self.fleet_missions)):
+            print(self.fleet_missions[i].mission_execution_successful(),
+                  self.fleet_missions[i].nReplans,
+                  self.fleet_missions[i].get_percentage_of_mission_success(),
+                  self.fleet_missions[i].total_path_execution_time)
 
     def load_fleet_missions(self, planning_df, execution_df):
         col = "Test Start Time"
@@ -282,8 +308,6 @@ class LogAnalyzer:
         if fleets is None:
             fleets = self.fleet_missions
 
-        fig = plt.figure(figsize=(15, 15))
-
         nFleets = len(fleets)
         fleet_ids = np.arange(1, nFleets + 1, 1)
         path_planning_times = []
@@ -299,6 +323,7 @@ class LogAnalyzer:
             nPlans_from_recall.append(f.nPlans_from_recall)
             nPlans_from_scratch.append(f.nPlans_from_scratch)
 
+        fig = plt.figure(figsize=(15, 15))
         ax = fig.add_subplot(221)
         self.custom_line_plot(ax, fleet_ids, path_planning_times, label="Path planning time",
                          color='r', xlabel="Fleet ID", ylabel="Time in seconds",
@@ -325,6 +350,52 @@ class LogAnalyzer:
         fig.suptitle("Planning time stats \nPlanner:{} Map:{}".format(fleets[0].planner, fleets[0].map))
 
         plt.savefig("fleet_planning_times.svg", format='svg')
+
+    def plot_execution_stats(self, fleets=None):
+        if fleets is None:
+            fleets = self.fleet_missions
+
+        num_replans = np.zeros(len(fleets))
+        nsuccessful_robots = np.zeros_like(num_replans)
+        execution_times = np.zeros_like(num_replans)
+        success_markers = ['X'] * len(fleets)
+
+        for i, f in enumerate(fleets):
+            num_replans[i] = f.nReplans
+            execution_times[i] = f.total_path_execution_time
+            percent, max_robots = f.get_percentage_of_mission_success()
+            nsuccessful_robots[i] = percent * max_robots / 100.0
+            if np.allclose(percent, 100.0):
+                success_markers[i] = "^"
+
+        fleet_ids = np.arange(1, len(fleets)+1, 1)
+        nunsuccessful_robots = np.ones_like(nsuccessful_robots)*fleets[0].nRobots - nsuccessful_robots
+        print(nunsuccessful_robots)
+
+        fig = plt.figure(figsize=(15, 15))
+        ax = fig.add_subplot(221)
+        self.custom_line_plot(ax, fleet_ids, execution_times, label="Path execution time",
+                         color='r', xlabel="Fleet ID", ylabel="Time in seconds",
+                         xticks=fleet_ids, useLog10Scale=False, avg_line_col='b')
+        for i, m in enumerate(success_markers):
+            ax.scatter(fleet_ids[i], execution_times[i], marker=m, c='g', s=100)
+
+        ax = fig.add_subplot(222)
+        self.custom_bar_plot(ax, fleet_ids, num_replans, label="Number of replannings triggered",
+                         color='g', xlabel="Fleet ID", ylabel="Count",
+                         xticks=fleet_ids, avg_line_col='b')
+
+        ax = fig.add_subplot(223)
+        self.custom_bar_plot(ax, fleet_ids, nsuccessful_robots, label="Number of successful robot missions",
+                         color='g', xlabel="Fleet ID", ylabel="Count",
+                         xticks=fleet_ids, avg_line_col='b')
+        self.custom_bar_plot(ax, fleet_ids, nunsuccessful_robots, label="Number of unsuccessful robot missions",
+                         bottom=nsuccessful_robots, color='r', xlabel="Fleet ID", ylabel="Count",
+                         xticks=fleet_ids)
+
+        fig.suptitle("Plan Execution stats \nPlanner:{} Map:{}".format(fleets[0].planner, fleets[0].map))
+
+        plt.savefig("fleet_execution_stats.svg", format='svg')
 
     def determine_num_similar_paths(self, fleets=None, similarity_threshold=0.25):
         print("Checking similarity of paths. This may take some time...")
@@ -393,8 +464,9 @@ def main():
         return
 
     la = LogAnalyzer(planning_csv_filename, execution_csv_filename)
-    la.plot_path_predictability_stats()
-    la.plot_fleet_planning_times()
+    # la.plot_path_predictability_stats()
+    # la.plot_fleet_planning_times()
+    la.plot_execution_stats()
 
 if __name__ == "__main__":
     main()
