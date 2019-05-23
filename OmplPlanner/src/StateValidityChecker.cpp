@@ -10,7 +10,7 @@ bool MultipleCircleStateValidityChecker::isValid(const ob::State *state) const {
       y = xCoords[i]*sin(theta) + yCoords[i]*cos(theta);
       x += (float)s->getX();
       y += (float)s->getY();
-      value = gridmap.computeClearance(x, y, radius);
+      value = gridmap->computeClearance(x, y, radius);
       if (value < radius) return false;
     }
   }

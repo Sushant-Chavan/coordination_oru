@@ -49,6 +49,8 @@ enum PLANNER_TYPE {
 enum MODE { NORMAL = 0, REPLANNING, EXPERIENCE_GENERATION, MODE_COUNT };
 
 bool LOGGING_ACTIVE = true;
+bool MAP_LOADED = false;
+COccupancyGridMap2D GRID_MAP;
 
 extern "C" void cleanupPath(PathPose *path)
 {
@@ -266,16 +268,19 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
             ? ob::StateSpacePtr(new ob::SE2StateSpace())
             : ob::StateSpacePtr(new ob::ReedsSheppStateSpace(turningRadius));
 
-    COccupancyGridMap2D gridmap;
-    gridmap.loadFromBitmapFile(mapFilename, (float)mapResolution, 0.0f, 0.0f);
-    std::cout << "Loaded map (1) " << mapFilename << std::endl;
+    if (!MAP_LOADED || (mode == MODE::REPLANNING))
+    {
+        GRID_MAP.loadFromBitmapFile(mapFilename, (float)mapResolution, 0.0f, 0.0f);
+        std::cout << "Loaded map (1) " << mapFilename << std::endl;
+        MAP_LOADED = true;
+    }
 
     ob::ScopedState<> start(space), goal(space);
     ob::RealVectorBounds bounds(2);
-    bounds.low[0] = gridmap.getXMin();
-    bounds.low[1] = gridmap.getYMin();
-    bounds.high[0] = gridmap.getXMax();
-    bounds.high[1] = gridmap.getYMax();
+    bounds.low[0] = GRID_MAP.getXMin();
+    bounds.low[1] = GRID_MAP.getYMin();
+    bounds.high[0] = GRID_MAP.getXMax();
+    bounds.high[1] = GRID_MAP.getYMax();
 
     space->as< ob::SE2StateSpace >()->setBounds(bounds);
     std::cout << "Bounds are [(" << bounds.low[0] << "," << bounds.low[1]
@@ -289,7 +294,7 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     // set state validity checking for this space
     ob::SpaceInformationPtr si(ssPtr->getSpaceInformation());
     si->setStateValidityChecker(ob::StateValidityCheckerPtr(
-        new MultipleCircleStateValidityChecker(si, mapFilename, mapResolution,
+        new MultipleCircleStateValidityChecker(si, &GRID_MAP,
                                                robotRadius, xCoords, yCoords,
                                                numCoords)));
 
