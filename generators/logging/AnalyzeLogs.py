@@ -277,6 +277,16 @@ class LogAnalyzer:
     def get_holonomic(self, fleets):
         return fleets[0].get_holonomic()
 
+    def reject_outliers(self, data, m=2):
+        return data[abs(data - np.mean(data)) < m * np.std(data)]
+
+    def clean_mean(self, data, outlier_threshold=2):
+        clean_data = self.reject_outliers(np.array(data), outlier_threshold)
+        if clean_data.size > 0:
+            return np.mean(clean_data)
+        else:
+            return np.mean(data)
+
     def custom_line_plot(self, ax, x, y, label=None, color=None, linestyle=None,
                     linewidth=None, xlabel=None, ylabel=None, title=None,
                     xticks=None, yticks=None, useLog10Scale=False, avg_line_col=None):
@@ -286,7 +296,7 @@ class LogAnalyzer:
         ax.plot(x, y, label=label, color=color, linestyle=linestyle, linewidth=linewidth)
 
         if avg_line_col is not None:
-            y_mean = np.ones_like(y) * np.mean(y)
+            y_mean = np.ones_like(y) * self.clean_mean(y)
             ax.plot(x, y_mean, label="Mean " + label, color=avg_line_col)
 
         if xticks is not None:
@@ -310,7 +320,7 @@ class LogAnalyzer:
             for i, h in enumerate(height):
                 ax.text(x[i], h, str(h), color=value_color, fontweight='bold', horizontalalignment='center')
         if avg_line_col is not None:
-            mean_height = np.ones_like(height) * np.mean(height)
+            mean_height = np.ones_like(height) * self.clean_mean(height)
             ax.plot(x, mean_height, label="Mean " + label, color=avg_line_col, linewidth=3.0)
 
         if isinstance(bottom, int) and bottom == 0:
