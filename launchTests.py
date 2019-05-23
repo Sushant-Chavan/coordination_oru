@@ -48,6 +48,7 @@ def main():
     parser.add_argument("--map", type=str, help="Name of the map used for testing. Default: BRSU_Floor0", default="BRSU_Floor0")
     parser.add_argument("--nIterations", type=int, help="Number to test iterations to run. Default: 2", default=2)
     parser.add_argument("--timeout", type=int, help="Maximum time allowed for each test in seconds. Default: 300", default=300)
+    parser.add_argument("--sleep", type=int, help="Maximum time to pause between iterations in seconds. Default: 10", default=10)
     args = parser.parse_args()
 
     initialize_test()
@@ -58,9 +59,9 @@ def main():
 
     for i in range(args.nIterations):
         if i > 0:
-            # Sleep for half a minute to let all the process close properly before starting next iteration
-            print("Waiting half a minute before starting next iteration...")
-            time.sleep(30)
+            # Sleep for some time to let all the process close properly before starting next iteration
+            print("Waiting {} seconds before starting next iteration...".format(args.sleep))
+            time.sleep(args.sleep)
 
         print("=============== Starting test iteration {}/{} ====================".format(i+1, args.nIterations))
         try:
