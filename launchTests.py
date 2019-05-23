@@ -62,6 +62,7 @@ def main():
             # Sleep for some time to let all the process close properly before starting next iteration
             print("Waiting {} seconds before starting next iteration...".format(args.sleep))
             time.sleep(args.sleep)
+            print("\n\n\n")
 
         print("=============== Starting test iteration {}/{} ====================".format(i+1, args.nIterations))
         try:
@@ -75,7 +76,10 @@ def main():
         except:
             print("Error in extracting CSV log")
 
-        print("\n\n\n")
+    # Sleep for some time to let all the process close properly
+    time.sleep(args.sleep)
+    print("All tests completed!")
+
 
 if __name__ == "__main__":
     main()
