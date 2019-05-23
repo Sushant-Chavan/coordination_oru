@@ -3,6 +3,7 @@
 
 import numpy as np
 import os
+import errno
 import sys
 import argparse
 import pandas as pd
@@ -195,6 +196,16 @@ class FleetMissionData:
 
         return nSuccess * 100.0 /max_success, max_success
 
+    def get_mission_execution_stats(self):
+        stats = np.zeros(4)
+        for m in self.robot_missions:
+            nSuccess = m.nSuccessful_mission_executions
+            stats[nSuccess] += 1
+        return stats
+
+    def get_holonomic(self, robot_id=0):
+        return self.robot_missions[robot_id].is_holonomic
+
 # A class to extract relevant lines from a complete log file of a test run and generate a CSV logg file
 class LogAnalyzer:
     def __init__(self, planning_csv_abs_path, execution_csv_abs_path):
@@ -202,13 +213,12 @@ class LogAnalyzer:
         self.execution_csv_path = execution_csv_abs_path
 
         self.test_df = None
-        self.maps = None
-        self.planner = None
         self.plan_stats = None
         self.nTests = None
         self.cdll = None
         self.fleet_missions = None
         self.nSimilar_paths = None
+        self.save_path = None
 
         self.load_csv()
         self.load_native_library()
@@ -255,6 +265,18 @@ class LogAnalyzer:
             self.fleet_missions.append(FleetMissionData(fleet_planning_df, fleet_execution_df))
         print("Loaded", len(self.fleet_missions), "fleet missions")
 
+    def get_map_name(self, fleets):
+        return fleets[0].map
+
+    def get_planner_name(self, fleets):
+        return fleets[0].planner
+
+    def get_nRobots(self, fleets):
+        return fleets[0].nRobots
+
+    def get_holonomic(self, fleets):
+        return fleets[0].get_holonomic()
+
     def custom_line_plot(self, ax, x, y, label=None, color=None, linestyle=None,
                     linewidth=None, xlabel=None, ylabel=None, title=None,
                     xticks=None, yticks=None, useLog10Scale=False, avg_line_col=None):
@@ -280,9 +302,13 @@ class LogAnalyzer:
 
     def custom_bar_plot(self, ax, x, height, label=None, color=None, barwidth=0.8,
                         bottom=0, xlabel=None, ylabel=None, title=None,
-                        xticks=None, yticks=None, avg_line_col=None):
+                        xticks=None, yticks=None, avg_line_col=None,
+                        value_color=None):
         ax.bar(x, height, label=label, color=color, width=barwidth, bottom=bottom)
 
+        if value_color is not None:
+            for i, h in enumerate(height):
+                ax.text(x[i], h, str(h), color=value_color, fontweight='bold', horizontalalignment='center')
         if avg_line_col is not None:
             mean_height = np.ones_like(height) * np.mean(height)
             ax.plot(x, mean_height, label="Mean " + label, color=avg_line_col, linewidth=3.0)
@@ -300,7 +326,15 @@ class LogAnalyzer:
             ax.grid()
         ax.legend()
 
-    def plot_fleet_planning_times(self, fleets=None):
+    def get_figure_title(self, prefix, fleets, assisted_sampling):
+        sampling_name = "UsingHotspots" if assisted_sampling else "Uniform"
+        kinematics = "Holonomic" if self.get_holonomic(fleets) else "ReedsSheep"
+        title = prefix + "\nPlanner:{}, Map:{}, Num of Robots:{}, Kinematics:{}, Sampling Strategy:{}".format(
+                    self.get_planner_name(fleets), self.get_map_name(fleets), self.get_nRobots(fleets),
+                    kinematics, sampling_name)
+        return title
+
+    def plot_fleet_planning_times(self, assisted_sampling, fleets=None):
         if fleets is None:
             fleets = self.fleet_missions
 
@@ -343,29 +377,30 @@ class LogAnalyzer:
                          bottom=nPlans_from_recall, color='r', xlabel="Fleet ID", ylabel="Count",
                          xticks=fleet_ids)
 
-        fig.suptitle("Planning time stats \nPlanner:{} Map:{}".format(fleets[0].planner, fleets[0].map))
+        fig.suptitle(self.get_figure_title("Planning time stats", fleets, assisted_sampling))
 
-        plt.savefig("fleet_planning_times.svg", format='svg')
+        plot_name = os.path.join(self.get_directory_to_save_plots(fleets, assisted_sampling), "planning_times.svg")
+        plt.savefig(plot_name, format='svg')
 
-    def plot_execution_stats(self, fleets=None):
+    def plot_execution_stats(self, assisted_sampling, fleets=None):
         if fleets is None:
             fleets = self.fleet_missions
 
         num_replans = np.zeros(len(fleets))
-        nsuccessful_robots = np.zeros_like(num_replans)
         execution_times = np.zeros_like(num_replans)
         success_markers = ['X'] * len(fleets)
+        success_status = np.zeros((len(fleets), 4))
+        fleet_ids = np.arange(1, len(fleets)+1, 1)
 
         for i, f in enumerate(fleets):
             num_replans[i] = f.nReplans
             execution_times[i] = f.total_path_execution_time
             percent, max_robots = f.get_percentage_of_mission_success()
-            nsuccessful_robots[i] = percent * max_robots / 100.0
             if np.allclose(percent, 100.0):
                 success_markers[i] = "^"
-
-        fleet_ids = np.arange(1, len(fleets)+1, 1)
-        nunsuccessful_robots = np.ones_like(nsuccessful_robots)*fleets[0].nRobots - nsuccessful_robots
+            exec_status = f.get_mission_execution_stats()
+            for num_success in range(4):
+                success_status[i, num_success] = exec_status[num_success]
 
         fig = plt.figure(figsize=(15, 15))
         ax = fig.add_subplot(221)
@@ -377,29 +412,47 @@ class LogAnalyzer:
             ax.scatter(fleet_ids[i], execution_times[i], marker=m, c='g', s=100)
 
         ax = fig.add_subplot(222)
-        self.custom_bar_plot(ax, fleet_ids, num_replans, label="Number of replannings triggered",
-                         color='g', xlabel="Fleet ID", ylabel="Count",
+        self.custom_bar_plot(ax, fleet_ids, num_replans, label="",
+                         color='g', xlabel="Fleet ID", ylabel="Number of replannings triggered",
                          xticks=fleet_ids, avg_line_col='b',
                          title="Replanning stats")
 
+        all_success = success_status[:, 3]
+        one_failure = success_status[:, 2]
+        two_failure = success_status[:, 1]
+        all_failure = success_status[:, 0]
+
         ax = fig.add_subplot(223)
-        self.custom_bar_plot(ax, fleet_ids, nsuccessful_robots, label="Number of successful robot missions",
-                         color='g', xlabel="Fleet ID", ylabel="Count",
+        self.custom_bar_plot(ax, fleet_ids, all_success, label="All missions successful",
+                         color=(0, 1, 0), xlabel="Fleet ID", ylabel="Number of robots",
                          xticks=fleet_ids, avg_line_col='b',
-                         title="Robot mission success stats")
-        self.custom_bar_plot(ax, fleet_ids, nunsuccessful_robots, label="Number of unsuccessful robot missions",
-                         bottom=nsuccessful_robots, color='r', xlabel="Fleet ID", ylabel="Count",
+                         title="Robot mission execution status per fleet")
+        self.custom_bar_plot(ax, fleet_ids, one_failure, label="Failed after delivering Mobidik",
+                         bottom=all_success, color='yellow', xlabel="Fleet ID", ylabel="Number of robots",
+                         xticks=fleet_ids)
+        self.custom_bar_plot(ax, fleet_ids, two_failure, label="Failed while transporting Mobidik",
+                         bottom=one_failure+all_success, color='orange', xlabel="Fleet ID", ylabel="Number of robots",
+                         xticks=fleet_ids)
+        self.custom_bar_plot(ax, fleet_ids, all_failure, label="Failed before reaching Mobidik",
+                         bottom=two_failure+one_failure+all_success, color=(1, 0, 0), xlabel="Fleet ID", ylabel="Number of robots",
                          xticks=fleet_ids)
 
-        fig.suptitle("Plan Execution stats \nPlanner:{} Map:{}".format(fleets[0].planner, fleets[0].map))
+        ax = fig.add_subplot(224)
+        nSuccess = np.arange(0, 4, 1)
+        nSuccessful_robots = np.sum(success_status, axis=0)
 
-        plt.savefig("fleet_execution_stats.svg", format='svg')
+        self.custom_bar_plot(ax, nSuccess, nSuccessful_robots, label=None,
+                         color='g', xlabel="Number of successful missions", ylabel="Number of robots",
+                         xticks=nSuccess, title="Robot mission execution status over all fleets",
+                         value_color='black')
 
-    def determine_num_similar_paths(self, fleets=None, similarity_threshold=0.25):
+        fig.suptitle(self.get_figure_title("Plan Execution stats", fleets, assisted_sampling))
+
+        plot_name = os.path.join(self.get_directory_to_save_plots(fleets, assisted_sampling), "execution_stats.svg")
+        plt.savefig(plot_name, format='svg')
+
+    def determine_num_similar_paths(self, fleets, similarity_threshold=0.25):
         print("Checking similarity of paths. This may take some time...")
-        if fleets is None:
-            fleets = self.fleet_missions
-
         max_num_matches = (len(fleets) -1) # -1 because we dont test a path against itself
 
         similarity_count = np.zeros(fleets[0].nRobots)
@@ -422,8 +475,10 @@ class LogAnalyzer:
         print("Path similarity tests complete!")
         return similarity_count, max_num_matches
 
-    def plot_path_predictability_stats(self, similarity_threshold = 0.3):
-        similarities, nTests = self.determine_num_similar_paths(similarity_threshold=similarity_threshold)
+    def plot_path_predictability_stats(self, assisted_sampling, fleets=None, similarity_threshold = 0.3):
+        if fleets is None:
+            fleets = self.fleet_missions
+        similarities, nTests = self.determine_num_similar_paths(fleets, similarity_threshold=similarity_threshold)
         dissimilarities = (np.ones_like(similarities) * nTests) - similarities
         robot_ids = np.arange(1, similarities.size+1, 1)
 
@@ -438,12 +493,39 @@ class LogAnalyzer:
                          xticks=robot_ids, yticks=np.arange(0, nTests+1, 1),
                          title="Number of predictable paths with similarity threshold = {}".format(similarity_threshold))
 
-        plt.savefig("fleet_path_predictability.svg", format='svg')
+        f.suptitle(self.get_figure_title("Plan stats", fleets, assisted_sampling))
+
+        plot_name = os.path.join(self.get_directory_to_save_plots(fleets, assisted_sampling), "path_predictability.svg")
+        plt.savefig(plot_name, format='svg')
+
+    def get_directory_to_save_plots(self, fleets, assisted_sampling):
+        if self.save_path is None:
+            sampling_name = "UsingHotspots" if assisted_sampling else "Uniform"
+            kinematics = "Holonomic" if self.get_holonomic(fleets) else "ReedsSheep"
+            self.save_path = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/plots/")
+            self.save_path = os.path.join(self.save_path, self.get_map_name(fleets))
+            self.save_path = os.path.join(self.save_path, self.get_planner_name(fleets))
+            self.save_path = os.path.join(self.save_path, str(self.get_nRobots(fleets))+"_Robots")
+            self.save_path = os.path.join(self.save_path, kinematics)
+            self.save_path = os.path.join(self.save_path, sampling_name)
+
+        # Make the directory if it does not exist
+        try:
+            os.makedirs(self.save_path)
+        except OSError as exc:
+            if exc.errno ==errno.EEXIST and os.path.isdir(self.save_path):
+                pass
+            else:
+                raise "Could not create directory to save plots at {}".format(self.save_path)
+
+        return self.save_path
+
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("map", type=str, help=" Name of the map (Ex. BRSU_Floor0)")
     parser.add_argument("planner", type=int, help="ID of the planner (SIMPLE:0, LIGHTNING:1, THUNDER:2)")
+    parser.add_argument("hotspots", type=bool, help="Boolean to specify if hotspots were used for generating the experience DB")
     args = parser.parse_args()
 
     planner_names = ["simple", "lightning", "thunder"]
@@ -462,9 +544,9 @@ def main():
         return
 
     la = LogAnalyzer(planning_csv_filename, execution_csv_filename)
-    la.plot_path_predictability_stats()
-    la.plot_fleet_planning_times()
-    la.plot_execution_stats()
+    la.plot_path_predictability_stats(args.hotspots)
+    la.plot_fleet_planning_times(args.hotspots)
+    la.plot_execution_stats(args.hotspots)
 
 if __name__ == "__main__":
     main()
