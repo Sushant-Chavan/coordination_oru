@@ -170,14 +170,24 @@ class DatasetGenerator():
         # Divide all samples equally among the different target hotspot centers
         sampleSize = int(float(self.nRobots) / nMeans)
 
-        for i in range(nMeans):
-            size = sampleSize if (i != (nMeans-1)) else (self.nRobots - (sampleSize * (nMeans - 1)))
-            newSamples = self.get_bivariate_samples(size, self.hotspot_means[i], self.hotspot_covs[i])
-            if self.samples is None:
-                self.samples = newSamples
-            else:
-                self.samples = np.vstack((self.samples, newSamples))
-            print("\tGenerated", newSamples.shape[0], "samples for target hotspot", i+1, "of", nMeans)
+        if sampleSize > 0:
+            extra_samples = self.nRobots % nMeans
+            for i in range(nMeans):
+                size = (sampleSize + 1) if (i < extra_samples) else sampleSize
+                newSamples = self.get_bivariate_samples(size, self.hotspot_means[i], self.hotspot_covs[i])
+                if self.samples is None:
+                    self.samples = newSamples
+                else:
+                    self.samples = np.vstack((self.samples, newSamples))
+                print("\tGenerated", newSamples.shape[0], "samples for target hotspot", i+1, "of", nMeans)
+        else:
+            for i in range(self.nRobots):
+                newSamples = self.get_bivariate_samples(1, self.hotspot_means[i], self.hotspot_covs[i])
+                if self.samples is None:
+                    self.samples = newSamples
+                else:
+                    self.samples = np.vstack((self.samples, newSamples))
+                print("\tGenerated", newSamples.shape[0], "samples for target hotspot", i+1, "of", nMeans)
 
         # Set the resolution
         self.samples[:, 0:2] = self.samples[:, 0:2] * self.resolution
