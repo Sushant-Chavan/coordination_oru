@@ -110,9 +110,10 @@ public class OMPLPlanner extends AbstractMotionPlanner {
     }
 
     public enum PLANNER_TYPE {
-        SIMPLE(0),
+        SIMPLE_RRT_CONNECT(0),
         LIGHTNING(1),
-        THUNDER(2);
+        THUNDER(2),
+        SIMPLE_RRT_STAR(3);
     
         private int value;
         private static Map map = new HashMap();

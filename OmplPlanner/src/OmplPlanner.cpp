@@ -40,9 +40,10 @@ typedef struct PathPose {
 } PathPose;
 
 enum PLANNER_TYPE {
-    SIMPLE_SETUP = 0,
+    SIMPLE_RRT_CONNECT = 0,
     EXPERIENCE_LIGHTNING,
     EXPERIENCE_THUNDER,
+    SIMPLE_RRT_STAR,
     PLANNER_TYPE_COUNT
 };
 
@@ -66,7 +67,8 @@ og::SimpleSetup *getPlanningSetup(PLANNER_TYPE type, ob::StateSpacePtr space,
     std::string dbPath = std::string("generated/experienceDBs/") + mapFilename;
 
     switch (type) {
-    case PLANNER_TYPE::SIMPLE_SETUP: {
+    case PLANNER_TYPE::SIMPLE_RRT_CONNECT:
+    case PLANNER_TYPE::SIMPLE_RRT_STAR: {
         ssPtr = new og::SimpleSetup(space);
     } break;
     case PLANNER_TYPE::EXPERIENCE_LIGHTNING: {
@@ -105,8 +107,11 @@ std::string getLogFileName(const char *experienceDBName,
     case PLANNER_TYPE::EXPERIENCE_THUNDER:
         filename << "_thunder";
         break;
+    case PLANNER_TYPE::SIMPLE_RRT_CONNECT:
+        filename << "_rrt_connect";
+        break;
     default:
-        filename << "_simple";
+        filename << "_rrt_star";
         break;
     }
     filename << ".log";
@@ -150,7 +155,7 @@ std::string getProblemInfo(const char *mapFilename, double mapResolution,
                            const char *experienceDBName, MODE mode,
                            bool isHolonomicRobot)
 {
-    if (plannerType < PLANNER_TYPE::SIMPLE_SETUP ||
+    if (plannerType < PLANNER_TYPE::SIMPLE_RRT_CONNECT ||
         plannerType >= PLANNER_TYPE::PLANNER_TYPE_COUNT ||
         mode != MODE::NORMAL) {
         return "";
@@ -176,15 +181,19 @@ std::string getProblemInfo(const char *mapFilename, double mapResolution,
     log << "Distance between points: " << distanceBetweenPathPoints << "\n";
     log << "Turning Radius: " << turningRadius << "\n";
     if (plannerType == PLANNER_TYPE::EXPERIENCE_LIGHTNING) {
-        log << "Planner Type: LIGHTNING"
+        log << "Planner Type: Lightning"
             << "\n";
     }
     else if (plannerType == PLANNER_TYPE::EXPERIENCE_THUNDER) {
-        log << "Planner Type: THUNDER"
+        log << "Planner Type: Thunder"
+            << "\n";
+    }
+    else if (plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT) {
+        log << "Planner Type: SIMPLE (RRT-Connect)"
             << "\n";
     }
     else {
-        log << "Planner Type: SIMPLE (RRT*)"
+        log << "Planner Type: SIMPLE (RRT-Star)"
             << "\n";
     }
     log << "Is Holonomic Robot: " << (isHolonomicRobot ? "True" : "False")
@@ -230,7 +239,7 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
 {
     std::string logFilename = getLogFileName(experienceDBName, plannerType);
 
-    if (plannerType >= PLANNER_TYPE::SIMPLE_SETUP &&
+    if (plannerType >= PLANNER_TYPE::SIMPLE_RRT_CONNECT &&
         plannerType < PLANNER_TYPE::PLANNER_TYPE_COUNT &&
         mode == MODE::NORMAL) {
         // Setup OMPL logging stream to the log file
@@ -287,7 +296,7 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
               << "),(" << bounds.high[0] << "," << bounds.high[1] << ")]"
               << std::endl;
 
-    plannerType = isReplan ? PLANNER_TYPE::SIMPLE_SETUP : plannerType;
+    plannerType = isReplan ? PLANNER_TYPE::SIMPLE_RRT_CONNECT : plannerType;
     og::SimpleSetup *ssPtr =
         getPlanningSetup(plannerType, space, experienceDBName);
 
@@ -299,7 +308,7 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
                                                numCoords)));
 
     ob::PlannerPtr planner;
-    if (isReplan) {
+    if (isReplan || plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT) {
         planner = ob::PlannerPtr(new og::RRTConnect(si));
     }
     else {
@@ -347,7 +356,8 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
 
     if (solved) {
         std::cout << "Found solution" << std::endl;
-        if (plannerType == PLANNER_TYPE::SIMPLE_SETUP)
+        if (plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT ||
+            plannerType == PLANNER_TYPE::SIMPLE_RRT_STAR)
             ssPtr->simplifySolution();
         og::PathGeometric pth = ssPtr->getSolutionPath();
         pLen = pth.length();
@@ -435,7 +445,7 @@ extern "C" bool plan_multiple_circles_nomap(
               << "),(" << bounds.high[0] << "," << bounds.high[1] << ")]"
               << std::endl;
 
-    plannerType = isReplan ? PLANNER_TYPE::SIMPLE_SETUP : plannerType;
+    plannerType = isReplan ? PLANNER_TYPE::SIMPLE_RRT_CONNECT : plannerType;
     og::SimpleSetup *ssPtr = getPlanningSetup(plannerType, space, "NoMap");
 
     // set state validity checking for this space

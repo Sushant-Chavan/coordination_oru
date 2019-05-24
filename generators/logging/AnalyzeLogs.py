@@ -534,11 +534,11 @@ class LogAnalyzer:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("map", type=str, help=" Name of the map (Ex. BRSU_Floor0)")
-    parser.add_argument("planner", type=int, help="ID of the planner (SIMPLE:0, LIGHTNING:1, THUNDER:2)")
+    parser.add_argument("planner", type=int, help="ID of the planner (SIMPLE_RRT-Connect:0, LIGHTNING:1, THUNDER:2, SIMPLE_RRT-Star:3)")
     parser.add_argument("hotspots", type=bool, help="Boolean to specify if hotspots were used for generating the experience DB")
     args = parser.parse_args()
 
-    planner_names = ["simple", "lightning", "thunder"]
+    planner_names = ["rrt_connect", "lightning", "thunder", "rrt_star"]
     planning_csv_filename = args.map + "_" + planner_names[args.planner] + "_planning.csv"
     execution_csv_filename = args.map + "_" + planner_names[args.planner] + "_execution.csv"
     log_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/experienceLogs/")
