@@ -379,6 +379,10 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
             ePtr->printLogs(stream);
             log(logFilename, stream.str());
         }
+
+        std::stringstream pLenStr;
+        pLenStr << "Length of computed path = " << pLen << std::endl;
+        log(logFilename, pLenStr.str());
     }
     else {
         std::cout << "No solution found" << std::endl;

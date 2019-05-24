@@ -121,6 +121,13 @@ class logParser:
                 planners.append((l.split(": ")[1]).strip())
         return planners
 
+    def _extract_path_length(self):
+        lengths = []
+        for l in self.logs:
+            if "Length of computed path" in l:
+                lengths.append((l.split("= ")[1]).strip())
+        return lengths
+
     def _extract_robot_kinematics(self):
         kinemetics = []
         for l in self.logs:
@@ -181,7 +188,7 @@ class logParser:
         indices = np.arange(1, nPlans+1, 1)
         columns = ["Test Name", "Test Start Time",  "Planning Start Time", "Map Filename", "Map Resolution", "Start X", "Start Y", "Start Theta",
                    "Goal X", "Goal Y", "Goal Theta", "Planner Type", "Holonomic", 
-                   "Planning Time", "Path simplification time", "From recall", "Total planning time", "Path"]
+                   "Planning Time", "Path simplification time", "From recall", "Total planning time", "Path Length", "Path"]
         df = pd.DataFrame(index=indices, columns=columns)
         df = df.fillna("-")
 
@@ -209,6 +216,7 @@ class logParser:
         if len(recall_stats) > 0:
             df["From recall"] = recall_stats
         df["Total planning time"] = self._extract_total_planning_times()
+        df["Path Length"] = self._extract_path_length()
         df["Path"] = self._extract_path()
 
         df.to_csv(csv_filepath)
