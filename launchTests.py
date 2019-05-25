@@ -7,41 +7,39 @@ import zipfile
 import datetime
 import time
 
-def zip_logs(curr_dir):
-    path_to_logs = "generated/experienceLogs/"
+def zip_logs(log_dir):
     files_to_zip = []
-    for root, dirs, files in os.walk(path_to_logs):
+    log_dir = log_dir + "/"
+    for root, dirs, files in os.walk(log_dir):
         for file in files:
             if os.path.splitext(file)[1] == ".log":
                 files_to_zip.append(os.path.join(root, file))
 
     if len(files_to_zip) > 0:
         curr_time = datetime.datetime.now().strftime("%H:%M:%S %b %d %Y")
-        zip_file_path = curr_dir + path_to_logs + curr_time + '.zip'
+        zip_file_path = log_dir + curr_time + '.zip'
         zipf = zipfile.ZipFile(zip_file_path, 'w', zipfile.ZIP_DEFLATED)
         print("Zipping following files to", zip_file_path)
         for f in files_to_zip:
-            zipf.write(f)
+            zipf.write(f, os.path.basename(f))
             print(f)
         zipf.close()
         print("Zipping complete\n")
 
-def clear_logs():
-    path_to_logs = "generated/experienceLogs/"
-    contents = os.listdir(path_to_logs)
+def clear_logs(log_dir):
+    contents = os.listdir(log_dir)
     print("Clearing existing log files...")
     for item in contents:
-        f  = os.path.join(path_to_logs, item)
+        f  = os.path.join(log_dir, item)
         if os.path.isfile(f) and (not f.endswith(".zip") and not f.endswith(".dummyLog")):
             os.remove(f)
             print("Deleted file:", f)
     print("Cleared all previous log files\n")
 
 def initialize_test(args):
-    curr_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]) + "/"
-    zip_logs(curr_dir)
-    clear_logs()
-    setup_log_dir(args)
+    log_dir = setup_log_dir(args)
+    zip_logs(log_dir)
+    clear_logs(log_dir)
 
 def setup_log_dir(args):
     sampling_name = "Uniform" if args.no_hotspots else "UsingHotspots"
@@ -64,6 +62,7 @@ def setup_log_dir(args):
             pass
         else:
             raise "Could not create directory to save logs at {}".format(directory)
+    return directory
 
 def main():
     parser = argparse.ArgumentParser()
