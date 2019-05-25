@@ -25,7 +25,7 @@ public class DemoLauncher {
 
         System.out.println("Usage: \n./gradlew run -Pdemo=<demo> \n\tOR \n./gradlew run -Pdemo=<demo> -PnRobots=N -Pplanner=ID -Pmap=mapName" +
         "\n\nN represents the number of robots to be used in the simulations."+
-        "\nID represents the planner to be used (SIMPLE:0, LIGHTNING:1, THUNDER:2)"+
+        "\nID represents the planner to be used (SIMPLE_RRT-Connect:0, LIGHTNING:1, THUNDER:2, SIMPLE_RRT-Star:3)"+
         "\nmapName represents the name of the map to be used for simulations eg. (AGP_Basement)"+
         "\nAvailable options for <demo>");
 

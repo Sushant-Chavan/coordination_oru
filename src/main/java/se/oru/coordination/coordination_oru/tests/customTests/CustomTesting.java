@@ -166,11 +166,15 @@ public abstract class CustomTesting {
     }
     
     protected static String getLogFileName(String experienceDBName, OMPLPlanner.PLANNER_TYPE type) {
-        String plannerID = "_simple";
+        String plannerID = "_unknown";
         if (type == OMPLPlanner.PLANNER_TYPE.LIGHTNING)
             plannerID = "_lightning";
         else if (type == OMPLPlanner.PLANNER_TYPE.THUNDER)
             plannerID = "_thunder";
+        else if (type == OMPLPlanner.PLANNER_TYPE.SIMPLE_RRT_CONNECT)
+            plannerID = "_rrt_connect";
+        else if (type == OMPLPlanner.PLANNER_TYPE.SIMPLE_RRT_STAR)
+            plannerID = "_rrt_star";
 
         String filename = "generated/experienceLogs/" + experienceDBName + plannerID + ".log";
         return filename;

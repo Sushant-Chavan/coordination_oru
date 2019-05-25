@@ -330,11 +330,11 @@ class logParser:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("map_filename", type=str, help="Filename of the map image that should be used for experience generation (ex. map1.png)")
-    parser.add_argument("planner", type=int, help="ID of the planner (SIMPLE:0, LIGHTNING:1, THUNDER:2)")
+    parser.add_argument("planner", type=int, help="ID of the planner (SIMPLE_RRT-Connect:0, LIGHTNING:1, THUNDER:2, SIMPLE_RRT-Star:3)")
     parser.add_argument("--tags_filename", type=str, help="Filename of file containing tags used to filter the log", default="default_tags.txt")
     args = parser.parse_args()
 
-    planner_names = ["simple", "lightning", "thunder"]
+    planner_names = ["rrt_connect", "lightning", "thunder", "rrt_star"]
 
     root_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../")
     map_name = os.path.splitext(args.map_filename)[0]
