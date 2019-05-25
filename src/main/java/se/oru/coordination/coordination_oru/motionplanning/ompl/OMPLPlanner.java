@@ -32,6 +32,7 @@ public class OMPLPlanner extends AbstractMotionPlanner {
 	private Coordinate[] collisionCircleCenters = null;
     private boolean isHolonomicRobot = false;
     private PLANNER_TYPE plannerType = PLANNER_TYPE.LIGHTNING;
+    private String logFile;
 	
 	public static OMPLPlannerLib INSTANCE = null;
 	static {
@@ -109,6 +110,14 @@ public class OMPLPlanner extends AbstractMotionPlanner {
         return this.isHolonomicRobot;
     }
 
+    public void setLogFile(String logFilePath) {
+        this.logFile = logFilePath;
+    }
+
+    public String getLogFile() {
+        return this.logFile;
+    }
+
     public enum PLANNER_TYPE {
         SIMPLE_RRT_CONNECT(0),
         LIGHTNING(1),
@@ -178,7 +187,7 @@ public class OMPLPlanner extends AbstractMotionPlanner {
                         start_.getY(), start_.getTheta(), goal_.getX(), goal_.getY(),
                         goal_.getTheta(), path, pathLength, distanceBetweenPathPoints,
                         turningRadius, this.plannerType.ordinal(), experienceDBName,
-                        mode, this.isHolonomicRobot)) return false;
+                        mode, this.isHolonomicRobot, this.logFile)) return false;
 				}
 				else {
                     if (!INSTANCE.plan_multiple_circles_nomap(xCoords, yCoords, numCoords,

@@ -1,4 +1,5 @@
 import os
+import errno
 import sys
 import subprocess
 import argparse
@@ -36,25 +37,53 @@ def clear_logs():
             print("Deleted file:", f)
     print("Cleared all previous log files\n")
 
-def initialize_test():
+def initialize_test(args):
     curr_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]) + "/"
     zip_logs(curr_dir)
     clear_logs()
+    setup_log_dir(args)
+
+def setup_log_dir(args):
+    sampling_name = "Uniform" if args.no_hotspots else "UsingHotspots"
+    kinematics = "ReedsSheep" if args.constrained else "Holonomic"
+    planner_names = ["SIMPLE(RRT-Connect)", "Lightning", "Thunder", "SIMPLE(RRT-Star)"]
+    directory = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/generated/executionData/")
+    directory = os.path.join(directory, args.map)
+    directory = os.path.join(directory, planner_names[args.planner])
+    directory = os.path.join(directory, str(args.nRobots)+"_Robots")
+    directory = os.path.join(directory, kinematics)
+    directory = os.path.join(directory, sampling_name)
+    directory = os.path.join(directory, str(args.nExperiences)+"_TrainingExperiences/Logs")
+    print(directory)
+
+    # Make the directory if it does not exist
+    try:
+        os.makedirs(directory)
+    except OSError as exc:
+        if exc.errno ==errno.EEXIST and os.path.isdir(directory):
+            pass
+        else:
+            raise "Could not create directory to save logs at {}".format(directory)
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--nRobots", type=int, help="Number of robots to be used in the testing. Default: 3", default=3)
     parser.add_argument("--planner", type=int, help="Type of planner to be used for testing (SIMPLE_RRT-Connect: 0, LIGHTNING:1, THUNDER:2, SIMPLE_RRT-Star: 3), Default: Lightning", default=1)
     parser.add_argument("--map", type=str, help="Name of the map used for testing. Default: BRSU_Floor0", default="BRSU_Floor0")
+    parser.add_argument("--constrained", type=bool, help="Indicate if the robots are ReedsSheep like vehicles. Default: False (holonomic)", default=False)
+    parser.add_argument("--no_hotspots", type=bool, help="Indicate if the experience databases are generated using uniform sampling of the map. Default: False (hotspots used)", default=False)
+    parser.add_argument("--nExperiences", type=int, help="Number of training problems used to build the experience DB. Default: 100", default=100)
     parser.add_argument("--nIterations", type=int, help="Number to test iterations to run. Default: 2", default=2)
     parser.add_argument("--timeout", type=int, help="Maximum time allowed for each test in seconds. Default: 300", default=300)
     parser.add_argument("--sleep", type=int, help="Maximum time to pause between iterations in seconds. Default: 10", default=10)
     args = parser.parse_args()
 
-    initialize_test()
+    initialize_test(args)
 
     run_test_cmd = ["./gradlew", "run", "-Pdemo=customTests.CustomTesting", "-PnRobots="+str(args.nRobots),
-           "-Pplanner="+str(args.planner), "-Pmap="+args.map]
+           "-Pplanner="+str(args.planner), "-Pmap="+args.map, "-Pconstrained="+str(int(args.constrained)),
+           "-Pno_hotspots="+str(int(args.no_hotspots)), "-Pexp="+str(args.nExperiences)]
+
     extract_csv_cmd = ["python3", "generators/logging/LogParser.py", args.map, str(args.planner)]
 
     for i in range(args.nIterations):

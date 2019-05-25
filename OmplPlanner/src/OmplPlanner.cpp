@@ -94,31 +94,6 @@ og::SimpleSetup *getPlanningSetup(PLANNER_TYPE type, ob::StateSpacePtr space,
     return ssPtr;
 }
 
-std::string getLogFileName(const char *experienceDBName,
-                           PLANNER_TYPE plannerType)
-{
-    std::stringstream filename;
-    filename << "generated/experienceLogs/";
-    filename << experienceDBName;
-    switch (plannerType) {
-    case PLANNER_TYPE::EXPERIENCE_LIGHTNING:
-        filename << "_lightning";
-        break;
-    case PLANNER_TYPE::EXPERIENCE_THUNDER:
-        filename << "_thunder";
-        break;
-    case PLANNER_TYPE::SIMPLE_RRT_CONNECT:
-        filename << "_rrt_connect";
-        break;
-    default:
-        filename << "_rrt_star";
-        break;
-    }
-    filename << ".log";
-
-    return filename.str();
-}
-
 void log(const std::string &logFilename, const std::string &log)
 {
     if (log.empty() || !LOGGING_ACTIVE)
@@ -189,11 +164,11 @@ std::string getProblemInfo(const char *mapFilename, double mapResolution,
             << "\n";
     }
     else if (plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT) {
-        log << "Planner Type: SIMPLE (RRT-Connect)"
+        log << "Planner Type: SIMPLE(RRT-Connect)"
             << "\n";
     }
     else {
-        log << "Planner Type: SIMPLE (RRT-Star)"
+        log << "Planner Type: SIMPLE(RRT-Star)"
             << "\n";
     }
     log << "Is Holonomic Robot: " << (isHolonomicRobot ? "True" : "False")
@@ -235,16 +210,16 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
                       double goalTheta, PathPose **path, int *pathLength,
                       double distanceBetweenPathPoints, double turningRadius,
                       PLANNER_TYPE plannerType, const char *experienceDBName,
-                      MODE mode, bool isHolonomicRobot)
+                      MODE mode, bool isHolonomicRobot, const char* logfile)
 {
-    std::string logFilename = getLogFileName(experienceDBName, plannerType);
+    std::string logFilename = std::string(logfile);
 
     if (plannerType >= PLANNER_TYPE::SIMPLE_RRT_CONNECT &&
         plannerType < PLANNER_TYPE::PLANNER_TYPE_COUNT &&
         mode == MODE::NORMAL) {
         // Setup OMPL logging stream to the log file
         ompl::msg::useOutputHandler(new ompl::msg::OutputHandlerFile(
-            getLogFileName(experienceDBName, plannerType).c_str()));
+            logFilename.c_str()));
         LOGGING_ACTIVE = true;
     }
     else {
