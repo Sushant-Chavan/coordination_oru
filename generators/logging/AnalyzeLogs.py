@@ -9,6 +9,7 @@ import argparse
 import pandas as pd
 import re
 import matplotlib.pyplot as plt
+from matplotlib.transforms import Bbox
 from ctypes import *
 
 # A class to pass the array of poses to the shared libarary for comparison
@@ -29,6 +30,7 @@ class PlanData():
         self.from_recall = None
         self.total_planning_time = None
         self.path = None
+        self.path_length = None
 
         self.fill_data(df)
 
@@ -52,6 +54,7 @@ class PlanData():
         self.from_recall = (df["From recall"].values[0] == 1)
         self.total_planning_time = df["Total planning time"].values[0]
         self.path = self.load_path(df["Path"].values[0])
+        self.path_length = df["Path Length"].values[0]
 
     def load_path(self, path_data):
         path_data = path_data.strip()
@@ -70,6 +73,7 @@ class RobotMissionData:
         self.total_planning_time = None
         self.is_holonomic = None
         self.complete_path = None
+        self.complete_path_length = None
         self.nPlans_from_recall = None
         self.nSuccessful_mission_executions = None
         self.mission_execution_durations = None
@@ -86,6 +90,7 @@ class RobotMissionData:
         self.average_path_simplification_time = 0
         self.total_path_planning_time = 0
         self.total_path_simplification_time = 0
+        self.complete_path_length = 0
         self.total_planning_time = 0
         self.nPlans_from_recall = 0
 
@@ -98,6 +103,7 @@ class RobotMissionData:
             self.total_path_planning_time += plan_data.planning_time
             self.total_path_simplification_time += plan_data.simplification_time
             self.total_planning_time += plan_data.total_planning_time
+            self.complete_path_length += plan_data.path_length
             if plan_data.from_recall:
                 self.nPlans_from_recall += 1
 
@@ -289,7 +295,7 @@ class LogAnalyzer:
 
     def custom_line_plot(self, ax, x, y, label=None, color=None, linestyle=None,
                     linewidth=None, xlabel=None, ylabel=None, title=None,
-                    xticks=None, yticks=None, useLog10Scale=False, avg_line_col=None):
+                    xticks=None, yticks=None, useLog10Scale=False, avg_line_col=None, avg_text_color='black'):
         if useLog10Scale:
             y = np.log10(y)
             ylabel = ylabel + " ($log_{10}$ scale)"
@@ -298,6 +304,7 @@ class LogAnalyzer:
         if avg_line_col is not None:
             y_mean = np.ones_like(y) * self.clean_mean(y)
             ax.plot(x, y_mean, label="Mean " + label, color=avg_line_col)
+            ax.text(x[0], y_mean[0], str(np.round(y_mean[0], decimals=3)), color=avg_text_color, fontweight='bold', horizontalalignment='left', verticalalignment='bottom')
 
         if xticks is not None:
             ax.set_xticks(xticks)
@@ -313,7 +320,7 @@ class LogAnalyzer:
     def custom_bar_plot(self, ax, x, height, label=None, color=None, barwidth=0.8,
                         bottom=0, xlabel=None, ylabel=None, title=None,
                         xticks=None, yticks=None, avg_line_col=None,
-                        value_color=None):
+                        avg_text_color='black', value_color=None):
         ax.bar(x, height, label=label, color=color, width=barwidth, bottom=bottom)
 
         if value_color is not None:
@@ -322,6 +329,7 @@ class LogAnalyzer:
         if avg_line_col is not None:
             mean_height = np.ones_like(height) * self.clean_mean(height)
             ax.plot(x, mean_height, label="Mean " + label, color=avg_line_col, linewidth=3.0)
+            ax.text(x[0], mean_height[0], str(np.round(mean_height[0], decimals=3)), color=avg_text_color, fontweight='bold', horizontalalignment='left', verticalalignment='bottom')
 
         if isinstance(bottom, int) and bottom == 0:
             ax.set_xlabel(xlabel)
@@ -343,6 +351,19 @@ class LogAnalyzer:
                     self.get_planner_name(fleets), self.get_map_name(fleets), self.get_nRobots(fleets),
                     kinematics, sampling_name)
         return title
+
+    def subplot_extent(self, fig, ax, pad=0.0):
+        """Get the full extent of an axes, including axes labels, tick labels, and
+        titles."""
+        # For text objects, we need to draw the figure first, otherwise the extents
+        # are undefined.
+        ax.figure.canvas.draw()
+        items = ax.get_xticklabels() + ax.get_yticklabels() 
+        items += [ax, ax.title, ax.xaxis.label, ax.yaxis.label]
+        items += [ax, ax.title]
+        bbox = Bbox.union([item.get_window_extent() for item in items])
+
+        return bbox.expanded(1.0 + pad, 1.0 + pad).transformed(fig.dpi_scale_trans.inverted())
 
     def plot_fleet_planning_times(self, assisted_sampling, fleets=None):
         if fleets is None:
@@ -492,21 +513,38 @@ class LogAnalyzer:
         dissimilarities = (np.ones_like(similarities) * nTests) - similarities
         robot_ids = np.arange(1, similarities.size+1, 1)
 
-        f = plt.figure(figsize=(10, 10))
-        ax = f.add_subplot(111)
-        self.custom_bar_plot(ax, robot_ids, similarities, label='Number of similar paths',
+        fig = plt.figure(figsize=(15, 7.5))
+        ax1 = fig.add_subplot(121)
+        self.custom_bar_plot(ax1, robot_ids, similarities, label='Number of similar paths',
                          color='g', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
                          xticks=robot_ids, yticks=np.arange(0, nTests+1, 1), avg_line_col='b',
                          title="Number of predictable paths with similarity threshold = {}".format(similarity_threshold))
-        self.custom_bar_plot(ax, robot_ids, dissimilarities, label="Number of non-similar paths",
+        self.custom_bar_plot(ax1, robot_ids, dissimilarities, label="Number of non-similar paths",
                          bottom=similarities, color='r', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
                          xticks=robot_ids, yticks=np.arange(0, nTests+1, 1),
                          title="Number of predictable paths with similarity threshold = {}".format(similarity_threshold))
 
-        f.suptitle(self.get_figure_title("Plan stats", fleets, assisted_sampling))
+        # Get the path lengths of all the robot missions in all fleet trials
+        path_lengths = np.zeros((len(fleets), fleets[0].nRobots))
+        for i, f in enumerate(fleets):
+            for j, m in enumerate(f.robot_missions):
+                path_lengths[i, j] = m.complete_path_length
+
+        ax2 = fig.add_subplot(122)
+        fleet_ids = np.arange(1, path_lengths.shape[0] + 1, 1)
+        for id in range(path_lengths.shape[1]):
+            robot_path_lengths = path_lengths[:, id]
+            # TODO: Although the units seems to be correct in meters, how do we describe the rotation since that is also included in the path length?
+            self.custom_line_plot(ax2, fleet_ids, robot_path_lengths, label="Robot {}".format(id+1),
+                                  xlabel="Fleet ID", ylabel="Length measure",
+                                  xticks=fleet_ids, useLog10Scale=False,
+                                  title="Path Lengths")
+
+        fig.suptitle(self.get_figure_title("Plan stats", fleets, assisted_sampling))
 
         plot_name = os.path.join(self.get_directory_to_save_plots(fleets, assisted_sampling), "path_predictability.svg")
         plt.savefig(plot_name, format='svg')
+        # fig.savefig(os.path.join(self.get_directory_to_save_plots(fleets, assisted_sampling), "PathLengths.svg"), bbox_inches=self.subplot_extent(fig, ax2))
 
     def get_directory_to_save_plots(self, fleets, assisted_sampling):
         if self.save_path is None:
@@ -554,7 +592,7 @@ def main():
         return
 
     la = LogAnalyzer(planning_csv_filename, execution_csv_filename)
-    la.plot_path_predictability_stats(args.hotspots)
+    la.plot_path_predictability_stats(args.hotspots, similarity_threshold=0.4)
     la.plot_fleet_planning_times(args.hotspots)
     la.plot_execution_stats(args.hotspots)
 
