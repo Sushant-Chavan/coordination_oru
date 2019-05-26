@@ -33,6 +33,7 @@ public class OMPLPlanner extends AbstractMotionPlanner {
     private boolean isHolonomicRobot = false;
     private PLANNER_TYPE plannerType = PLANNER_TYPE.LIGHTNING;
     private String logFile;
+    private String experienceDBPath;
 	
 	public static OMPLPlannerLib INSTANCE = null;
 	static {
@@ -118,6 +119,14 @@ public class OMPLPlanner extends AbstractMotionPlanner {
         return this.logFile;
     }
 
+    public void setExperienceDBFile(String experienceDBPath) {
+        this.experienceDBPath = experienceDBPath;
+    }
+
+    public String getExperienceDBFile() {
+        return this.experienceDBPath;
+    }
+
     public enum PLANNER_TYPE {
         SIMPLE_RRT_CONNECT(0),
         LIGHTNING(1),
@@ -157,7 +166,6 @@ public class OMPLPlanner extends AbstractMotionPlanner {
 	@Override
 	public boolean doPlanning() {
         ArrayList<PoseSteering> finalPath = new ArrayList<PoseSteering>();
-        String experienceDBName = this.getOriginalFilename();
         int mode = this.isReplan ? 1 : 0;
 		for (int i = 0; i < this.goal.length; i++) {
 			Pose start_ = null;
@@ -186,8 +194,8 @@ public class OMPLPlanner extends AbstractMotionPlanner {
                         robotRadius, xCoords, yCoords, numCoords, start_.getX(),
                         start_.getY(), start_.getTheta(), goal_.getX(), goal_.getY(),
                         goal_.getTheta(), path, pathLength, distanceBetweenPathPoints,
-                        turningRadius, this.plannerType.ordinal(), experienceDBName,
-                        mode, this.isHolonomicRobot, this.logFile)) return false;
+                        turningRadius, this.plannerType.ordinal(), mode, 
+                        this.isHolonomicRobot, this.experienceDBPath, this.logFile)) return false;
 				}
 				else {
                     if (!INSTANCE.plan_multiple_circles_nomap(xCoords, yCoords, numCoords,

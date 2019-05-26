@@ -153,6 +153,7 @@ public abstract class CustomTesting {
         omplPlanner_.setHolonomicRobot(isHolonomicRobot);
         omplPlanner_.setPlannerType(plannerType);
         omplPlanner_.setLogFile(logFilename_);
+        omplPlanner_.setExperienceDBFile(getExperienceDBName());
     }
 
     protected static void appendToFile(String filePath, String text) {
@@ -192,6 +193,22 @@ public abstract class CustomTesting {
                   samplingName + "/" + Integer.toString(nExperiences_) + "_TrainingExperiences/Logs/";
 
         return logDir_ + "CompleteLog.log";
+    }
+
+    protected static String getExperienceDBName() {
+        String dbName = "_unknown";
+        if (plannerType_ == OMPLPlanner.PLANNER_TYPE.LIGHTNING)
+            dbName = "Lightning.db";
+        else if (plannerType_ == OMPLPlanner.PLANNER_TYPE.THUNDER)
+            dbName = "Thunder.db";
+
+        String kinematics = useReedsSheepCars_ ? "ReedsSheep" : "Holonomic";
+        String samplingName = useHotspots_ ? "UsingHotspots" : "Uniform";
+        String dbPath = "generated/experienceDBs/" + mapName_ + "/" +
+                  Integer.toString(nExperiences_) + "_TrainingExperiences/"+
+                  samplingName + "/" + kinematics + "/" + dbName;
+
+        return dbPath;
     }
 
     protected static String getCurrentTime() {
