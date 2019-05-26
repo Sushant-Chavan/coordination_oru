@@ -147,6 +147,10 @@ def get_database_filepath(args, map_name):
         else:
             raise "Could not create directory {}".format(directory)
 
+    if os.path.isfile(path):
+        print("A database already exists. Deleting it and creating a new one.")
+        os.remove(path)
+
     return path
 
 
