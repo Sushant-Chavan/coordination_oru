@@ -130,7 +130,7 @@ class RobotMissionData:
         self.total_execution_time = np.sum(self.mission_execution_durations)
 
 class FleetMissionData:
-    def __init__(self, planning_df, execution_df):
+    def __init__(self, planning_df, execution_df, nExperiences):
         self.robot_missions = None
         self.total_planning_time = None
         self.total_path_planning_time = None
@@ -142,6 +142,7 @@ class FleetMissionData:
         self.nRobots = None
         self.nReplans = None
         self.total_path_execution_time = None
+        self.nExperiences = nExperiences
 
         self.fill_data(planning_df, execution_df)
 
@@ -214,7 +215,7 @@ class FleetMissionData:
 
 # A class to extract relevant lines from a complete log file of a test run and generate a CSV logg file
 class LogAnalyzer:
-    def __init__(self, planning_csv_abs_path, execution_csv_abs_path):
+    def __init__(self, planning_csv_abs_path, execution_csv_abs_path, nExperiences):
         self.planning_csv_path = planning_csv_abs_path
         self.execution_csv_path = execution_csv_abs_path
 
@@ -225,6 +226,7 @@ class LogAnalyzer:
         self.fleet_missions = None
         self.nSimilar_paths = None
         self.save_path = None
+        self.nExperiences = nExperiences
 
         self.load_csv()
         self.load_native_library()
@@ -268,7 +270,7 @@ class LogAnalyzer:
         for fleet_id, start_time in enumerate(test_start_times):
             fleet_planning_df = planning_df.loc[planning_df[col] == start_time]
             fleet_execution_df = execution_df.loc[execution_df[col] == start_time]
-            self.fleet_missions.append(FleetMissionData(fleet_planning_df, fleet_execution_df))
+            self.fleet_missions.append(FleetMissionData(fleet_planning_df, fleet_execution_df, self.nExperiences))
         print("Loaded", len(self.fleet_missions), "fleet missions")
 
     def get_map_name(self, fleets):
@@ -550,12 +552,13 @@ class LogAnalyzer:
         if self.save_path is None:
             sampling_name = "UsingHotspots" if assisted_sampling else "Uniform"
             kinematics = "Holonomic" if self.get_holonomic(fleets) else "ReedsSheep"
-            self.save_path = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/plots/")
+            self.save_path = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/executionData/")
             self.save_path = os.path.join(self.save_path, self.get_map_name(fleets))
             self.save_path = os.path.join(self.save_path, self.get_planner_name(fleets))
             self.save_path = os.path.join(self.save_path, str(self.get_nRobots(fleets))+"_Robots")
             self.save_path = os.path.join(self.save_path, kinematics)
             self.save_path = os.path.join(self.save_path, sampling_name)
+            self.save_path = os.path.join(self.save_path, str(self.nExperiences)+"_TrainingExperiences/Plots")
 
         # Make the directory if it does not exist
         try:
@@ -568,18 +571,35 @@ class LogAnalyzer:
 
         return self.save_path
 
+def get_log_dir(args):
+    sampling_name = "Uniform" if args.no_hotspots else "UsingHotspots"
+    kinematics = "ReedsSheep" if args.constrained else "Holonomic"
+    planner_names = ["SIMPLE(RRT-Connect)", "Lightning", "Thunder", "SIMPLE(RRT-Star)"]
+    directory = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/executionData/")
+    directory = os.path.join(directory, args.map)
+    directory = os.path.join(directory, planner_names[args.planner])
+    directory = os.path.join(directory, str(args.nRobots)+"_Robots")
+    directory = os.path.join(directory, kinematics)
+    directory = os.path.join(directory, sampling_name)
+    directory = os.path.join(directory, str(args.nExperiences)+"_TrainingExperiences/Logs")
+
+    return directory
+
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("map", type=str, help=" Name of the map (Ex. BRSU_Floor0)")
     parser.add_argument("planner", type=int, help="ID of the planner (SIMPLE_RRT-Connect:0, LIGHTNING:1, THUNDER:2, SIMPLE_RRT-Star:3)")
-    parser.add_argument("hotspots", type=bool, help="Boolean to specify if hotspots were used for generating the experience DB")
+    parser.add_argument("--nRobots", type=int, help="Number of robots to be used in the testing. Default: 3", default=3)
+    parser.add_argument("--constrained", type=bool, help="Indicate if the robots are ReedsSheep like vehicles. Default: False (holonomic)", default=False)
+    parser.add_argument("--no_hotspots", type=bool, help="Indicate if the experience databases are generated using uniform sampling of the map. Default: False (hotspots used)", default=False)
+    parser.add_argument("--nExperiences", type=int, help="Number of training problems used to build the experience DB. Default: 100", default=100)
     args = parser.parse_args()
 
     planner_names = ["rrt_connect", "lightning", "thunder", "rrt_star"]
-    planning_csv_filename = args.map + "_" + planner_names[args.planner] + "_planning.csv"
-    execution_csv_filename = args.map + "_" + planner_names[args.planner] + "_execution.csv"
-    log_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/experienceLogs/")
+    planning_csv_filename = "Planning.csv"
+    execution_csv_filename = "Execution.csv"
+    log_dir = get_log_dir(args)
     planning_csv_filename = os.path.abspath(os.path.join(log_dir, planning_csv_filename))
     execution_csv_filename = os.path.abspath(os.path.join(log_dir, execution_csv_filename))
 
@@ -591,10 +611,12 @@ def main():
         print("Execution CSV log file does not exist! \nPath specified was:\n", execution_csv_filename)
         return
 
-    la = LogAnalyzer(planning_csv_filename, execution_csv_filename)
-    la.plot_path_predictability_stats(args.hotspots, similarity_threshold=0.4)
-    la.plot_fleet_planning_times(args.hotspots)
-    la.plot_execution_stats(args.hotspots)
+    assisted_sampling = not args.no_hotspots
+
+    la = LogAnalyzer(planning_csv_filename, execution_csv_filename, args.nExperiences)
+    la.plot_path_predictability_stats(assisted_sampling, similarity_threshold=0.4)
+    la.plot_fleet_planning_times(assisted_sampling)
+    la.plot_execution_stats(assisted_sampling)
 
 if __name__ == "__main__":
     main()

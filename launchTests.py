@@ -9,11 +9,13 @@ import time
 
 def zip_logs(log_dir):
     files_to_zip = []
-    log_dir = log_dir + "/"
+    log_dir = os.path.abspath(log_dir + "/../") + "/"
     for root, dirs, files in os.walk(log_dir):
         for file in files:
-            if os.path.splitext(file)[1] == ".log":
+            if not file.endswith(".zip"):
                 files_to_zip.append(os.path.join(root, file))
+
+    common_path_prefix = os.path.commonprefix(files_to_zip)
 
     if len(files_to_zip) > 0:
         curr_time = datetime.datetime.now().strftime("%H:%M:%S %b %d %Y")
@@ -21,27 +23,58 @@ def zip_logs(log_dir):
         zipf = zipfile.ZipFile(zip_file_path, 'w', zipfile.ZIP_DEFLATED)
         print("Zipping following files to", zip_file_path)
         for f in files_to_zip:
-            zipf.write(f, os.path.basename(f))
-            print(f)
+            arc_name = os.path.relpath(f, common_path_prefix)
+            zipf.write(f, arc_name)
+            print(arc_name)
         zipf.close()
         print("Zipping complete\n")
 
 def clear_logs(log_dir):
-    contents = os.listdir(log_dir)
+    files_to_clear = []
+    log_dir = os.path.abspath(log_dir + "/../") + "/"
+    for root, dirs, files in os.walk(log_dir):
+        for file in files:
+            if not file.endswith(".zip"):
+                files_to_clear.append(os.path.join(root, file))
     print("Clearing existing log files...")
-    for item in contents:
-        f  = os.path.join(log_dir, item)
+    for f in files_to_clear:
         if os.path.isfile(f) and (not f.endswith(".zip") and not f.endswith(".dummyLog")):
             os.remove(f)
             print("Deleted file:", f)
     print("Cleared all previous log files\n")
 
 def initialize_test(args):
-    log_dir = setup_log_dir(args)
+    log_dir = setup_log_directory(args)
+    setup_experienceDB_directory(args)
     zip_logs(log_dir)
     clear_logs(log_dir)
 
-def setup_log_dir(args):
+def create_directory_if_needed(dirPath):
+    # Make the directory if it does not exist
+    try:
+        os.makedirs(dirPath)
+    except OSError as exc:
+        if exc.errno ==errno.EEXIST and os.path.isdir(dirPath):
+            pass
+        else:
+            raise "Could not create directory {}".format(dirPath)
+
+def setup_experienceDB_directory(args):
+    sampling_name = "Uniform" if args.no_hotspots else "UsingHotspots"
+    kinematics = "ReedsSheep" if args.constrained else "Holonomic"
+    planner_names = ["SIMPLE(RRT-Connect)", "Lightning", "Thunder", "SIMPLE(RRT-Star)"]
+    directory = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/generated/experienceDBs/")
+    directory = os.path.join(directory, args.map)
+    directory = os.path.join(directory, str(args.nExperiences)+"_TrainingExperiences")
+    directory = os.path.join(directory, sampling_name)
+    directory = os.path.join(directory, kinematics)
+    path = os.path.join(directory, planner_names[args.planner] + ".db")
+
+    create_directory_if_needed(directory)
+
+    return path
+
+def setup_log_directory(args):
     sampling_name = "Uniform" if args.no_hotspots else "UsingHotspots"
     kinematics = "ReedsSheep" if args.constrained else "Holonomic"
     planner_names = ["SIMPLE(RRT-Connect)", "Lightning", "Thunder", "SIMPLE(RRT-Star)"]
@@ -51,17 +84,11 @@ def setup_log_dir(args):
     directory = os.path.join(directory, str(args.nRobots)+"_Robots")
     directory = os.path.join(directory, kinematics)
     directory = os.path.join(directory, sampling_name)
-    directory = os.path.join(directory, str(args.nExperiences)+"_TrainingExperiences/Logs")
-    print(directory)
+    directory = os.path.join(directory, str(args.nExperiences)+"_TrainingExperiences")
+    directory = os.path.join(directory, "Logs")
 
-    # Make the directory if it does not exist
-    try:
-        os.makedirs(directory)
-    except OSError as exc:
-        if exc.errno ==errno.EEXIST and os.path.isdir(directory):
-            pass
-        else:
-            raise "Could not create directory to save logs at {}".format(directory)
+    create_directory_if_needed(directory)
+
     return directory
 
 def main():
@@ -83,7 +110,14 @@ def main():
            "-Pplanner="+str(args.planner), "-Pmap="+args.map, "-Pconstrained="+str(int(args.constrained)),
            "-Pno_hotspots="+str(int(args.no_hotspots)), "-Pexp="+str(args.nExperiences)]
 
-    extract_csv_cmd = ["python3", "generators/logging/LogParser.py", args.map, str(args.planner)]
+    bool_strings = ["False", "True"]
+
+    extract_csv_cmd = ["python3", "generators/logging/LogParser.py", args.map, str(args.planner),
+                       "--nRobots="+str(args.nRobots), "--nExperiences="+str(args.nExperiences)]
+    if args.constrained:
+        extract_csv_cmd.extend(["--constrained="+bool_strings[int(args.constrained)]])
+    if args.no_hotspots:
+        extract_csv_cmd.extend(["--no_hotspots="+bool_strings[int(args.no_hotspots)]])
 
     for i in range(args.nIterations):
         if i > 0:

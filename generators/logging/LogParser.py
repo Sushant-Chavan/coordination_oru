@@ -345,7 +345,6 @@ def get_log_filename(args):
     directory = os.path.join(directory, kinematics)
     directory = os.path.join(directory, sampling_name)
     directory = os.path.join(directory, str(args.nExperiences)+"_TrainingExperiences/Logs")
-    print(directory)
 
     return directory + "/CompleteLog.log"
 
@@ -377,6 +376,8 @@ def main():
     if not os.path.isfile(log_filepath):
         print("Log file does not exist! \nPath specified was:\n", log_filepath)
         return
+
+    print("Found logfile at:", log_filepath)
 
     summary_log_filename = os.path.splitext(log_filepath)[0] + "_summary.log"
     csv_planning_log_filename = os.path.dirname(log_filepath) + "/Planning.csv"
