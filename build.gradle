@@ -86,8 +86,11 @@ dependencies {
 }
 
 run {
-    if (project.hasProperty("demo") && project.hasProperty("nRobots") && project.hasProperty("planner") && project.hasProperty("map")) {
-        args(demo, nRobots, planner, map)
+    if (project.hasProperty("demo") && project.hasProperty("nRobots") &&
+        project.hasProperty("planner") && project.hasProperty("map") &&
+        project.hasProperty("constrained") && project.hasProperty("no_hotspots") &&
+        project.hasProperty("exp")) {
+        args(demo, nRobots, planner, map, constrained, no_hotspots, exp)
     }
     else if (project.hasProperty("demo")) {
         args(demo)

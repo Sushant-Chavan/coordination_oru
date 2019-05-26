@@ -3,8 +3,6 @@
 #include <ompl/geometric/planners/rrt/RRTstar.h>
 #include <ompl/geometric/planners/rrt/TRRT.h>
 //#include <ompl/geometric/planners/sst/SST.h>
-#include <boost/algorithm/string.hpp>
-#include <boost/math/constants/constants.hpp>
 #include <ompl/control/planners/kpiece/KPIECE1.h>
 #include <ompl/geometric/planners/prm/PRMstar.h>
 #include <ompl/geometric/planners/prm/SPARS.h>
@@ -60,11 +58,9 @@ extern "C" void cleanupPath(PathPose *path)
 }
 
 og::SimpleSetup *getPlanningSetup(PLANNER_TYPE type, ob::StateSpacePtr space,
-                                  std::string mapFilename)
+                                  std::string dbPath)
 {
     og::SimpleSetup *ssPtr = NULL;
-
-    std::string dbPath = std::string("generated/experienceDBs/") + mapFilename;
 
     switch (type) {
     case PLANNER_TYPE::SIMPLE_RRT_CONNECT:
@@ -73,13 +69,13 @@ og::SimpleSetup *getPlanningSetup(PLANNER_TYPE type, ob::StateSpacePtr space,
     } break;
     case PLANNER_TYPE::EXPERIENCE_LIGHTNING: {
         ot::Lightning *ptr = new ot::Lightning(space);
-        ptr->setFilePath(dbPath + std::string("_lightning.db"));
+        ptr->setFilePath(dbPath);
         ptr->clear();
         ssPtr = ptr;
     } break;
     case PLANNER_TYPE::EXPERIENCE_THUNDER: {
         ot::Thunder *ptr = new ot::Thunder(space);
-        ptr->setFilePath(dbPath + std::string("_thunder.db"));
+        ptr->setFilePath(dbPath);
         ptr->clear();
         ssPtr = ptr;
     } break;
@@ -92,31 +88,6 @@ og::SimpleSetup *getPlanningSetup(PLANNER_TYPE type, ob::StateSpacePtr space,
     }
 
     return ssPtr;
-}
-
-std::string getLogFileName(const char *experienceDBName,
-                           PLANNER_TYPE plannerType)
-{
-    std::stringstream filename;
-    filename << "generated/experienceLogs/";
-    filename << experienceDBName;
-    switch (plannerType) {
-    case PLANNER_TYPE::EXPERIENCE_LIGHTNING:
-        filename << "_lightning";
-        break;
-    case PLANNER_TYPE::EXPERIENCE_THUNDER:
-        filename << "_thunder";
-        break;
-    case PLANNER_TYPE::SIMPLE_RRT_CONNECT:
-        filename << "_rrt_connect";
-        break;
-    default:
-        filename << "_rrt_star";
-        break;
-    }
-    filename << ".log";
-
-    return filename.str();
 }
 
 void log(const std::string &logFilename, const std::string &log)
@@ -152,8 +123,7 @@ std::string getProblemInfo(const char *mapFilename, double mapResolution,
                            double goalTheta, PathPose **path, int *pathLength,
                            double distanceBetweenPathPoints,
                            double turningRadius, PLANNER_TYPE plannerType,
-                           const char *experienceDBName, MODE mode,
-                           bool isHolonomicRobot)
+                           MODE mode, bool isHolonomicRobot)
 {
     if (plannerType < PLANNER_TYPE::SIMPLE_RRT_CONNECT ||
         plannerType >= PLANNER_TYPE::PLANNER_TYPE_COUNT ||
@@ -189,11 +159,11 @@ std::string getProblemInfo(const char *mapFilename, double mapResolution,
             << "\n";
     }
     else if (plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT) {
-        log << "Planner Type: SIMPLE (RRT-Connect)"
+        log << "Planner Type: SIMPLE(RRT-Connect)"
             << "\n";
     }
     else {
-        log << "Planner Type: SIMPLE (RRT-Star)"
+        log << "Planner Type: SIMPLE(RRT-Star)"
             << "\n";
     }
     log << "Is Holonomic Robot: " << (isHolonomicRobot ? "True" : "False")
@@ -234,17 +204,17 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
                       double startTheta, double goalX, double goalY,
                       double goalTheta, PathPose **path, int *pathLength,
                       double distanceBetweenPathPoints, double turningRadius,
-                      PLANNER_TYPE plannerType, const char *experienceDBName,
-                      MODE mode, bool isHolonomicRobot)
+                      PLANNER_TYPE plannerType, MODE mode, bool isHolonomicRobot,
+                      const char* experienceDBPath, const char* logfile)
 {
-    std::string logFilename = getLogFileName(experienceDBName, plannerType);
+    std::string logFilename = std::string(logfile);
 
     if (plannerType >= PLANNER_TYPE::SIMPLE_RRT_CONNECT &&
         plannerType < PLANNER_TYPE::PLANNER_TYPE_COUNT &&
         mode == MODE::NORMAL) {
         // Setup OMPL logging stream to the log file
         ompl::msg::useOutputHandler(new ompl::msg::OutputHandlerFile(
-            getLogFileName(experienceDBName, plannerType).c_str()));
+            logFilename.c_str()));
         LOGGING_ACTIVE = true;
     }
     else {
@@ -261,8 +231,7 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     std::string probInfo = getProblemInfo(
         mapFilename, mapResolution, robotRadius, xCoords, yCoords, numCoords,
         startX, startY, startTheta, goalX, goalY, goalTheta, path, pathLength,
-        distanceBetweenPathPoints, turningRadius, plannerType, experienceDBName,
-        mode, isHolonomicRobot);
+        distanceBetweenPathPoints, turningRadius, plannerType, mode, isHolonomicRobot);
     log(logFilename, probInfo);
 
     double pLen = 0.0;
@@ -298,7 +267,7 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
 
     plannerType = isReplan ? PLANNER_TYPE::SIMPLE_RRT_CONNECT : plannerType;
     og::SimpleSetup *ssPtr =
-        getPlanningSetup(plannerType, space, experienceDBName);
+        getPlanningSetup(plannerType, space, experienceDBPath);
 
     // set state validity checking for this space
     ob::SpaceInformationPtr si(ssPtr->getSpaceInformation());

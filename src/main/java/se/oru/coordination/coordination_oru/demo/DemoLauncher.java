@@ -27,6 +27,9 @@ public class DemoLauncher {
         "\n\nN represents the number of robots to be used in the simulations."+
         "\nID represents the planner to be used (SIMPLE_RRT-Connect:0, LIGHTNING:1, THUNDER:2, SIMPLE_RRT-Star:3)"+
         "\nmapName represents the name of the map to be used for simulations eg. (AGP_Basement)"+
+        "\nconstrained represents if the robot must follow ReedsSheep car like motion"+
+        "\nno_hotspots represents if the experiences were generated using uniform sampling of the map"+
+        "\nexp represents the number of training problems used to build the experience DB"+
         "\nAvailable options for <demo>");
 
 		List<ClassLoader> classLoadersList = new LinkedList<ClassLoader>();
@@ -68,9 +71,8 @@ public class DemoLauncher {
 		
 		//Forces to loads the class so that license and (c) are printed even if no demo is invoked
         Class.forName("se.oru.coordination.coordination_oru.TrajectoryEnvelopeCoordinator");
-        System.out.println(Integer.toString(args.length) + args.toString());
 
-		if (args.length == 1 || args.length == 4) {
+		if (args.length == 1 || args.length == 7) {
 			String className = args[0];
 			try {
 				Class<?> cl = Class.forName(testsPackage+"."+className);
@@ -81,7 +83,6 @@ public class DemoLauncher {
                     params = new String[args.length - 1];
                     for (int i = 0; i < params.length; i++){
                         params[i] = args[i+1];
-                        System.out.println(args[i+1]);
                     }
                 }
 			    meth.invoke(null, (Object) params);

@@ -334,22 +334,40 @@ class logParser:
         df.to_csv(csv_filepath)
         print("Execution logs CSV generated/extended at", csv_filepath)
 
+def get_log_filename(args):
+    sampling_name = "Uniform" if args.no_hotspots else "UsingHotspots"
+    kinematics = "ReedsSheep" if args.constrained else "Holonomic"
+    planner_names = ["SIMPLE(RRT-Connect)", "Lightning", "Thunder", "SIMPLE(RRT-Star)"]
+    directory = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/executionData/")
+    directory = os.path.join(directory, args.map)
+    directory = os.path.join(directory, planner_names[args.planner])
+    directory = os.path.join(directory, str(args.nRobots)+"_Robots")
+    directory = os.path.join(directory, kinematics)
+    directory = os.path.join(directory, sampling_name)
+    directory = os.path.join(directory, str(args.nExperiences)+"_TrainingExperiences/Logs")
+
+    return directory + "/CompleteLog.log"
+
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("map_filename", type=str, help="Filename of the map image that should be used for experience generation (ex. map1.png)")
+    parser.add_argument("map", type=str, help="Filename of the map image that should be used for experience generation (ex. map1.png)")
     parser.add_argument("planner", type=int, help="ID of the planner (SIMPLE_RRT-Connect:0, LIGHTNING:1, THUNDER:2, SIMPLE_RRT-Star:3)")
+    parser.add_argument("--nRobots", type=int, help="Number of robots to be used in the testing. Default: 3", default=3)
+    parser.add_argument("--constrained", type=bool, help="Indicate if the robots are ReedsSheep like vehicles. Default: False (holonomic)", default=False)
+    parser.add_argument("--no_hotspots", type=bool, help="Indicate if the experience databases are generated using uniform sampling of the map. Default: False (hotspots used)", default=False)
+    parser.add_argument("--nExperiences", type=int, help="Number of training problems used to build the experience DB. Default: 100", default=100)
     parser.add_argument("--tags_filename", type=str, help="Filename of file containing tags used to filter the log", default="default_tags.txt")
     args = parser.parse_args()
 
     planner_names = ["rrt_connect", "lightning", "thunder", "rrt_star"]
 
     root_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../")
-    map_name = os.path.splitext(args.map_filename)[0]
+    map_name = os.path.splitext(args.map)[0]
 
     tags_filepath = root_dir + "/generators/logging/tags/" + args.tags_filename
     planner_name = planner_names[args.planner]
-    log_filepath = root_dir + "/generated/experienceLogs/" + map_name + "_" + planner_name + ".log"
+    log_filepath = get_log_filename(args)
 
     if not os.path.isfile(tags_filepath):
         print("Log tags file does not exist! \nPath specified was:\n", tags_filepath)
@@ -359,9 +377,11 @@ def main():
         print("Log file does not exist! \nPath specified was:\n", log_filepath)
         return
 
+    print("Found logfile at:", log_filepath)
+
     summary_log_filename = os.path.splitext(log_filepath)[0] + "_summary.log"
-    csv_planning_log_filename = os.path.splitext(log_filepath)[0] + "_planning.csv"
-    csv_execution_log_filename = os.path.splitext(log_filepath)[0] + "_execution.csv"
+    csv_planning_log_filename = os.path.dirname(log_filepath) + "/Planning.csv"
+    csv_execution_log_filename = os.path.dirname(log_filepath) + "/Execution.csv"
 
     lp = logParser(tags_filepath)
     lp.extract_tagged_lines(log_filepath)

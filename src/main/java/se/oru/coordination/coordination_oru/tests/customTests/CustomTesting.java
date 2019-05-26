@@ -42,7 +42,6 @@ public abstract class CustomTesting {
     protected static Coordinate footprint3_ = new Coordinate(0.25,-0.25);
     protected static Coordinate footprint4_ = new Coordinate(-0.25,-0.25);
 
-    protected static String logFilename_;
     protected static FleetVisualization viz;
     protected static OMPLPlanner omplPlanner_;
     protected static TrajectoryEnvelopeCoordinatorSimulation tec_;
@@ -51,12 +50,22 @@ public abstract class CustomTesting {
     protected static String missionConfig_;
     protected static String mapName_;
 
+    protected static boolean useHotspots_ = false;
+    protected static boolean useReedsSheepCars_ = false;
+    protected static int nExperiences_;
+
+    protected static String logDir_;
+    protected static String logFilename_;
+
     protected static void parseArguments(String[] args) {
         if (args != null && args.length >= 3 )
         {
             nRobots_ = Integer.parseInt(args[0]);
             plannerType_ = OMPLPlanner.PLANNER_TYPE.valueOf(Integer.parseInt(args[1]));
             mapName_ = args[2];
+            useReedsSheepCars_ = Integer.parseInt(args[3]) > 0;
+            useHotspots_ = Integer.parseInt(args[4]) < 1;
+            nExperiences_ = Integer.parseInt(args[5]);
         }
         else {
             System.out.println("ERROR: Insuficient number of arguments passed!!");
@@ -66,6 +75,7 @@ public abstract class CustomTesting {
     protected static void initializeTest() {
         mapConfig_ = "maps/" + mapName_ + ".yaml";
         missionConfig_ = "generated/testingData/" + mapName_ + "-" + nRobots_ + "Problems.txt";
+        logFilename_ = getLogFileName();
     }
 
     protected static void setupTEC() {
@@ -112,8 +122,6 @@ public abstract class CustomTesting {
 
         //In case deadlocks occur, we make the coordinator capable of re-planning on the fly (experimental, not working properly yet)
         tec_.setMotionPlanner(omplPlanner_);
-
-        logFilename_ = getLogFileName(omplPlanner_.getOriginalFilename(), plannerType_);
     }
 
     protected static void setupVisualization() {
@@ -144,6 +152,8 @@ public abstract class CustomTesting {
         omplPlanner_.setDistanceBetweenPathPoints(0.3);
         omplPlanner_.setHolonomicRobot(isHolonomicRobot);
         omplPlanner_.setPlannerType(plannerType);
+        omplPlanner_.setLogFile(logFilename_);
+        omplPlanner_.setExperienceDBFile(getExperienceDBName());
     }
 
     protected static void appendToFile(String filePath, String text) {
@@ -165,19 +175,40 @@ public abstract class CustomTesting {
 		}
     }
     
-    protected static String getLogFileName(String experienceDBName, OMPLPlanner.PLANNER_TYPE type) {
-        String plannerID = "_unknown";
-        if (type == OMPLPlanner.PLANNER_TYPE.LIGHTNING)
-            plannerID = "_lightning";
-        else if (type == OMPLPlanner.PLANNER_TYPE.THUNDER)
-            plannerID = "_thunder";
-        else if (type == OMPLPlanner.PLANNER_TYPE.SIMPLE_RRT_CONNECT)
-            plannerID = "_rrt_connect";
-        else if (type == OMPLPlanner.PLANNER_TYPE.SIMPLE_RRT_STAR)
-            plannerID = "_rrt_star";
+    protected static String getLogFileName() {
+        String plannerName = "_unknown";
+        if (plannerType_ == OMPLPlanner.PLANNER_TYPE.LIGHTNING)
+            plannerName = "/Lightning/";
+        else if (plannerType_ == OMPLPlanner.PLANNER_TYPE.THUNDER)
+            plannerName = "/Thunder/";
+        else if (plannerType_ == OMPLPlanner.PLANNER_TYPE.SIMPLE_RRT_CONNECT)
+            plannerName = "/SIMPLE(RRT-Connect)/";
+        else if (plannerType_ == OMPLPlanner.PLANNER_TYPE.SIMPLE_RRT_STAR)
+            plannerName = "/SIMPLE(RRT-Star)/";
 
-        String filename = "generated/experienceLogs/" + experienceDBName + plannerID + ".log";
-        return filename;
+        String kinematics = useReedsSheepCars_ ? "ReedsSheep" : "Holonomic";
+        String samplingName = useHotspots_ ? "UsingHotspots" : "Uniform";
+        logDir_ = "generated/executionData/" + mapName_ + plannerName +
+                  Integer.toString(nRobots_) + "_Robots/" + kinematics + "/" + 
+                  samplingName + "/" + Integer.toString(nExperiences_) + "_TrainingExperiences/Logs/";
+
+        return logDir_ + "CompleteLog.log";
+    }
+
+    protected static String getExperienceDBName() {
+        String dbName = "_unknown";
+        if (plannerType_ == OMPLPlanner.PLANNER_TYPE.LIGHTNING)
+            dbName = "Lightning.db";
+        else if (plannerType_ == OMPLPlanner.PLANNER_TYPE.THUNDER)
+            dbName = "Thunder.db";
+
+        String kinematics = useReedsSheepCars_ ? "ReedsSheep" : "Holonomic";
+        String samplingName = useHotspots_ ? "UsingHotspots" : "Uniform";
+        String dbPath = "generated/experienceDBs/" + mapName_ + "/" +
+                  Integer.toString(nExperiences_) + "_TrainingExperiences/"+
+                  samplingName + "/" + kinematics + "/" + dbName;
+
+        return dbPath;
     }
 
     protected static String getCurrentTime() {
