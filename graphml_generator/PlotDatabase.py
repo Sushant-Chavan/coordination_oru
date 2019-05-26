@@ -46,8 +46,10 @@ def plot_Thunder_graph(graph_path, map_filename, output_filename, output_format,
     ax = f.subplots()
     ax.imshow(img)
 
+    nExperiences = 0
     for filename in glob.iglob(graph_path + '/*.graphml', recursive=True):
         graph = nx.read_graphml(filename)
+        nExperiences += 1
 
         nodes = get_node_data(graph)
         edges = get_edge_list(graph)
@@ -73,6 +75,7 @@ def plot_Thunder_graph(graph_path, map_filename, output_filename, output_format,
 
             ax.plot(x, y, linewidth=20/resolution_multiplier)
 
+    ax.set_title("Lightning database with " + str(nExperiences) + " robot experiences")
     plt.savefig(output_filename, format=output_format)
 
 def plot_Lightning_graph(graph_path, map_filename, output_filename, output_format, resolution_multiplier=10):
@@ -84,8 +87,10 @@ def plot_Lightning_graph(graph_path, map_filename, output_filename, output_forma
     ax = f.subplots()
     ax.imshow(img)
 
+    nExperiences = 0
     for filename in glob.iglob(graph_path + '/*.graphml', recursive=True):
         graph = nx.read_graphml(filename)
+        nExperiences += 1
 
         nodes = get_node_data(graph)
 
@@ -99,19 +104,8 @@ def plot_Lightning_graph(graph_path, map_filename, output_filename, output_forma
         # for i in range(len(node_list)):
         #     ax.text(nodes[i,0] * resolution_multiplier, img_height - (nodes[i,1] * resolution_multiplier), node_list[i])
 
+    ax.set_title("Lightning database with " + str(nExperiences) + " robot experiences")
     plt.savefig(output_filename, format=output_format)
-
-def get_experience_db_path(user_db_filepath, map_image_filename, is_thunder, root_dir):
-    db_filename =  user_db_filepath if user_db_filepath is not None \
-        else os.path.splitext(map_image_filename)[0] + "_" + ("thunder.db" if is_thunder else "lightning.db")
-    db_file_path = os.path.abspath(root_dir + "/../generated/experienceDBs/" + db_filename)
-    return db_file_path
-
-def get_plot_filepath(user_output_filename, map_image_filename, is_thunder, root_dir):
-    plot_filename =  user_output_filename if user_output_filename is not None \
-        else os.path.splitext(map_image_filename)[0] + "_" + ("thunder.svg" if is_thunder else "lightning.svg")
-    plot_file_path = os.path.abspath(root_dir + "/../generated/plots/" + plot_filename)
-    return plot_file_path
 
 def get_YAML_data(filepath):
     data = None
@@ -123,6 +117,19 @@ def get_YAML_data(filepath):
             print(exc)
     return data
 
+def get_database_filepath(args):
+    sampling_name = "Uniform" if args.no_hotspots else "UsingHotspots"
+    kinematics = "ReedsSheep" if args.non_holonomic else "Holonomic"
+    db_name = "Thunder.db" if args.thunder else "Lightning.db"
+    map_name = os.path.splitext(args.map_image_filename)[0]
+    directory = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../generated/experienceDBs/")
+    directory = os.path.join(directory, map_name)
+    directory = os.path.join(directory, str(args.count)+"_TrainingExperiences")
+    directory = os.path.join(directory, sampling_name)
+    directory = os.path.join(directory, kinematics)
+    path = os.path.join(directory, db_name)
+    return path
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--experience_db_filename", help="Filename of the experience database file (ex. thunder.db)")
@@ -132,6 +139,8 @@ def main():
     parser.add_argument("--output_format", help="Fileformat (default svg) for output image (png/svg).", default='svg')
     parser.add_argument("--turning_radius", help="Turning Radius of the ReedsShep cars", default=4.0)
     parser.add_argument("--non_holonomic", help="Set if the robot is non-holonomic (default: False)", action="store_true", default=False)
+    parser.add_argument("--count", type=int, help="Number of problems present in the training dataset. Default: 10", default=10)
+    parser.add_argument("--no_hotspots", type=bool, help="Indicate if the experience database is being generated using uniform sampling of the map. Default: False (hotspots used)", default=False)
     args = parser.parse_args()
 
     dir_name, _ = os.path.split(os.path.abspath(sys.argv[0]))
@@ -140,12 +149,12 @@ def main():
     turning_radius = args.turning_radius
     is_thunder = args.thunder
     holonomic = not args.non_holonomic
-    experience_db_path = get_experience_db_path(args.experience_db_filename, args.map_image_filename, is_thunder, dir_name)
+    experience_db_path = get_database_filepath(args)
     map_file_path = os.path.abspath(dir_name + "/../maps/" + args.map_image_filename)
     yaml_file_path = os.path.splitext(map_file_path)[0] + ".yaml"
     resolution_multiplier = float(1.0/get_YAML_data(yaml_file_path)['resolution'])
 
-    plot_file_path = get_plot_filepath(args.output_filename, args.map_image_filename, is_thunder, dir_name)
+    plot_file_path = os.path.splitext(experience_db_path)[0] + ".svg"
 
     plot_output_format = args.output_format
 

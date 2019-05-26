@@ -128,7 +128,6 @@ def get_footprint(args):
     return footprint
 
 def get_database_filepath(args, map_name):
-    print(args.non_holonomic)
     sampling_name = "Uniform" if args.no_hotspots else "UsingHotspots"
     kinematics = "ReedsSheep" if args.non_holonomic else "Holonomic"
     planner_names = ["SIMPLE(RRT-Connect)", "Lightning", "Thunder", "SIMPLE(RRT-Star)"]
@@ -176,8 +175,6 @@ def main():
         return
 
     database_path = get_database_filepath(args, map_name)
-    print(database_path)
-
 
     ompl_wrapper = OMPL_Wrapper(map_filepath,
                     footprint, args.robot_radius, args.turning_radius,
