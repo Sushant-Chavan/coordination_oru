@@ -37,7 +37,7 @@ def get_node_data(graph):
             data = np.vstack((data, get_node_data_as_list(graph, n)))
     return data
 
-def plot_Thunder_graph(graph_path, map_filename, output_filename, output_format, resolution_multiplier=10, plot_node_ids=True):
+def plot_Thunder_graph(graph_path, map_filename, output_filename, output_format, nExperiences, resolution_multiplier=10, plot_node_ids=True):
     img = plt.imread(map_filename)
     img_height = img.shape[0]
     img_width = img.shape[1]
@@ -46,10 +46,8 @@ def plot_Thunder_graph(graph_path, map_filename, output_filename, output_format,
     ax = f.subplots()
     ax.imshow(img)
 
-    nExperiences = 0
     for filename in glob.iglob(graph_path + '/*.graphml', recursive=True):
         graph = nx.read_graphml(filename)
-        nExperiences += 1
 
         nodes = get_node_data(graph)
         edges = get_edge_list(graph)
@@ -75,10 +73,10 @@ def plot_Thunder_graph(graph_path, map_filename, output_filename, output_format,
 
             ax.plot(x, y, linewidth=20/resolution_multiplier)
 
-    ax.set_title("Lightning database with " + str(nExperiences) + " robot experiences")
+    ax.set_title("Thunder database with " + str(nExperiences) + " robot experiences")
     plt.savefig(output_filename, format=output_format)
 
-def plot_Lightning_graph(graph_path, map_filename, output_filename, output_format, resolution_multiplier=10):
+def plot_Lightning_graph(graph_path, map_filename, output_filename, output_format, nExperiences, resolution_multiplier=10):
     img = plt.imread(map_filename)
     img_height = img.shape[0]
     img_width = img.shape[1]
@@ -87,10 +85,8 @@ def plot_Lightning_graph(graph_path, map_filename, output_filename, output_forma
     ax = f.subplots()
     ax.imshow(img)
 
-    nExperiences = 0
     for filename in glob.iglob(graph_path + '/*.graphml', recursive=True):
         graph = nx.read_graphml(filename)
-        nExperiences += 1
 
         nodes = get_node_data(graph)
 
@@ -176,9 +172,9 @@ def main():
 
     print("\nPlotting the Graphml file contents onto the map")
     if is_thunder:
-        plot_Thunder_graph(graph_files_output_dir + "/", map_file_path, plot_file_path, plot_output_format, resolution_multiplier)
+        plot_Thunder_graph(graph_files_output_dir + "/", map_file_path, plot_file_path, plot_output_format, args.count, resolution_multiplier)
     else:
-        plot_Lightning_graph(graph_files_output_dir + "/", map_file_path, plot_file_path, plot_output_format, resolution_multiplier)
+        plot_Lightning_graph(graph_files_output_dir + "/", map_file_path, plot_file_path, plot_output_format, args.count, resolution_multiplier)
 
     print("Plot successfully generated and can be found at:\n", plot_file_path)
 
