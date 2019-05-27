@@ -118,7 +118,7 @@ public abstract class CustomTesting {
         //MetaCSPLogging.setLevel(tec_.getClass().getSuperclass(), Level.FINEST);
 
         //Instantiate a simple motion planner
-        setupMotionPlanner(tec_.getDefaultFootprint(), plannerType_, true);
+        setupMotionPlanner(tec_.getDefaultFootprint());
 
         //In case deadlocks occur, we make the coordinator capable of re-planning on the fly (experimental, not working properly yet)
         tec_.setMotionPlanner(omplPlanner_);
@@ -138,9 +138,7 @@ public abstract class CustomTesting {
         // viz.setInitialTransform(20.0, 9.0, 2.0);
     }
 
-    protected static void setupMotionPlanner(Coordinate[] footprint,
-                                                  OMPLPlanner.PLANNER_TYPE plannerType,
-                                                  boolean isHolonomicRobot) {
+    protected static void setupMotionPlanner(Coordinate[] footprint) {
         //Instantiate a simple motion planner
         omplPlanner_ = new OMPLPlanner();
         omplPlanner_.setMapFilename("maps"+File.separator+Missions.getProperty("image", mapConfig_));
@@ -150,8 +148,8 @@ public abstract class CustomTesting {
         omplPlanner_.setFootprint(footprint);
         omplPlanner_.setTurningRadius(4.0);
         omplPlanner_.setDistanceBetweenPathPoints(0.3);
-        omplPlanner_.setHolonomicRobot(isHolonomicRobot);
-        omplPlanner_.setPlannerType(plannerType);
+        omplPlanner_.setHolonomicRobot(!useReedsSheepCars_);
+        omplPlanner_.setPlannerType(plannerType_);
         omplPlanner_.setLogFile(logFilename_);
         omplPlanner_.setExperienceDBFile(getExperienceDBName());
     }
