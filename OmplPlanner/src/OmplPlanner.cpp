@@ -9,6 +9,7 @@
 #include <ompl/geometric/planners/rrt/LBTRRT.h>
 #include <ompl/geometric/planners/rrt/LazyRRT.h>
 #include <ompl/geometric/planners/rrt/pRRT.h>
+#include <smpl_ompl_interface/ompl_interface.h>
 #include <ompl/util/Console.h>
 
 #include <chrono>
@@ -278,11 +279,15 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
 
     ob::PlannerPtr planner;
     if (isReplan || plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT) {
-        planner = ob::PlannerPtr(new og::RRTConnect(si));
+        // planner = ob::PlannerPtr(new og::RRTConnect(si));
+        planner = ob::PlannerPtr(new smpl::OMPLPlanner(si));
+        planner->params().setParam("epsilon", "100.0");
     }
     else {
         // planner = ob::PlannerPtr(new og::RRTConnect(si));
-        planner = ob::PlannerPtr(new og::RRTstar(si));
+        // planner = ob::PlannerPtr(new og::RRTstar(si));
+        planner = ob::PlannerPtr(new smpl::OMPLPlanner(si));
+        planner->params().setParam("epsilon", "100.0");
         // planner = ob::PlannerPtr(new og::TRRT(si));
         // planner = ob::PlannerPtr(new og::SST(si));
         // planner = ob::PlannerPtr(new og::LBTRRT(si));
@@ -291,8 +296,9 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
         // planner = ob::PlannerPtr(new og::pRRT(si));
         // planner = ob::PlannerPtr(new og::LazyRRT(si));
     }
+    
 
-    ssPtr->setPlanner(planner);
+    // ssPtr->setPlanner(planner);
 
     ompl::tools::ExperienceSetup *ePtr =
         dynamic_cast< ot::ExperienceSetup * >(ssPtr);
@@ -318,15 +324,21 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     // this call is optional, but we put it in to get more output information
     ssPtr->getSpaceInformation()->setStateValidityCheckingResolution(0.005);
     ssPtr->setup();
-    // ssPtr->print();
+    planner = ob::PlannerPtr(new smpl::OMPLPlanner(si));
+    planner->params().setParam("epsilon", "100.0");
+    ssPtr->setPlanner(planner);
+    ssPtr->setup();
+    std::cout << "==========================" << std::endl;
+    ssPtr->print();
+    std::cout << "==========================" << std::endl;
 
     // attempt to solve the problem within 30 seconds of planning time
-    ob::PlannerStatus solved = ssPtr->solve(30.0);
+    ob::PlannerStatus solved = ssPtr->solve(120.0);
 
     if (solved) {
         std::cout << "Found solution" << std::endl;
-        if (plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT ||
-            plannerType == PLANNER_TYPE::SIMPLE_RRT_STAR)
+        // if (plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT ||
+        //     plannerType == PLANNER_TYPE::SIMPLE_RRT_STAR)
             ssPtr->simplifySolution();
         og::PathGeometric pth = ssPtr->getSolutionPath();
         pLen = pth.length();
