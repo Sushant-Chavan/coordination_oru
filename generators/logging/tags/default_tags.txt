@@ -12,7 +12,10 @@ THUNDER RESULTS:
 and was generated from planner
 End time: 
 Planning took
+Length of computed path
 Starting Mission
 Time to reach
 is done!
 (
+[ROBOT
+Replanning Triggered

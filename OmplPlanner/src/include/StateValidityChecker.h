@@ -14,21 +14,20 @@ namespace og = ompl::geometric;
 
 class MultipleCircleStateValidityChecker : public ob::StateValidityChecker {
  public:
-  COccupancyGridMap2D gridmap;
+  const COccupancyGridMap2D* gridmap;
   float radius;
   double* xCoords;
   double* yCoords;
   int numCoords;
   bool noMap;
   
- MultipleCircleStateValidityChecker(const ob::SpaceInformationPtr &si, const char *mapFilename, double mapResolution, double _radius, double* _xCoords, double* _yCoords, int _numCoords) : ob::StateValidityChecker(si) {
+ MultipleCircleStateValidityChecker(const ob::SpaceInformationPtr &si, const COccupancyGridMap2D* map, double _radius, double* _xCoords, double* _yCoords, int _numCoords) : ob::StateValidityChecker(si) {
     noMap = false;
     radius = (float)_radius;
     xCoords = _xCoords;
     yCoords = _yCoords;
     numCoords = _numCoords;
-    gridmap.loadFromBitmapFile( mapFilename, mapResolution, 0.0f, 0.0f );
-    std::cout << "Loaded map " << mapFilename << " for validity checking" << std::endl;
+    gridmap = map;
   }
 
    MultipleCircleStateValidityChecker(const ob::SpaceInformationPtr &si) : ob::StateValidityChecker(si) {
