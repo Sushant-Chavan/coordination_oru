@@ -42,6 +42,7 @@ enum PLANNER_TYPE {
     SIMPLE_RRT_CONNECT = 0,
     EXPERIENCE_LIGHTNING,
     EXPERIENCE_THUNDER,
+    EXPERIENCE_GRAPHS,
     SIMPLE_RRT_STAR,
     PLANNER_TYPE_COUNT
 };
@@ -65,7 +66,8 @@ og::SimpleSetup *getPlanningSetup(PLANNER_TYPE type, ob::StateSpacePtr space,
 
     switch (type) {
     case PLANNER_TYPE::SIMPLE_RRT_CONNECT:
-    case PLANNER_TYPE::SIMPLE_RRT_STAR: {
+    case PLANNER_TYPE::SIMPLE_RRT_STAR:
+    case PLANNER_TYPE::EXPERIENCE_GRAPHS: {
         ssPtr = new og::SimpleSetup(space);
     } break;
     case PLANNER_TYPE::EXPERIENCE_LIGHTNING: {
@@ -157,6 +159,10 @@ std::string getProblemInfo(const char *mapFilename, double mapResolution,
     }
     else if (plannerType == PLANNER_TYPE::EXPERIENCE_THUNDER) {
         log << "Planner Type: Thunder"
+            << "\n";
+    }
+    else if (plannerType == PLANNER_TYPE::EXPERIENCE_GRAPHS) {
+        log << "Planner Type: EGraphs"
             << "\n";
     }
     else if (plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT) {
@@ -277,29 +283,6 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
                                                robotRadius, xCoords, yCoords,
                                                numCoords)));
 
-    ob::PlannerPtr planner;
-    if (isReplan || plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT) {
-        // planner = ob::PlannerPtr(new og::RRTConnect(si));
-        planner = ob::PlannerPtr(new smpl::OMPLPlanner(si));
-        planner->params().setParam("epsilon", "100.0");
-    }
-    else {
-        // planner = ob::PlannerPtr(new og::RRTConnect(si));
-        // planner = ob::PlannerPtr(new og::RRTstar(si));
-        // planner = ob::PlannerPtr(new smpl::OMPLPlanner(si));
-        // planner->params().setParam("epsilon", "100.0");
-        // planner = ob::PlannerPtr(new og::TRRT(si));
-        // planner = ob::PlannerPtr(new og::SST(si));
-        // planner = ob::PlannerPtr(new og::LBTRRT(si));
-        // planner = ob::PlannerPtr(new og::PRMstar(si));
-        // planner = ob::PlannerPtr(new og::SPARS(si));
-        // planner = ob::PlannerPtr(new og::pRRT(si));
-        // planner = ob::PlannerPtr(new og::LazyRRT(si));
-    }
-    
-
-    // ssPtr->setPlanner(planner);
-
     ompl::tools::ExperienceSetup *ePtr =
         dynamic_cast< ot::ExperienceSetup * >(ssPtr);
     if (ePtr != NULL) {
@@ -324,8 +307,23 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     // this call is optional, but we put it in to get more output information
     ssPtr->getSpaceInformation()->setStateValidityCheckingResolution(0.005);
     ssPtr->setup();
-    planner = ob::PlannerPtr(new smpl::OMPLPlanner(si));
-    planner->params().setParam("epsilon", "100.0");
+
+    ob::PlannerPtr planner;
+    if (isReplan || plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT) {
+        planner = ob::PlannerPtr(new og::RRTConnect(si));
+    }
+    else if (plannerType == PLANNER_TYPE::EXPERIENCE_GRAPHS) {
+        planner = ob::PlannerPtr(
+            new smpl::OMPLPlanner(si, mode == MODE::NORMAL, experienceDBPath, "", 
+                                  NULL, true || mode == MODE::EXPERIENCE_GENERATION));
+        planner->params().setParam("epsilon", "100.0");
+        planner->params().setParam("improve_solution", "1.0");
+    }
+    else {
+        // planner = ob::PlannerPtr(new og::RRTConnect(si));
+        planner = ob::PlannerPtr(new og::RRTstar(si));
+    }
+
     ssPtr->setPlanner(planner);
     ssPtr->setup();
 
@@ -334,9 +332,11 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
 
     if (solved) {
         std::cout << "Found solution" << std::endl;
-        // if (plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT ||
-        //     plannerType == PLANNER_TYPE::SIMPLE_RRT_STAR)
-            ssPtr->simplifySolution();
+        if (plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT ||
+            plannerType == PLANNER_TYPE::SIMPLE_RRT_STAR ||
+            plannerType == PLANNER_TYPE::EXPERIENCE_GRAPHS) {
+                ssPtr->simplifySolution();
+            }
         og::PathGeometric pth = ssPtr->getSolutionPath();
         pLen = pth.length();
         numInterpolationPoints = ((double)pLen) / distanceBetweenPathPoints;
