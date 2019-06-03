@@ -286,8 +286,8 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     else {
         // planner = ob::PlannerPtr(new og::RRTConnect(si));
         // planner = ob::PlannerPtr(new og::RRTstar(si));
-        planner = ob::PlannerPtr(new smpl::OMPLPlanner(si));
-        planner->params().setParam("epsilon", "100.0");
+        // planner = ob::PlannerPtr(new smpl::OMPLPlanner(si));
+        // planner->params().setParam("epsilon", "100.0");
         // planner = ob::PlannerPtr(new og::TRRT(si));
         // planner = ob::PlannerPtr(new og::SST(si));
         // planner = ob::PlannerPtr(new og::LBTRRT(si));
@@ -328,9 +328,6 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     planner->params().setParam("epsilon", "100.0");
     ssPtr->setPlanner(planner);
     ssPtr->setup();
-    std::cout << "==========================" << std::endl;
-    ssPtr->print();
-    std::cout << "==========================" << std::endl;
 
     // attempt to solve the problem within 30 seconds of planning time
     ob::PlannerStatus solved = ssPtr->solve(120.0);
