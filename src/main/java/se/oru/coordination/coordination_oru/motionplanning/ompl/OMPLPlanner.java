@@ -131,7 +131,8 @@ public class OMPLPlanner extends AbstractMotionPlanner {
         SIMPLE_RRT_CONNECT(0),
         LIGHTNING(1),
         THUNDER(2),
-        SIMPLE_RRT_STAR(3);
+        E_GRAPHS(3),
+        SIMPLE_RRT_STAR(4);
     
         private int value;
         private static Map map = new HashMap();
