@@ -10,6 +10,7 @@ import subprocess
 import sys
 import os
 import yaml
+import pandas as pd
 
 def get_node_list(graph):
     nodes = []
@@ -103,6 +104,26 @@ def plot_Lightning_graph(graph_path, map_filename, output_filename, output_forma
     ax.set_title("Lightning database with " + str(nExperiences) + " robot experiences")
     plt.savefig(output_filename, format=output_format)
 
+def plot_Egraph(graph_path, map_filename, output_filename, output_format, nExperiences, resolution_multiplier=10):
+    img = plt.imread(map_filename)
+    img_height = img.shape[0]
+    img_width = img.shape[1]
+
+    f = plt.figure(figsize=(20, 20))
+    ax = f.subplots()
+    ax.imshow(img)
+
+    for filename in glob.iglob(graph_path + '/*.csv', recursive=True):
+        df = pd.read_csv(filename)
+
+        nodes = df.values[:, 0:2]
+
+        #ax.scatter(nodes[:,0] * resolution_multiplier, img_height - (nodes[:,1] * resolution_multiplier), s=100/resolution_multiplier)
+        ax.plot(nodes[:,0] * resolution_multiplier, img_height - (nodes[:,1] * resolution_multiplier), linewidth=25/resolution_multiplier)
+
+    ax.set_title("EGraphs database with " + str(nExperiences) + " robot experiences")
+    plt.savefig(output_filename, format=output_format)
+
 def get_YAML_data(filepath):
     data = None
     with open(filepath, 'r') as stream:
@@ -117,6 +138,7 @@ def get_database_filepath(args):
     sampling_name = "Uniform" if args.no_hotspots else "UsingHotspots"
     kinematics = "ReedsSheep" if args.non_holonomic else "Holonomic"
     db_name = "Thunder.db" if args.thunder else "Lightning.db"
+    db_name = "EGraphs" if args.egraph else db_name
     map_name = os.path.splitext(args.map_image_filename)[0]
     directory = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../generated/experienceDBs/")
     directory = os.path.join(directory, map_name)
@@ -132,6 +154,7 @@ def main():
     parser.add_argument("--map_image_filename", help="Filename of the map image that was used for generating the experience database (ex. map1.png)", default="map1.png")
     parser.add_argument("--output_filename", help="File name of the output file (ex. plot.svg)", default=None)
     parser.add_argument("--thunder", help="Set this if plotting Thunder DB", action="store_true", default=False)
+    parser.add_argument("--egraph", help="Set this if plotting Egraphs DB", action="store_true", default=False)
     parser.add_argument("--output_format", help="Fileformat (default svg) for output image (png/svg).", default='svg')
     parser.add_argument("--turning_radius", help="Turning Radius of the ReedsShep cars", default=4.0)
     parser.add_argument("--non_holonomic", help="Set if the robot is non-holonomic (default: False)", action="store_true", default=False)
@@ -154,25 +177,28 @@ def main():
 
     plot_output_format = args.output_format
 
-    if not os.path.isfile(experience_db_path):
-        print("Experience Database Specified Does Not Exist! \nPath specified was:\n", experience_db_path)
-        return
-    if not os.path.isfile(map_file_path):
-        print("The Map File Specified Does Not Exist! \nPath specified was:\n", map_file_path)
-        return
+    if not args.egraph:
+        if not os.path.isfile(experience_db_path):
+            print("Experience Database Specified Does Not Exist! \nPath specified was:\n", experience_db_path)
+            return
+        if not os.path.isfile(map_file_path):
+            print("The Map File Specified Does Not Exist! \nPath specified was:\n", map_file_path)
+            return
 
-    subprocess.call([dir_name + "/build/GenerateGraphml", 
-                     str(turning_radius),
-                     '1' if is_thunder else "0",
-                     experience_db_path,
-                     map_file_path,
-                     str(1.0/resolution_multiplier),
-                     graph_files_output_dir,
-                     '1' if holonomic else "0"])
+        subprocess.call([dir_name + "/build/GenerateGraphml", 
+                        str(turning_radius),
+                        '1' if is_thunder else "0",
+                        experience_db_path,
+                        map_file_path,
+                        str(1.0/resolution_multiplier),
+                        graph_files_output_dir,
+                        '1' if holonomic else "0"])
 
     print("\nPlotting the Graphml file contents onto the map")
     if is_thunder:
         plot_Thunder_graph(graph_files_output_dir + "/", map_file_path, plot_file_path, plot_output_format, args.count, resolution_multiplier)
+    elif args.egraph:
+        plot_Egraph(experience_db_path, map_file_path, plot_file_path, plot_output_format, args.count, resolution_multiplier)
     else:
         plot_Lightning_graph(graph_files_output_dir + "/", map_file_path, plot_file_path, plot_output_format, args.count, resolution_multiplier)
 
