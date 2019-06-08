@@ -111,8 +111,9 @@ class OMPL_Wrapper():
 
     def start_training(self):
         print("\n============ Starting Training ============")
-        for p_idx in range(self.start_training_poses.shape[0]):
-            print("\n----------- Problem", p_idx+1 , "-----------")
+        n_training_problems = self.start_training_poses.shape[0]
+        for p_idx in range(n_training_problems):
+            print("\n----------- Problem", p_idx+1, "/", n_training_problems, "-----------")
             self.invoke(self.start_training_poses[p_idx], self.goal_training_poses[p_idx])
         print("\n============ Training Complete ============")
 
