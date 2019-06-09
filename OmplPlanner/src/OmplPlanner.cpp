@@ -309,17 +309,25 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     ssPtr->setup();
 
     ob::PlannerPtr planner;
-    if (isReplan || plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT) {
+    if (isReplan || plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT) 
+    {
         planner = ob::PlannerPtr(new og::RRTConnect(si));
     }
-    else if (plannerType == PLANNER_TYPE::EXPERIENCE_GRAPHS) {
+    else if (plannerType == PLANNER_TYPE::EXPERIENCE_GRAPHS) 
+    {
+        bool useEGraphPlanner = mode == MODE::NORMAL;
+        bool saveExperiences = mode == MODE::EXPERIENCE_GENERATION;
+        std::string improveSolution = (mode == MODE::EXPERIENCE_GENERATION) ? "1.0" : "0.0";
+        std::string initialEpsilon = "100.0";
+
         planner = ob::PlannerPtr(
-            new smpl::OMPLPlanner(si, mode == MODE::NORMAL, experienceDBPath, "", 
-                                  NULL, true || mode == MODE::EXPERIENCE_GENERATION));
-        planner->params().setParam("epsilon", "100.0");
-        planner->params().setParam("improve_solution", "1.0");
+            new smpl::OMPLPlanner(si, useEGraphPlanner, experienceDBPath, "", 
+                                NULL, saveExperiences));
+        planner->params().setParam("epsilon", initialEpsilon);
+        planner->params().setParam("improve_solution", improveSolution);
     }
-    else {
+    else 
+    {
         // planner = ob::PlannerPtr(new og::RRTConnect(si));
         planner = ob::PlannerPtr(new og::RRTstar(si));
     }
@@ -327,8 +335,10 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     ssPtr->setPlanner(planner);
     ssPtr->setup();
 
-    // attempt to solve the problem within 30 seconds of planning time
-    ob::PlannerStatus solved = ssPtr->solve(120.0);
+    float planningTime = (mode == MODE::EXPERIENCE_GENERATION) ? 60.0 : 30.0;
+
+    // attempt to solve the problem within the specified planning time
+    ob::PlannerStatus solved = ssPtr->solve(planningTime);
 
     if (solved) {
         std::cout << "Found solution" << std::endl;
