@@ -347,6 +347,13 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
             plannerType == PLANNER_TYPE::EXPERIENCE_GRAPHS) {
                 ssPtr->simplifySolution();
             }
+        if (plannerType == PLANNER_TYPE::EXPERIENCE_GRAPHS)
+        {
+            ob::PlannerSolution sol(nullptr);
+            ssPtr->getProblemDefinition()->getSolution(sol);
+            log(logFilename, sol.plannerName_ + std::string("\n"));
+        }
+
         og::PathGeometric pth = ssPtr->getSolutionPath();
         pLen = pth.length();
         numInterpolationPoints = ((double)pLen) / distanceBetweenPathPoints;

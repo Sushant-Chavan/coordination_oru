@@ -160,6 +160,11 @@ class logParser:
                     recall.append(1)
                 else:
                     recall.append(0)
+            elif "SMPL solution from" in l:
+                if "Recall" in l:
+                    recall.append(1)
+                else:
+                    recall.append(0)
         return recall
 
     def _extract_total_planning_times(self):
@@ -337,7 +342,7 @@ class logParser:
 def get_log_filename(args):
     sampling_name = "Uniform" if args.no_hotspots else "UsingHotspots"
     kinematics = "ReedsSheep" if args.constrained else "Holonomic"
-    planner_names = ["SIMPLE(RRT-Connect)", "Lightning", "Thunder", "SIMPLE(RRT-Star)"]
+    planner_names = ["SIMPLE(RRT-Connect)", "Lightning", "Thunder", "EGraphs", "SIMPLE(RRT-Star)"]
     directory = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/executionData/")
     directory = os.path.join(directory, args.map)
     directory = os.path.join(directory, planner_names[args.planner])
@@ -366,7 +371,6 @@ def main():
     map_name = os.path.splitext(args.map)[0]
 
     tags_filepath = root_dir + "/generators/logging/tags/" + args.tags_filename
-    planner_name = planner_names[args.planner]
     log_filepath = get_log_filename(args)
 
     if not os.path.isfile(tags_filepath):
