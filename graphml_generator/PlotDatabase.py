@@ -43,7 +43,7 @@ def plot_Thunder_graph(graph_path, map_filename, output_filename, output_format,
     img_height = img.shape[0]
     img_width = img.shape[1]
 
-    f = plt.figure(figsize=(20, 20))
+    f = plt.figure(figsize=plt.figaspect(img_height/float(img_width))*3.0)
     ax = f.subplots()
     ax.imshow(img)
 
@@ -74,15 +74,18 @@ def plot_Thunder_graph(graph_path, map_filename, output_filename, output_format,
 
             ax.plot(x, y, linewidth=20/resolution_multiplier)
 
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+
     ax.set_title("Thunder database with " + str(nExperiences) + " robot experiences")
-    plt.savefig(output_filename, format=output_format)
+    plt.savefig(output_filename, format=output_format, bbox_inches='tight')
 
 def plot_Lightning_graph(graph_path, map_filename, output_filename, output_format, nExperiences, resolution_multiplier=10):
     img = plt.imread(map_filename)
     img_height = img.shape[0]
     img_width = img.shape[1]
 
-    f = plt.figure(figsize=(20, 20))
+    f = plt.figure(figsize=plt.figaspect(img_height/float(img_width))*3.0)
     ax = f.subplots()
     ax.imshow(img)
 
@@ -101,28 +104,52 @@ def plot_Lightning_graph(graph_path, map_filename, output_filename, output_forma
         # for i in range(len(node_list)):
         #     ax.text(nodes[i,0] * resolution_multiplier, img_height - (nodes[i,1] * resolution_multiplier), node_list[i])
 
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+
     ax.set_title("Lightning database with " + str(nExperiences) + " robot experiences")
-    plt.savefig(output_filename, format=output_format)
+    plt.savefig(output_filename, format=output_format, bbox_inches='tight')
 
 def plot_Egraph(graph_path, map_filename, output_filename, output_format, nExperiences, resolution_multiplier=10):
     img = plt.imread(map_filename)
     img_height = img.shape[0]
     img_width = img.shape[1]
+    step_size = 0.2
 
-    f = plt.figure(figsize=(20, 20))
+    f = plt.figure(figsize=plt.figaspect(img_height/float(img_width))*3.0)
     ax = f.subplots()
-    ax.imshow(img)
+
+    ax.imshow(img, interpolation='nearest', aspect='auto')
 
     for filename in glob.iglob(graph_path + '/*.csv', recursive=True):
         df = pd.read_csv(filename)
 
-        nodes = df.values[:, 0:2]
+        # Do the conversion from RobotState to RobotCoord and backwards 
+        # according to the SMPL ManipLattice to dicretize the data for plotting
+        nodes = (((df.values[:, 0:2] / 0.2) + 0.5).astype(int) * 0.2).astype(float)
 
-        #ax.scatter(nodes[:,0] * resolution_multiplier, img_height - (nodes[:,1] * resolution_multiplier), s=100/resolution_multiplier)
+        ax.scatter((nodes[:,0] * resolution_multiplier), (img_height - (nodes[:,1] * resolution_multiplier)), s=10/resolution_multiplier, color='r')
         ax.plot(nodes[:,0] * resolution_multiplier, img_height - (nodes[:,1] * resolution_multiplier), linewidth=25/resolution_multiplier)
 
+    dx = max(1.0, int(round((img_width /resolution_multiplier)/step_size)))
+    dy = max(1.0, int(round((img_height /resolution_multiplier)/step_size)))
+
+    x_ticks = np.linspace(0, img_width+1, dx)
+    y_ticks = np.linspace(0, img_height+1, dy)
+
+    # xx, yy = np.meshgrid(x_ticks, y_ticks)
+    # plt.scatter(xx, yy, facecolors='none', edgecolors='k', s=10/resolution_multiplier)
+
+    ax.set_xticks(x_ticks)
+    ax.set_yticks(y_ticks)
+
+    # Show the major grid lines with dark grey linesc to demostrate all possible nodes in the graph
+    ax.grid(b=True, which='major', color='#000000', linestyle='-', alpha=0.1)
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+
     ax.set_title("EGraphs database with " + str(nExperiences) + " robot experiences")
-    plt.savefig(output_filename, format=output_format)
+    plt.savefig(output_filename, format=output_format, bbox_inches='tight')
 
 def get_YAML_data(filepath):
     data = None
