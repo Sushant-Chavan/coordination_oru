@@ -208,7 +208,7 @@ extern "C" bool plan_multiple_circles(
     const char *mapFilename, double mapResolution, double robotRadius,
     double *xCoords, double *yCoords, int numCoords, double startX,
     double startY, double startTheta, double goalX, double goalY,
-    double goalTheta, PathPose **path, int *pathLength,
+    double goalTheta, PathPose **path, int *pathLength, double* pathCost,
     double distanceBetweenPathPoints, double turningRadius,
     PLANNER_TYPE plannerType, MODE mode, bool isHolonomicRobot,
     const char *experienceDBPath, const char *logfile)
@@ -240,7 +240,6 @@ extern "C" bool plan_multiple_circles(
         isHolonomicRobot);
     log(logFilename, probInfo);
 
-    double pLen = 0.0;
     int numInterpolationPoints = 0;
     bool isReplan = (mode == MODE::REPLANNING);
 
@@ -349,8 +348,8 @@ extern "C" bool plan_multiple_circles(
         }
 
         og::PathGeometric pth = ssPtr->getSolutionPath();
-        pLen = pth.length();
-        numInterpolationPoints = ((double)pLen) / distanceBetweenPathPoints;
+        *pathCost = pth.length();
+        numInterpolationPoints = (*pathCost) / distanceBetweenPathPoints;
         if (numInterpolationPoints > 0)
             pth.interpolate(numInterpolationPoints);
 
@@ -379,9 +378,9 @@ extern "C" bool plan_multiple_circles(
             log(logFilename, stream.str());
         }
 
-        std::stringstream pLenStr;
-        pLenStr << "Length of computed path = " << pLen << std::endl;
-        log(logFilename, pLenStr.str());
+        std::stringstream pathCostStr;
+        pathCostStr << "Length of computed path = " << *pathCost << std::endl;
+        log(logFilename, pathCostStr.str());
     }
     else {
         std::cout << "No solution found" << std::endl;

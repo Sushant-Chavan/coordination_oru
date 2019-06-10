@@ -77,20 +77,20 @@ class OMPL_Wrapper():
         self.cdll = cdll.LoadLibrary(lib_name)
 
         # Function signature:
-        # plan_multiple_circles(const char *mapFilename, double mapResolution,
-        #                       double robotRadius, double *xCoords, double *yCoords,
-        #                       int numCoords, double startX, double startY,
-        #                       double startTheta, double goalX, double goalY,
-        #                       double goalTheta, PathPose **path, int *pathLength,
-        #                       double distanceBetweenPathPoints, double turningRadius,
-        #                       PLANNER_TYPE plannerType, MODE mode, bool isHolonomicRobot,
-        #                       const char* experienceDBPath, const char* logfile)
+        # extern "C" bool plan_multiple_circles(
+        #     const char *mapFilename, double mapResolution, double robotRadius,
+        #     double *xCoords, double *yCoords, int numCoords, double startX,
+        #     double startY, double startTheta, double goalX, double goalY,
+        #     double goalTheta, PathPose **path, int *pathLength, double* pathCost,
+        #     double distanceBetweenPathPoints, double turningRadius,
+        #     PLANNER_TYPE plannerType, MODE mode, bool isHolonomicRobot,
+        #     const char *experienceDBPath, const char *logfile)
         self.cdll.plan_multiple_circles.arguments = [c_char_p, c_double,
                                        c_double, POINTER(c_double), POINTER(c_double), 
                                        c_int, c_double, c_double, 
                                        c_double, c_double, c_double, 
                                        c_double, POINTER(POINTER(PathPose)), POINTER(c_int), 
-                                       c_double, c_double, 
+                                       POINTER(c_double), c_double, c_double, 
                                        c_int, c_int, c_bool,
                                        c_char_p, c_char_p]
         self.cdll.plan_multiple_circles.restype = c_bool
@@ -99,15 +99,17 @@ class OMPL_Wrapper():
         # Preparing to receive array of structs from the library
         path = POINTER(PathPose)()
         path_length = c_int(0)
+        path_cost = c_double(0)
         mode = 2 # Corresponds to the experience generation mode
 
         self.cdll.plan_multiple_circles(self.map_filepath, self.map_resolution, self.robot_radius,
                                         self.collision_centers_x, self.collision_centers_y, self.n_collsion_centers,
                                         c_double(start[0]), c_double(start[1]), c_double(start[2]),
                                         c_double(goal[0]), c_double(goal[1]), c_double(goal[2]),
-                                        byref(path), byref(path_length), self.dist_between_points,
+                                        byref(path), byref(path_length), byref(path_cost), self.dist_between_points,
                                         self.turning_radius, self.planner_type, mode, self.is_holonomic_robot,
                                         self.experienceDBPath, self.logfile)
+        print("Found path with cost =", path_cost)
 
     def start_training(self):
         print("\n============ Starting Training ============")
