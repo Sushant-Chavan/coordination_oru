@@ -9,6 +9,7 @@
 #include <ompl/geometric/planners/rrt/LBTRRT.h>
 #include <ompl/geometric/planners/rrt/LazyRRT.h>
 #include <ompl/geometric/planners/rrt/pRRT.h>
+#include <smpl_ompl_interface/ompl_interface.h>
 #include <ompl/util/Console.h>
 
 #include <chrono>
@@ -41,6 +42,7 @@ enum PLANNER_TYPE {
     SIMPLE_RRT_CONNECT = 0,
     EXPERIENCE_LIGHTNING,
     EXPERIENCE_THUNDER,
+    EXPERIENCE_GRAPHS,
     SIMPLE_RRT_STAR,
     PLANNER_TYPE_COUNT
 };
@@ -64,7 +66,8 @@ og::SimpleSetup *getPlanningSetup(PLANNER_TYPE type, ob::StateSpacePtr space,
 
     switch (type) {
     case PLANNER_TYPE::SIMPLE_RRT_CONNECT:
-    case PLANNER_TYPE::SIMPLE_RRT_STAR: {
+    case PLANNER_TYPE::SIMPLE_RRT_STAR:
+    case PLANNER_TYPE::EXPERIENCE_GRAPHS: {
         ssPtr = new og::SimpleSetup(space);
     } break;
     case PLANNER_TYPE::EXPERIENCE_LIGHTNING: {
@@ -156,6 +159,10 @@ std::string getProblemInfo(const char *mapFilename, double mapResolution,
     }
     else if (plannerType == PLANNER_TYPE::EXPERIENCE_THUNDER) {
         log << "Planner Type: Thunder"
+            << "\n";
+    }
+    else if (plannerType == PLANNER_TYPE::EXPERIENCE_GRAPHS) {
+        log << "Planner Type: EGraphs"
             << "\n";
     }
     else if (plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT) {
@@ -276,24 +283,6 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
                                                robotRadius, xCoords, yCoords,
                                                numCoords)));
 
-    ob::PlannerPtr planner;
-    if (isReplan || plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT) {
-        planner = ob::PlannerPtr(new og::RRTConnect(si));
-    }
-    else {
-        // planner = ob::PlannerPtr(new og::RRTConnect(si));
-        planner = ob::PlannerPtr(new og::RRTstar(si));
-        // planner = ob::PlannerPtr(new og::TRRT(si));
-        // planner = ob::PlannerPtr(new og::SST(si));
-        // planner = ob::PlannerPtr(new og::LBTRRT(si));
-        // planner = ob::PlannerPtr(new og::PRMstar(si));
-        // planner = ob::PlannerPtr(new og::SPARS(si));
-        // planner = ob::PlannerPtr(new og::pRRT(si));
-        // planner = ob::PlannerPtr(new og::LazyRRT(si));
-    }
-
-    ssPtr->setPlanner(planner);
-
     ompl::tools::ExperienceSetup *ePtr =
         dynamic_cast< ot::ExperienceSetup * >(ssPtr);
     if (ePtr != NULL) {
@@ -318,16 +307,53 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     // this call is optional, but we put it in to get more output information
     ssPtr->getSpaceInformation()->setStateValidityCheckingResolution(0.005);
     ssPtr->setup();
-    // ssPtr->print();
 
-    // attempt to solve the problem within 30 seconds of planning time
-    ob::PlannerStatus solved = ssPtr->solve(30.0);
+    ob::PlannerPtr planner;
+    if (isReplan || plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT) 
+    {
+        planner = ob::PlannerPtr(new og::RRTConnect(si));
+    }
+    else if (plannerType == PLANNER_TYPE::EXPERIENCE_GRAPHS) 
+    {
+        bool useEGraphPlanner = mode == MODE::NORMAL;
+        bool saveExperiences = mode == MODE::EXPERIENCE_GENERATION;
+        std::string improveSolution = (mode == MODE::EXPERIENCE_GENERATION) ? "1.0" : "0.0";
+        std::string initialEpsilon = "100.0";
+
+        planner = ob::PlannerPtr(
+            new smpl::OMPLPlanner(si, useEGraphPlanner, experienceDBPath, "", 
+                                NULL, saveExperiences));
+        planner->params().setParam("epsilon", initialEpsilon);
+        planner->params().setParam("improve_solution", improveSolution);
+    }
+    else 
+    {
+        // planner = ob::PlannerPtr(new og::RRTConnect(si));
+        planner = ob::PlannerPtr(new og::RRTstar(si));
+    }
+
+    ssPtr->setPlanner(planner);
+    ssPtr->setup();
+
+    float planningTime = (mode == MODE::EXPERIENCE_GENERATION) ? 60.0 : 30.0;
+
+    // attempt to solve the problem within the specified planning time
+    ob::PlannerStatus solved = ssPtr->solve(planningTime);
 
     if (solved) {
         std::cout << "Found solution" << std::endl;
         if (plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT ||
-            plannerType == PLANNER_TYPE::SIMPLE_RRT_STAR)
-            ssPtr->simplifySolution();
+            plannerType == PLANNER_TYPE::SIMPLE_RRT_STAR ||
+            plannerType == PLANNER_TYPE::EXPERIENCE_GRAPHS) {
+                ssPtr->simplifySolution();
+            }
+        if (plannerType == PLANNER_TYPE::EXPERIENCE_GRAPHS)
+        {
+            ob::PlannerSolution sol(nullptr);
+            ssPtr->getProblemDefinition()->getSolution(sol);
+            log(logFilename, sol.plannerName_ + std::string("\n"));
+        }
+
         og::PathGeometric pth = ssPtr->getSolutionPath();
         pLen = pth.length();
         numInterpolationPoints = ((double)pLen) / distanceBetweenPathPoints;

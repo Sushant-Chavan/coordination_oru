@@ -10,6 +10,7 @@ Solution found in
 SimpleSetup: Path simplification took
 THUNDER RESULTS: 
 and was generated from planner
+SMPL solution from
 End time: 
 Planning took
 Length of computed path

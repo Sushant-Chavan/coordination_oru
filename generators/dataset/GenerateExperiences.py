@@ -9,6 +9,7 @@ import sys
 import pandas as pd
 import yaml
 import argparse
+import shutil
 
 # A class to receive the array of poses from the shared libarary
 class PathPose(Structure):
@@ -110,8 +111,9 @@ class OMPL_Wrapper():
 
     def start_training(self):
         print("\n============ Starting Training ============")
-        for p_idx in range(self.start_training_poses.shape[0]):
-            print("\n----------- Problem", p_idx+1 , "-----------")
+        n_training_problems = self.start_training_poses.shape[0]
+        for p_idx in range(n_training_problems):
+            print("\n----------- Problem", p_idx+1, "/", n_training_problems, "-----------")
             self.invoke(self.start_training_poses[p_idx], self.goal_training_poses[p_idx])
         print("\n============ Training Complete ============")
 
@@ -130,13 +132,17 @@ def get_footprint(args):
 def get_database_filepath(args, map_name):
     sampling_name = "Uniform" if args.no_hotspots else "UsingHotspots"
     kinematics = "ReedsSheep" if args.non_holonomic else "Holonomic"
-    planner_names = ["SIMPLE(RRT-Connect)", "Lightning", "Thunder", "SIMPLE(RRT-Star)"]
+    planner_names = ["SIMPLE(RRT-Connect)", "Lightning.db", "Thunder.db", "EGraphs", "SIMPLE(RRT-Star)"]
     directory = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/experienceDBs/")
     directory = os.path.join(directory, map_name)
     directory = os.path.join(directory, str(args.count)+"_TrainingExperiences")
     directory = os.path.join(directory, sampling_name)
     directory = os.path.join(directory, kinematics)
-    path = os.path.join(directory, planner_names[args.planner_type] + ".db")
+    if args.planner_type == 3:
+        directory = os.path.join(directory, planner_names[args.planner_type])
+        if os.path.isdir(directory):
+            print("Clearing already existing EGraph paths")
+            # shutil.rmtree(directory)
 
     # Make the directory if it does not exist
     try:
@@ -146,6 +152,11 @@ def get_database_filepath(args, map_name):
             pass
         else:
             raise "Could not create directory {}".format(directory)
+
+    if args.planner_type == 3:
+        path = directory
+    else:
+        path = os.path.join(directory, planner_names[args.planner_type])
 
     if os.path.isfile(path):
         print("A database already exists. Deleting it and creating a new one.")

@@ -179,6 +179,8 @@ public abstract class CustomTesting {
             plannerName = "/Lightning/";
         else if (plannerType_ == OMPLPlanner.PLANNER_TYPE.THUNDER)
             plannerName = "/Thunder/";
+        else if (plannerType_ == OMPLPlanner.PLANNER_TYPE.E_GRAPHS)
+            plannerName = "/EGraphs/";
         else if (plannerType_ == OMPLPlanner.PLANNER_TYPE.SIMPLE_RRT_CONNECT)
             plannerName = "/SIMPLE(RRT-Connect)/";
         else if (plannerType_ == OMPLPlanner.PLANNER_TYPE.SIMPLE_RRT_STAR)
@@ -199,6 +201,8 @@ public abstract class CustomTesting {
             dbName = "Lightning.db";
         else if (plannerType_ == OMPLPlanner.PLANNER_TYPE.THUNDER)
             dbName = "Thunder.db";
+        else if (plannerType_ == OMPLPlanner.PLANNER_TYPE.E_GRAPHS)
+            dbName = "EGraphs/";
 
         String kinematics = useReedsSheepCars_ ? "ReedsSheep" : "Holonomic";
         String samplingName = useHotspots_ ? "UsingHotspots" : "Uniform";

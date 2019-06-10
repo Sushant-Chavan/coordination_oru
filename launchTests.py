@@ -62,22 +62,21 @@ def create_directory_if_needed(dirPath):
 def setup_experienceDB_directory(args):
     sampling_name = "Uniform" if args.no_hotspots else "UsingHotspots"
     kinematics = "ReedsSheep" if args.constrained else "Holonomic"
-    planner_names = ["SIMPLE(RRT-Connect)", "Lightning", "Thunder", "SIMPLE(RRT-Star)"]
+    planner_names = ["SIMPLE(RRT-Connect)", "Lightning", "Thunder", "EGraphs", "SIMPLE(RRT-Star)"]
     directory = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/generated/experienceDBs/")
     directory = os.path.join(directory, args.map)
     directory = os.path.join(directory, str(args.nExperiences)+"_TrainingExperiences")
     directory = os.path.join(directory, sampling_name)
     directory = os.path.join(directory, kinematics)
-    path = os.path.join(directory, planner_names[args.planner] + ".db")
+    if args.planner == 3:
+        directory = os.path.join(directory, planner_names[args.planner])
 
     create_directory_if_needed(directory)
-
-    return path
 
 def setup_log_directory(args):
     sampling_name = "Uniform" if args.no_hotspots else "UsingHotspots"
     kinematics = "ReedsSheep" if args.constrained else "Holonomic"
-    planner_names = ["SIMPLE(RRT-Connect)", "Lightning", "Thunder", "SIMPLE(RRT-Star)"]
+    planner_names = ["SIMPLE(RRT-Connect)", "Lightning", "Thunder", "EGraphs", "SIMPLE(RRT-Star)"]
     directory = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/generated/executionData/")
     directory = os.path.join(directory, args.map)
     directory = os.path.join(directory, planner_names[args.planner])
