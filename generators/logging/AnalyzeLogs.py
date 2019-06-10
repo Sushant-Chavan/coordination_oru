@@ -31,6 +31,7 @@ class PlanData():
         self.total_planning_time = None
         self.path = None
         self.path_length = None
+        self.optimal_path_length = None
 
         self.fill_data(df)
 
@@ -63,6 +64,9 @@ class PlanData():
         nPoses = int(values.size / 3)
         return values.reshape((nPoses, 3))
 
+    def set_optimal_path_length(self, length):
+        self.optimal_path_length = length
+
 class RobotMissionData:
     def __init__(self, planning_df, execution_df):
         self.plans = None
@@ -74,6 +78,7 @@ class RobotMissionData:
         self.is_holonomic = None
         self.complete_path = None
         self.complete_path_length = None
+        self.complete_optimal_path_length = None
         self.nPlans_from_recall = None
         self.nSuccessful_mission_executions = None
         self.mission_execution_durations = None
@@ -129,6 +134,13 @@ class RobotMissionData:
                 self.mission_execution_durations[i] = value
         self.total_execution_time = np.sum(self.mission_execution_durations)
 
+    def set_optimal_path_lengths(self, lengths):
+        assert lengths.size == len(self.plans), "Number of optimal path costs not equal to number of robot mission plans"
+
+        for i, p in enumerate(self.plans):
+            p.set_optimal_path_length(lengths[i])
+        self.complete_optimal_path_length = np.sum(lengths)
+
 class FleetMissionData:
     def __init__(self, planning_df, execution_df, nExperiences):
         self.robot_missions = None
@@ -145,6 +157,7 @@ class FleetMissionData:
         self.nExperiences = nExperiences
 
         self.fill_data(planning_df, execution_df)
+        self.load_optimal_path_lengths()
 
     def fill_data(self, planning_df, execution_df):
         self.load_robot_missions(planning_df, execution_df)
@@ -186,6 +199,19 @@ class FleetMissionData:
             self.robot_missions.append(RobotMissionData(mission_planning_df, mission_execution_df))
 
         assert self.nRobots == len(self.robot_missions), "Number of missions loaded not equal to number of robots in fleet!!"
+
+    def load_optimal_path_lengths(self):
+        directory = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/testingData/Optimality/")
+        filename = self.map + "-" + str(self.nRobots) + "Problems.txt"
+        filepath = os.path.join(directory, filename)
+        assert os.path.isfile(filepath), "Optimal path cost file ({}) not found!".format(filename)
+
+        optimal_costs = np.loadtxt(filepath, delimiter='\t')
+        assert optimal_costs.size == (3 * self.nRobots), "Number of optimal path costs not equal to total number of robot plans"
+
+        for i in range(self.nRobots):
+            start = 3 * i
+            self.robot_missions[i].set_optimal_path_lengths(optimal_costs[start:start+3])
 
     def mission_execution_successful(self):
         for m in self.robot_missions:
@@ -515,8 +541,8 @@ class LogAnalyzer:
         dissimilarities = (np.ones_like(similarities) * nTests) - similarities
         robot_ids = np.arange(1, similarities.size+1, 1)
 
-        fig = plt.figure(figsize=(15, 7.5))
-        ax1 = fig.add_subplot(121)
+        fig = plt.figure(figsize=(15, 15))
+        ax1 = fig.add_subplot(221)
         self.custom_bar_plot(ax1, robot_ids, similarities, label='Number of similar paths',
                          color='g', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
                          xticks=robot_ids, yticks=np.arange(0, nTests+1, 1), avg_line_col='b',
@@ -528,11 +554,13 @@ class LogAnalyzer:
 
         # Get the path lengths of all the robot missions in all fleet trials
         path_lengths = np.zeros((len(fleets), fleets[0].nRobots))
+        optimal_path_lengths = np.zeros_like(path_lengths)
         for i, f in enumerate(fleets):
             for j, m in enumerate(f.robot_missions):
                 path_lengths[i, j] = m.complete_path_length
+                optimal_path_lengths[i, j] = m.complete_optimal_path_length
 
-        ax2 = fig.add_subplot(122)
+        ax2 = fig.add_subplot(222)
         fleet_ids = np.arange(1, path_lengths.shape[0] + 1, 1)
         for id in range(path_lengths.shape[1]):
             robot_path_lengths = path_lengths[:, id]
@@ -541,6 +569,14 @@ class LogAnalyzer:
                                   xlabel="Fleet ID", ylabel="Length measure",
                                   xticks=fleet_ids, useLog10Scale=False,
                                   title="Path Lengths")
+
+        ax3 = fig.add_subplot(223)
+        for id in range(path_lengths.shape[1]):
+            robot_optimality_ratio = np.clip(optimal_path_lengths[:, id] / path_lengths[:, id], 0.0, 1.0)
+            self.custom_line_plot(ax3, fleet_ids, robot_optimality_ratio, label="Robot {}".format(id+1),
+                                  xlabel="Fleet ID", ylabel="Optimality ratio",
+                                  xticks=fleet_ids, useLog10Scale=False,
+                                  title="Path Optimality")
 
         fig.suptitle(self.get_figure_title("Plan stats", fleets, assisted_sampling))
 
