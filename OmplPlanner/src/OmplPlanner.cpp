@@ -47,7 +47,7 @@ enum PLANNER_TYPE {
     PLANNER_TYPE_COUNT
 };
 
-enum MODE { NORMAL = 0, REPLANNING, EXPERIENCE_GENERATION, MODE_COUNT };
+enum MODE { NORMAL = 0, REPLANNING, EXPERIENCE_GENERATION, OPTIMAL_PATHS, MODE_COUNT };
 
 bool LOGGING_ACTIVE = true;
 bool MAP_LOADED = false;
@@ -251,7 +251,7 @@ extern "C" bool plan_multiple_circles(
             ? ob::StateSpacePtr(new ob::SE2StateSpace())
             : ob::StateSpacePtr(new ob::ReedsSheppStateSpace(turningRadius));
 
-    if (!MAP_LOADED || (mode == MODE::REPLANNING)) {
+    if (!MAP_LOADED || isReplan) {
         GRID_MAP.loadFromBitmapFile(mapFilename, (float)mapResolution, 0.0f,
                                     0.0f);
         std::cout << "Loaded map (1) " << mapFilename << std::endl;
@@ -287,7 +287,8 @@ extern "C" bool plan_multiple_circles(
         ePtr->setRepairPlanner(repairPlanner);
 
         // Disable planning from recall if we are generating experiences
-        if (mode == MODE::EXPERIENCE_GENERATION) {
+        if (mode == MODE::EXPERIENCE_GENERATION ||
+            mode == MODE::OPTIMAL_PATHS) {
             ePtr->enablePlanningFromRecall(false);
         }
     }
@@ -312,24 +313,30 @@ extern "C" bool plan_multiple_circles(
     else if (plannerType == PLANNER_TYPE::EXPERIENCE_GRAPHS) {
         bool useEGraphPlanner = mode == MODE::NORMAL;
         bool saveExperiences = mode == MODE::EXPERIENCE_GENERATION;
-        std::string improveSolution =
-            (mode == MODE::EXPERIENCE_GENERATION) ? "1.0" : "0.0";
+
+        // If determining optimal paths, do not set a time limit on the search
+        std::string boundExpansions = (mode == MODE::OPTIMAL_PATHS) ? "0.0" : "1.0";
+
         std::string initialEpsilon = "100.0";
+        std::string improveSolution =
+            ((mode == MODE::EXPERIENCE_GENERATION) ||
+             (mode == MODE::OPTIMAL_PATHS)) ? "1.0" : "0.0";
 
         planner = ob::PlannerPtr(new smpl::OMPLPlanner(
             si, useEGraphPlanner, experienceDBPath, "", NULL, saveExperiences));
+
         planner->params().setParam("epsilon", initialEpsilon);
         planner->params().setParam("improve_solution", improveSolution);
+        planner->params().setParam("bound_expansions", boundExpansions);
     }
     else {
-        // planner = ob::PlannerPtr(new og::RRTConnect(si));
         planner = ob::PlannerPtr(new og::RRTstar(si));
     }
 
     ssPtr->setPlanner(planner);
     ssPtr->setup();
 
-    float planningTime = (mode == MODE::EXPERIENCE_GENERATION) ? 60.0 : 30.0;
+    float planningTime = (mode == MODE::EXPERIENCE_GENERATION) ? 120.0 : 30.0; // in seconds
 
     // attempt to solve the problem within the specified planning time
     ob::PlannerStatus solved = ssPtr->solve(planningTime);
