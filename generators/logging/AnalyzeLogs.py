@@ -446,14 +446,14 @@ class LogAnalyzer:
             fleets = self.fleet_missions
 
         num_replans = np.zeros(len(fleets))
-        execution_times = np.zeros_like(num_replans)
+        mean_execution_times = np.zeros_like(num_replans)
         success_markers = ['X'] * len(fleets)
         success_status = np.zeros((len(fleets), 4))
         fleet_ids = np.arange(1, len(fleets)+1, 1)
 
         for i, f in enumerate(fleets):
             num_replans[i] = f.nReplans
-            execution_times[i] = f.total_path_execution_time
+            mean_execution_times[i] = f.total_path_execution_time / f.nRobots
             percent, max_robots = f.get_percentage_of_mission_success()
             if np.allclose(percent, 100.0):
                 success_markers[i] = "^"
@@ -463,12 +463,12 @@ class LogAnalyzer:
 
         fig = plt.figure(figsize=(15, 15))
         ax = fig.add_subplot(221)
-        self.custom_line_plot(ax, fleet_ids, execution_times, label="Path execution time",
+        self.custom_line_plot(ax, fleet_ids, mean_execution_times, label="Path execution time",
                          color='r', xlabel="Fleet ID", ylabel="Time in seconds",
                          xticks=fleet_ids, useLog10Scale=False, avg_line_col='b',
-                         title="Path execution times")
+                         title="Mean path execution times per robot")
         for i, m in enumerate(success_markers):
-            ax.scatter(fleet_ids[i], execution_times[i], marker=m, c='g', s=100)
+            ax.scatter(fleet_ids[i], mean_execution_times[i], marker=m, c='g', s=100)
 
         ax = fig.add_subplot(222)
         self.custom_bar_plot(ax, fleet_ids, num_replans, label="",
@@ -575,7 +575,7 @@ class LogAnalyzer:
             robot_optimality_ratio = np.clip(optimal_path_lengths[:, id] / path_lengths[:, id], 0.0, 1.0)
             self.custom_line_plot(ax3, fleet_ids, robot_optimality_ratio, label="Robot {}".format(id+1),
                                   xlabel="Fleet ID", ylabel="Optimality ratio",
-                                  xticks=fleet_ids, useLog10Scale=False,
+                                  xticks=fleet_ids, useLog10Scale=False, yticks=np.arange(0, 1.1, 0.1),
                                   title="Path Optimality")
 
         fig.suptitle(self.get_figure_title("Plan stats", fleets, assisted_sampling))
