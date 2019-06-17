@@ -6,6 +6,7 @@ import java.util.List;
 import com.sun.jna.Library;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
+import com.sun.jna.ptr.DoubleByReference;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
 
@@ -21,7 +22,7 @@ public interface OMPLPlannerLib extends Library {
                                          double[] xCoords, double[] yCoords, int numCoords,
                                          double startX, double startY, double startTheta,
                                          double goalX, double goalY, double goalTheta, 
-                                         PointerByReference path, IntByReference pathLength, 
+                                         PointerByReference path, IntByReference pathLength, DoubleByReference pathCost,
                                          double distanceBetweenPathPoints, double turningRadius, 
                                          int plannerType, int mode, boolean isHolonomic,
                                          String experienceDBPath, String logFile);

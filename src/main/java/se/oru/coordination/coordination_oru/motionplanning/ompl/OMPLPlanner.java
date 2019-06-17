@@ -11,6 +11,7 @@ import org.metacsp.multi.spatioTemporal.paths.PoseSteering;
 import com.sun.jna.Native;
 import com.sun.jna.NativeLibrary;
 import com.sun.jna.Pointer;
+import com.sun.jna.ptr.DoubleByReference;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
 import com.vividsolutions.jts.geom.Coordinate;
@@ -174,7 +175,8 @@ public class OMPLPlanner extends AbstractMotionPlanner {
 			if (i == 0) start_ = this.start;
 			else start_ = this.goal[i-1];
 			path = new PointerByReference();
-			pathLength = new IntByReference();
+            pathLength = new IntByReference();
+            DoubleByReference pathCost = new DoubleByReference();
 			if (collisionCircleCenters == null) {
                 if (!INSTANCE.plan(mapFilename, mapResolution, robotRadius,
                      start_.getX(), start_.getY(), start_.getTheta(), goal_.getX(),
@@ -194,7 +196,7 @@ public class OMPLPlanner extends AbstractMotionPlanner {
                     if (!INSTANCE.plan_multiple_circles(mapFilename, mapResolution,
                         robotRadius, xCoords, yCoords, numCoords, start_.getX(),
                         start_.getY(), start_.getTheta(), goal_.getX(), goal_.getY(),
-                        goal_.getTheta(), path, pathLength, distanceBetweenPathPoints,
+                        goal_.getTheta(), path, pathLength, pathCost, distanceBetweenPathPoints,
                         turningRadius, this.plannerType.ordinal(), mode, 
                         this.isHolonomicRobot, this.experienceDBPath, this.logFile)) return false;
 				}

@@ -9,8 +9,8 @@
 #include <ompl/geometric/planners/rrt/LBTRRT.h>
 #include <ompl/geometric/planners/rrt/LazyRRT.h>
 #include <ompl/geometric/planners/rrt/pRRT.h>
-#include <smpl_ompl_interface/ompl_interface.h>
 #include <ompl/util/Console.h>
+#include <smpl_ompl_interface/ompl_interface.h>
 
 #include <chrono>
 #include <ctime>
@@ -47,7 +47,7 @@ enum PLANNER_TYPE {
     PLANNER_TYPE_COUNT
 };
 
-enum MODE { NORMAL = 0, REPLANNING, EXPERIENCE_GENERATION, MODE_COUNT };
+enum MODE { NORMAL = 0, REPLANNING, EXPERIENCE_GENERATION, OPTIMAL_PATHS, MODE_COUNT };
 
 bool LOGGING_ACTIVE = true;
 bool MAP_LOADED = false;
@@ -204,15 +204,14 @@ std::string getPathToLog(PathPose **path, int pathLength)
     return log.str();
 }
 
-extern "C" bool
-plan_multiple_circles(const char *mapFilename, double mapResolution,
-                      double robotRadius, double *xCoords, double *yCoords,
-                      int numCoords, double startX, double startY,
-                      double startTheta, double goalX, double goalY,
-                      double goalTheta, PathPose **path, int *pathLength,
-                      double distanceBetweenPathPoints, double turningRadius,
-                      PLANNER_TYPE plannerType, MODE mode, bool isHolonomicRobot,
-                      const char* experienceDBPath, const char* logfile)
+extern "C" bool plan_multiple_circles(
+    const char *mapFilename, double mapResolution, double robotRadius,
+    double *xCoords, double *yCoords, int numCoords, double startX,
+    double startY, double startTheta, double goalX, double goalY,
+    double goalTheta, PathPose **path, int *pathLength, double* pathCost,
+    double distanceBetweenPathPoints, double turningRadius,
+    PLANNER_TYPE plannerType, MODE mode, bool isHolonomicRobot,
+    const char *experienceDBPath, const char *logfile)
 {
     std::string logFilename = std::string(logfile);
 
@@ -220,13 +219,12 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
         plannerType < PLANNER_TYPE::PLANNER_TYPE_COUNT &&
         mode == MODE::NORMAL) {
         // Setup OMPL logging stream to the log file
-        ompl::msg::useOutputHandler(new ompl::msg::OutputHandlerFile(
-            logFilename.c_str()));
+        ompl::msg::useOutputHandler(
+            new ompl::msg::OutputHandlerFile(logFilename.c_str()));
         LOGGING_ACTIVE = true;
     }
     else {
-        if (mode == MODE::REPLANNING)
-        {
+        if (mode == MODE::REPLANNING) {
             // First log that it is a replan and then disable logging
             LOGGING_ACTIVE = true;
             log(logFilename, "Replanning Triggered\n");
@@ -238,10 +236,10 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     std::string probInfo = getProblemInfo(
         mapFilename, mapResolution, robotRadius, xCoords, yCoords, numCoords,
         startX, startY, startTheta, goalX, goalY, goalTheta, path, pathLength,
-        distanceBetweenPathPoints, turningRadius, plannerType, mode, isHolonomicRobot);
+        distanceBetweenPathPoints, turningRadius, plannerType, mode,
+        isHolonomicRobot);
     log(logFilename, probInfo);
 
-    double pLen = 0.0;
     int numInterpolationPoints = 0;
     bool isReplan = (mode == MODE::REPLANNING);
 
@@ -253,9 +251,9 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
             ? ob::StateSpacePtr(new ob::SE2StateSpace())
             : ob::StateSpacePtr(new ob::ReedsSheppStateSpace(turningRadius));
 
-    if (!MAP_LOADED || (mode == MODE::REPLANNING))
-    {
-        GRID_MAP.loadFromBitmapFile(mapFilename, (float)mapResolution, 0.0f, 0.0f);
+    if (!MAP_LOADED || isReplan) {
+        GRID_MAP.loadFromBitmapFile(mapFilename, (float)mapResolution, 0.0f,
+                                    0.0f);
         std::cout << "Loaded map (1) " << mapFilename << std::endl;
         MAP_LOADED = true;
     }
@@ -278,10 +276,9 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
 
     // set state validity checking for this space
     ob::SpaceInformationPtr si(ssPtr->getSpaceInformation());
-    si->setStateValidityChecker(ob::StateValidityCheckerPtr(
-        new MultipleCircleStateValidityChecker(si, &GRID_MAP,
-                                               robotRadius, xCoords, yCoords,
-                                               numCoords)));
+    si->setStateValidityChecker(
+        ob::StateValidityCheckerPtr(new MultipleCircleStateValidityChecker(
+            si, &GRID_MAP, robotRadius, xCoords, yCoords, numCoords)));
 
     ompl::tools::ExperienceSetup *ePtr =
         dynamic_cast< ot::ExperienceSetup * >(ssPtr);
@@ -290,7 +287,8 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
         ePtr->setRepairPlanner(repairPlanner);
 
         // Disable planning from recall if we are generating experiences
-        if (mode == MODE::EXPERIENCE_GENERATION) {
+        if (mode == MODE::EXPERIENCE_GENERATION ||
+            mode == MODE::OPTIMAL_PATHS) {
             ePtr->enablePlanningFromRecall(false);
         }
     }
@@ -309,33 +307,36 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
     ssPtr->setup();
 
     ob::PlannerPtr planner;
-    if (isReplan || plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT) 
-    {
+    if (isReplan || plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT) {
         planner = ob::PlannerPtr(new og::RRTConnect(si));
     }
-    else if (plannerType == PLANNER_TYPE::EXPERIENCE_GRAPHS) 
-    {
+    else if (plannerType == PLANNER_TYPE::EXPERIENCE_GRAPHS) {
         bool useEGraphPlanner = mode == MODE::NORMAL;
         bool saveExperiences = mode == MODE::EXPERIENCE_GENERATION;
-        std::string improveSolution = (mode == MODE::EXPERIENCE_GENERATION) ? "1.0" : "0.0";
-        std::string initialEpsilon = "100.0";
 
-        planner = ob::PlannerPtr(
-            new smpl::OMPLPlanner(si, useEGraphPlanner, experienceDBPath, "", 
-                                NULL, saveExperiences));
+        // If determining optimal paths, do not set a time limit on the search
+        std::string boundExpansions = (mode == MODE::OPTIMAL_PATHS) ? "0.0" : "1.0";
+
+        std::string initialEpsilon = "100.0";
+        std::string improveSolution =
+            ((mode == MODE::EXPERIENCE_GENERATION) ||
+             (mode == MODE::OPTIMAL_PATHS)) ? "1.0" : "0.0";
+
+        planner = ob::PlannerPtr(new smpl::OMPLPlanner(
+            si, useEGraphPlanner, experienceDBPath, "", NULL, saveExperiences));
+
         planner->params().setParam("epsilon", initialEpsilon);
         planner->params().setParam("improve_solution", improveSolution);
+        planner->params().setParam("bound_expansions", boundExpansions);
     }
-    else 
-    {
-        // planner = ob::PlannerPtr(new og::RRTConnect(si));
+    else {
         planner = ob::PlannerPtr(new og::RRTstar(si));
     }
 
     ssPtr->setPlanner(planner);
     ssPtr->setup();
 
-    float planningTime = (mode == MODE::EXPERIENCE_GENERATION) ? 60.0 : 30.0;
+    float planningTime = (mode == MODE::EXPERIENCE_GENERATION) ? 120.0 : 30.0; // in seconds
 
     // attempt to solve the problem within the specified planning time
     ob::PlannerStatus solved = ssPtr->solve(planningTime);
@@ -345,18 +346,17 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
         if (plannerType == PLANNER_TYPE::SIMPLE_RRT_CONNECT ||
             plannerType == PLANNER_TYPE::SIMPLE_RRT_STAR ||
             plannerType == PLANNER_TYPE::EXPERIENCE_GRAPHS) {
-                ssPtr->simplifySolution();
-            }
-        if (plannerType == PLANNER_TYPE::EXPERIENCE_GRAPHS)
-        {
+            ssPtr->simplifySolution();
+        }
+        if (plannerType == PLANNER_TYPE::EXPERIENCE_GRAPHS) {
             ob::PlannerSolution sol(nullptr);
             ssPtr->getProblemDefinition()->getSolution(sol);
             log(logFilename, sol.plannerName_ + std::string("\n"));
         }
 
         og::PathGeometric pth = ssPtr->getSolutionPath();
-        pLen = pth.length();
-        numInterpolationPoints = ((double)pLen) / distanceBetweenPathPoints;
+        *pathCost = pth.length();
+        numInterpolationPoints = (*pathCost) / distanceBetweenPathPoints;
         if (numInterpolationPoints > 0)
             pth.interpolate(numInterpolationPoints);
 
@@ -385,9 +385,9 @@ plan_multiple_circles(const char *mapFilename, double mapResolution,
             log(logFilename, stream.str());
         }
 
-        std::stringstream pLenStr;
-        pLenStr << "Length of computed path = " << pLen << std::endl;
-        log(logFilename, pLenStr.str());
+        std::stringstream pathCostStr;
+        pathCostStr << "Length of computed path = " << *pathCost << std::endl;
+        log(logFilename, pathCostStr.str());
     }
     else {
         std::cout << "No solution found" << std::endl;
