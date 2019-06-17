@@ -351,8 +351,8 @@ class LogAnalyzer:
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         ax.set_title(title)
+        ax.grid(True)
         ax.legend()
-        ax.grid()
 
     def custom_bar_plot(self, ax, x, height, label=None, color=None, barwidth=0.8,
                         bottom=0, xlabel=None, ylabel=None, title=None,
@@ -378,7 +378,7 @@ class LogAnalyzer:
                 ax.set_yticks(yticks)
 
             ax.set_title(title)
-            ax.grid()
+            ax.grid(True)
         ax.legend()
 
     def get_figure_title(self, prefix, fleets, assisted_sampling):
@@ -572,20 +572,20 @@ class LogAnalyzer:
         ax2 = fig.add_subplot(222)
         fleet_ids = np.arange(1, path_lengths.shape[0] + 1, 1)
         for id in range(path_lengths.shape[1]):
-            robot_path_lengths = path_lengths[:, id]
-            # TODO: Although the units seems to be correct in meters, how do we describe the rotation since that is also included in the path length?
-            self.custom_line_plot(ax2, fleet_ids, robot_path_lengths, label="Robot {}".format(id+1),
-                                  xlabel="Fleet ID", ylabel="Length measure",
+            robot_optimality_ratio = np.clip(path_lengths[:, id] / optimal_path_lengths[:, id], 1.0, 100.0)
+            self.custom_line_plot(ax2, fleet_ids, robot_optimality_ratio, label="Robot {}".format(id+1),
+                                  xlabel="Fleet ID", ylabel="Suboptimality ratio",
                                   xticks=fleet_ids, useLog10Scale=False,
-                                  title="Path Lengths")
+                                  title="Path Suboptimality")
 
         ax3 = fig.add_subplot(223)
         for id in range(path_lengths.shape[1]):
-            robot_optimality_ratio = np.clip(optimal_path_lengths[:, id] / path_lengths[:, id], 0.0, 1.0)
-            self.custom_line_plot(ax3, fleet_ids, robot_optimality_ratio, label="Robot {}".format(id+1),
-                                  xlabel="Fleet ID", ylabel="Optimality ratio",
-                                  xticks=fleet_ids, useLog10Scale=False, yticks=np.arange(0, 1.1, 0.1),
-                                  title="Path Optimality")
+            robot_path_lengths = path_lengths[:, id]
+            # TODO: Although the units seems to be correct in meters, how do we describe the rotation since that is also included in the path length?
+            self.custom_line_plot(ax3, fleet_ids, robot_path_lengths, label="Robot {}".format(id+1),
+                                  xlabel="Fleet ID", ylabel="Length measure",
+                                  xticks=fleet_ids, useLog10Scale=False,
+                                  title="Path Lengths")
 
         fig.suptitle(self.get_figure_title("Plan stats", fleets, assisted_sampling))
 
