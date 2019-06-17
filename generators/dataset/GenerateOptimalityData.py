@@ -10,12 +10,22 @@ import pandas as pd
 import yaml
 import argparse
 import shutil
+import matplotlib.pyplot as plt
 
 # A class to receive the array of poses from the shared libarary
 class PathPose(Structure):
     _fields_=[("x", c_double),
               ("y", c_double),
               ("theta", c_double)]
+
+    def printPose(self):
+        print("(", self.x, self.y, self.theta, ")")
+
+    def as_numpy_array(self):
+        return np.array([self.x, self.y, self.theta])
+
+
+planner_names = ["SIMPLE(RRT-Connect)", "Lightning.db", "Thunder.db", "EGraphs", "SIMPLE(RRT-Star)"]
 
 class OMPL_Wrapper():
     def __init__(self, map_filepath,
@@ -126,34 +136,109 @@ class OMPL_Wrapper():
                                         byref(path), byref(path_length), byref(path_cost), self.dist_between_points,
                                         self.turning_radius, self.planner_type, mode, self.is_holonomic_robot,
                                         self.experienceDBPath, self.logfile)
+        extracted_path = []
+        for i in range(path_length.value):
+            extracted_path.append(path[i].as_numpy_array())
 
-        return path_cost.value
+        return path_cost.value, np.array(extracted_path)
 
     def find_optimal_solutions(self):
-        print("\n============ Finding optimal solutions ============")
-        n_testing_problems = self.start_testing_poses.shape[0]
-        path_costs = []
-        for p_idx in range(n_testing_problems):
-            print("\n----------- Problem", p_idx+1, "/", n_testing_problems, "-----------")
-            path_costs.append(self.invoke(self.start_testing_poses[p_idx], self.goal_testing_poses[p_idx]))
-        print("\n============ Found all optimal solutions ============")
-        print("\nSaving optimality data")
-        self.save_optimal_costs(np.array(path_costs))
+        planner_ids = [0, 3, 4] # RRT-Connect, E-Graphs and RRT-Star
+        planner_names = ["RRT-Connect", "ARA-Star", "RRT*"]
+        for i, planner in enumerate(planner_ids):
+            print("\n============ Finding optimal solutions for planner {} ============".format(planner_names[i]))
+            self.planner_type = c_int(planner)
+            n_testing_problems = self.start_testing_poses.shape[0]
+            path_costs = []
+            paths = []
+            for p_idx in range(n_testing_problems):
+                print("\n----------- Problem", p_idx+1, "/", n_testing_problems, "-----------")
+                path_len, path = self.invoke(self.start_testing_poses[p_idx], self.goal_testing_poses[p_idx])
+                path_costs.append(path_len)
+                paths.append(path)
+            print("\n============ Found all optimal solutions for planner {} ============".format(planner_names[i]))
+            print("\nSaving optimality data")
+            self.save_optimal_costs(np.array(path_costs), paths, planner_names[i])
 
-    def save_optimal_costs(self, path_costs):
-        save_path = os.path.join(os.path.dirname(self.testing_data_file_name), "Optimality")
+    def compare_optimal_solution_costs(self):
+        planner_ids = [0, 3, 4] # RRT-Connect, E-Graphs and RRT-Star
+        planner_names = ["RRT-Connect", "ARA-Star", "RRT*"]
+        planner_costs = []
+        planner_paths = []
+        for planner_idx, planner in enumerate(planner_ids):
+            directory = os.path.join(os.path.dirname(self.testing_data_file_name), "Optimality")
+            directory = os.path.join(directory, planner_names[planner_idx])
+            directory = os.path.join(directory, os.path.splitext(os.path.basename(self.testing_data_file_name))[0])
+            files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
+            costs = []
+            paths = []
+            # Recontruct file names to avoid sorting problems for filenames greater than 9
+            for i in range(len(files)):
+                files[i] = "Path" + str(i+1) + ".txt"
+                filepath = os.path.join(directory, files[i])
+                loaded_data = np.loadtxt(filepath, delimiter='\t')
+                costs.append(loaded_data[0, 0])
+                paths.append(loaded_data[1:, :])
+            planner_costs.append(np.array(costs))
+            planner_paths.append(paths)
+        planner_costs = np.array(planner_costs).T
+
+        combined_costs = []
+        for i in range(0, int(planner_costs.shape[0] / 3)):
+            combined_costs.append(np.sum(planner_costs[3*i : 3*(i+1)], axis=0).tolist())
+        combined_costs = np.array(combined_costs)
+
+        combined_paths = []
+        for planner_idx in range(len(planner_ids)):
+            path_list = planner_paths[planner_idx]
+            merged_paths = []
+            for path_idx in range(0, len(path_list), 3):
+                path1 = path_list[path_idx]
+                path2 = path_list[path_idx+1]
+                path3 = path_list[path_idx+2]
+                merged_paths.append(np.vstack((path1, path2, path3)))
+            combined_paths.append(merged_paths)
+
+        fig = plt.figure(figsize=(10, 10))
+        ax1 = fig.add_subplot(111)
+        iterations = np.arange(1, combined_costs.shape[0]+1, 1)
+        for i in range(len(planner_ids)):
+            planner_name = os.path.splitext(planner_names[i])[0]
+            ax1.plot(iterations, combined_costs[:, i], label="{}".format(planner_name))
+
+        ax1.set_xticks(iterations)
+        ax1.set_xlabel("Robot ID")
+        ax1.set_ylabel("Path Length")
+        ax1.set_title("Comparison of length of paths generated by multiple planners for a given planning problem")
+        ax1.grid()
+        ax1.legend()
+
+        plot_filename = os.path.splitext(os.path.basename(self.testing_data_file_name).split('-')[1])[0]
+        plot_filename = "Optimality/" + plot_filename + "_Comparison.svg"
+        plot_name = os.path.join(os.path.dirname(self.testing_data_file_name), plot_filename)
+        plt.savefig(plot_name, format='svg')
+
+    def save_optimal_costs(self, path_costs, paths, planner_name):
+        assert path_costs.size == len(paths)
+        save_dir = os.path.join(os.path.dirname(self.testing_data_file_name), "Optimality")
+        save_dir = os.path.join(save_dir, planner_name)
+        save_dir = os.path.join(save_dir, os.path.splitext(os.path.basename(self.testing_data_file_name))[0])
         # Make the directory if it does not exist
         try:
-            os.makedirs(save_path)
+            os.makedirs(save_dir)
         except OSError as exc:
-            if exc.errno ==errno.EEXIST and os.path.isdir(save_path):
+            if exc.errno ==errno.EEXIST and os.path.isdir(save_dir):
                 pass
             else:
-                raise "Could not create directory {}".format(save_path)
-        
-        save_path = os.path.join(save_path, os.path.basename(self.testing_data_file_name))
-        np.savetxt(save_path, path_costs, delimiter='\t')
-        print("Optimal costs saved to file:", save_path)
+                raise "Could not create directory {}".format(save_dir)
+
+        for i, p in enumerate(paths):
+            path_len = np.ones((1, 3)) * path_costs[i]
+            combined_data = np.vstack((path_len, np.array(p)))
+            filename = "Path" + str(i+1) + ".txt"
+            save_path = os.path.join(save_dir, filename)
+            np.savetxt(save_path, combined_data, delimiter='\t')
+        print("Optimal costs saved to directory:", save_dir)
 
 
 def get_footprint(args):
@@ -171,7 +256,6 @@ def get_footprint(args):
 def get_database_filepath(args, map_name):
     sampling_name = "Uniform" if args.no_hotspots else "UsingHotspots"
     kinematics = "ReedsSheep" if args.non_holonomic else "Holonomic"
-    planner_names = ["SIMPLE(RRT-Connect)", "Lightning.db", "Thunder.db", "EGraphs", "SIMPLE(RRT-Star)"]
     directory = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/tempExpDB/")
     directory = os.path.join(directory, map_name)
     directory = os.path.join(directory, str(args.count)+"_optimalityExperiences")
@@ -235,7 +319,8 @@ def main():
                     args.dist_between_points, args.planner_type, "",
                     not args.non_holonomic, testing_dataset, database_path)
 
-    ompl_wrapper.find_optimal_solutions()
+    # ompl_wrapper.find_optimal_solutions()
+    ompl_wrapper.compare_optimal_solution_costs()
 
 if __name__ == "__main__":
     main()
