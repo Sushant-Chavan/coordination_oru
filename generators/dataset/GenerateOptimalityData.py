@@ -54,15 +54,21 @@ class OMPL_Wrapper():
         data = df.values
         n_missions = int(data.shape[0]/3)
 
+        source_offset = n_missions
+        dest_offset = (2 * n_missions)
+
         self.start_testing_poses = []
         self.goal_testing_poses = []
         for mission in range(n_missions):
-            self.start_testing_poses.append(data[mission])
-            self.goal_testing_poses.append(data[mission + 3])
-            self.start_testing_poses.append(data[mission +3])
-            self.goal_testing_poses.append(data[mission + 6])
-            self.start_testing_poses.append(data[mission + 6])
-            self.goal_testing_poses.append(data[mission])
+            start = data[mission]
+            source = data[mission + source_offset]
+            dest = data[mission + dest_offset]
+            self.start_testing_poses.append(start)
+            self.goal_testing_poses.append(source)
+            self.start_testing_poses.append(source)
+            self.goal_testing_poses.append(dest)
+            self.start_testing_poses.append(dest)
+            self.goal_testing_poses.append(start)
         self.start_testing_poses = np.array(self.start_testing_poses)
         self.goal_testing_poses = np.array(self.goal_testing_poses)
 
