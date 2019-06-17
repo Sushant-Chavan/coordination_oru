@@ -549,7 +549,8 @@ class LogAnalyzer:
     def plot_path_predictability_stats(self, assisted_sampling, fleets=None, similarity_threshold = 0.3):
         if fleets is None:
             fleets = self.fleet_missions
-        similarities, nTests = self.determine_num_similar_paths(fleets, similarity_threshold=similarity_threshold)
+        thresholds = [similarity_threshold, np.round(similarity_threshold-0.2, 2), np.round(similarity_threshold+0.2, 2)]
+        similarities, nTests = self.determine_num_similar_paths(fleets, similarity_threshold=thresholds[0])
         dissimilarities = (np.ones_like(similarities) * nTests) - similarities
         robot_ids = np.arange(1, similarities.size+1, 1)
 
@@ -561,8 +562,7 @@ class LogAnalyzer:
                          title="Number of predictable paths with similarity threshold = {}".format(similarity_threshold))
         self.custom_bar_plot(ax1, robot_ids, dissimilarities, label="Number of non-similar paths",
                          bottom=similarities, color='r', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
-                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1),
-                         title="Number of predictable paths with similarity threshold = {}".format(similarity_threshold))
+                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1))
 
         # Get the path lengths of all the robot missions in all fleet trials
         path_lengths = np.zeros((len(fleets), fleets[0].nRobots))
@@ -581,14 +581,40 @@ class LogAnalyzer:
                                   xticks=fleet_ids, useLog10Scale=False,
                                   title="Path Suboptimality")
 
+        similarities, nTests = self.determine_num_similar_paths(fleets, similarity_threshold=thresholds[1])
+        dissimilarities = (np.ones_like(similarities) * nTests) - similarities
+        robot_ids = np.arange(1, similarities.size+1, 1)
+
         ax3 = fig.add_subplot(223)
-        for id in range(path_lengths.shape[1]):
-            robot_path_lengths = path_lengths[:, id]
-            # TODO: Although the units seems to be correct in meters, how do we describe the rotation since that is also included in the path length?
-            self.custom_line_plot(ax3, fleet_ids, robot_path_lengths, label="Robot {}".format(id+1),
-                                  xlabel="Fleet ID", ylabel="Length measure",
-                                  xticks=fleet_ids, useLog10Scale=False,
-                                  title="Path Lengths")
+        self.custom_bar_plot(ax3, robot_ids, similarities, label='Number of similar paths',
+                         color='g', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
+                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1), avg_line_col='b',
+                         title="Number of predictable paths with similarity threshold = {}".format(thresholds[1]))
+        self.custom_bar_plot(ax3, robot_ids, dissimilarities, label="Number of non-similar paths",
+                         bottom=similarities, color='r', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
+                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1))
+
+        similarities, nTests = self.determine_num_similar_paths(fleets, similarity_threshold=thresholds[2])
+        dissimilarities = (np.ones_like(similarities) * nTests) - similarities
+        robot_ids = np.arange(1, similarities.size+1, 1)
+
+        ax4 = fig.add_subplot(224)
+        self.custom_bar_plot(ax4, robot_ids, similarities, label='Number of similar paths',
+                         color='g', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
+                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1), avg_line_col='b',
+                         title="Number of predictable paths with similarity threshold = {}".format(thresholds[2]))
+        self.custom_bar_plot(ax4, robot_ids, dissimilarities, label="Number of non-similar paths",
+                         bottom=similarities, color='r', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
+                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1))
+
+        # ax3 = fig.add_subplot(223)
+        # for id in range(path_lengths.shape[1]):
+        #     robot_path_lengths = path_lengths[:, id]
+        #     # TODO: Although the units seems to be correct in meters, how do we describe the rotation since that is also included in the path length?
+        #     self.custom_line_plot(ax3, fleet_ids, robot_path_lengths, label="Robot {}".format(id+1),
+        #                           xlabel="Fleet ID", ylabel="Length measure",
+        #                           xticks=fleet_ids, useLog10Scale=False,
+        #                           title="Path Lengths")
 
         fig.suptitle(self.get_figure_title("Plan stats", fleets, assisted_sampling))
 
