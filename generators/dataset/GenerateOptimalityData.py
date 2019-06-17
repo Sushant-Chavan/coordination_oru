@@ -154,6 +154,7 @@ class OMPL_Wrapper():
             for p_idx in range(n_testing_problems):
                 print("\n----------- Problem", p_idx+1, "/", n_testing_problems, "-----------")
                 path_len, path = self.invoke(self.start_testing_poses[p_idx], self.goal_testing_poses[p_idx])
+                assert path_len > 0, "Failed to find solution for the planning problem!"
                 path_costs.append(path_len)
                 paths.append(path)
             print("\n============ Found all optimal solutions for planner {} ============".format(planner_names[i]))
