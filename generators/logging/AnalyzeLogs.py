@@ -200,13 +200,22 @@ class FleetMissionData:
 
         assert self.nRobots == len(self.robot_missions), "Number of missions loaded not equal to number of robots in fleet!!"
 
-    def load_optimal_path_lengths(self):
+    def load_optimal_path_lengths(self, planner_name="ARA-Star"):
         directory = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/testingData/Optimality/")
-        filename = self.map + "-" + str(self.nRobots) + "Problems.txt"
-        filepath = os.path.join(directory, filename)
-        assert os.path.isfile(filepath), "Optimal path cost file ({}) not found!".format(filename)
+        directory = os.path.join(directory, planner_name)
+        directory = os.path.join(directory, self.map + "-" + str(self.nRobots) + "Problems")
+        files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
+        costs = []
+        paths = []
+        # Recontruct file names to avoid sorting problems for filenames greater than 9
+        for i in range(len(files)):
+            files[i] = "Path" + str(i+1) + ".txt"
+            filepath = os.path.join(directory, files[i])
+            loaded_data = np.loadtxt(filepath, delimiter='\t')
+            costs.append(loaded_data[0, 0])
+            paths.append(loaded_data[1:, :])
 
-        optimal_costs = np.loadtxt(filepath, delimiter='\t')
+        optimal_costs = np.array(costs)
         assert optimal_costs.size == (3 * self.nRobots), "Number of optimal path costs not equal to total number of robot plans"
 
         for i in range(self.nRobots):
