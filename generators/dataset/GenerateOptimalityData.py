@@ -162,6 +162,9 @@ class OMPL_Wrapper():
             self.save_optimal_costs(np.array(path_costs), paths, planner_names[i])
 
     def reject_outliers(self, data, m=2):
+        if data.size <= 20:
+            return data
+
         return data[abs(data - np.mean(data)) < m * np.std(data)]
 
     def clean_mean(self, data, outlier_threshold=2):
