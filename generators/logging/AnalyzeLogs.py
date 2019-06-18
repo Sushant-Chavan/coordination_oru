@@ -338,7 +338,8 @@ class LogAnalyzer:
 
     def custom_line_plot(self, ax, x, y, label=None, color=None, linestyle=None,
                     linewidth=None, xlabel=None, ylabel=None, title=None,
-                    xticks=None, yticks=None, useLog10Scale=False, avg_line_col=None, avg_text_color='black'):
+                    xticks=None, yticks=None, useLog10Scale=False, avg_line_col=None,
+                    avg_text_color='black', avg_line_style='--'):
         if useLog10Scale:
             y = np.log10(y)
             ylabel = ylabel + " ($log_{10}$ scale)"
@@ -346,7 +347,7 @@ class LogAnalyzer:
 
         if avg_line_col is not None:
             y_mean = np.ones_like(y) * self.clean_mean(y)
-            ax.plot(x, y_mean, label="Mean " + label, color=avg_line_col)
+            ax.plot(x, y_mean, label="Mean " + label, color=avg_line_col, linestyle=avg_line_style)
             ax.text(x[0], y_mean[0], str(np.round(y_mean[0], decimals=3)), color=avg_text_color, fontweight='bold', horizontalalignment='left', verticalalignment='bottom')
 
         if xticks is not None:
@@ -427,23 +428,23 @@ class LogAnalyzer:
             nPlans_from_recall.append(f.nPlans_from_recall)
             nPlans_from_scratch.append(f.nPlans_from_scratch)
 
-        fig = plt.figure(figsize=(15, 15))
-        ax = fig.add_subplot(221)
+        fig = plt.figure(figsize=(15, 7.5))
+        ax = fig.add_subplot(121)
         self.custom_line_plot(ax, fleet_ids, path_planning_times, label="Path planning time",
                          color='r', xlabel="Fleet ID", ylabel="Time in seconds",
-                         xticks=fleet_ids, useLog10Scale=False, avg_line_col='b')
+                         xticks=fleet_ids, useLog10Scale=False, avg_line_col='r')
 
-        ax = fig.add_subplot(222)
+        # ax = fig.add_subplot(222)
         self.custom_line_plot(ax, fleet_ids, path_simpl_times, label="Path simplification time",
-                         color='r', xlabel="Fleet ID", ylabel="Time in seconds",
+                         color='b', xlabel="Fleet ID", ylabel="Time in seconds",
                          xticks=fleet_ids, useLog10Scale=False, avg_line_col='b')
 
-        ax = fig.add_subplot(223)
+        # ax = fig.add_subplot(223)
         self.custom_line_plot(ax, fleet_ids, total_plan_times, label="Total planning time",
-                         color='r', xlabel="Fleet ID", ylabel="Time in seconds",
-                         xticks=fleet_ids, useLog10Scale=False, avg_line_col='b')
+                         color='g', xlabel="Fleet ID", ylabel="Time in seconds",
+                         xticks=fleet_ids, useLog10Scale=False, avg_line_col='g')
 
-        ax = fig.add_subplot(224)
+        ax = fig.add_subplot(122)
         self.custom_bar_plot(ax, fleet_ids, nPlans_from_recall, label="Number of plans from recall",
                          color='g', xlabel="Fleet ID", ylabel="Count",
                          xticks=fleet_ids, avg_line_col='b')
