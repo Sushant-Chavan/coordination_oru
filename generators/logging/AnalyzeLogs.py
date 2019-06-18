@@ -248,6 +248,9 @@ class FleetMissionData:
     def get_holonomic(self, robot_id=0):
         return self.robot_missions[robot_id].is_holonomic
 
+    def get_highest_robot_mission_execution_time(self):
+        return max([rm.total_execution_time for rm in self.robot_missions])
+
 # A class to extract relevant lines from a complete log file of a test run and generate a CSV logg file
 class LogAnalyzer:
     def __init__(self, planning_csv_abs_path, execution_csv_abs_path, nExperiences):
@@ -458,14 +461,14 @@ class LogAnalyzer:
             fleets = self.fleet_missions
 
         num_replans = np.zeros(len(fleets))
-        mean_execution_times = np.zeros_like(num_replans)
+        max_execution_times = np.zeros_like(num_replans)
         success_markers = ['X'] * len(fleets)
         success_status = np.zeros((len(fleets), 4))
         fleet_ids = np.arange(1, len(fleets)+1, 1)
 
         for i, f in enumerate(fleets):
             num_replans[i] = f.nReplans
-            mean_execution_times[i] = f.total_path_execution_time / f.nRobots
+            max_execution_times[i] = f.get_highest_robot_mission_execution_time()
             percent, max_robots = f.get_percentage_of_mission_success()
             if np.allclose(percent, 100.0):
                 success_markers[i] = "^"
@@ -475,12 +478,12 @@ class LogAnalyzer:
 
         fig = plt.figure(figsize=(15, 15))
         ax = fig.add_subplot(221)
-        self.custom_line_plot(ax, fleet_ids, mean_execution_times, label="Path execution time",
+        self.custom_line_plot(ax, fleet_ids, max_execution_times, label="Execution time",
                          color='r', xlabel="Fleet ID", ylabel="Time in seconds",
                          xticks=fleet_ids, useLog10Scale=False, avg_line_col='b',
-                         title="Mean path execution times per robot")
+                         title="Complete fleet mission execution time")
         for i, m in enumerate(success_markers):
-            ax.scatter(fleet_ids[i], mean_execution_times[i], marker=m, c='g', s=100)
+            ax.scatter(fleet_ids[i], max_execution_times[i], marker=m, c='g', s=100)
 
         ax = fig.add_subplot(222)
         self.custom_bar_plot(ax, fleet_ids, num_replans, label="",
@@ -670,7 +673,6 @@ def main():
     parser.add_argument("--nExperiences", type=int, help="Number of training problems used to build the experience DB. Default: 100", default=100)
     args = parser.parse_args()
 
-    planner_names = ["rrt_connect", "lightning", "thunder", "rrt_star"]
     planning_csv_filename = "Planning.csv"
     execution_csv_filename = "Execution.csv"
     log_dir = get_log_dir(args)
