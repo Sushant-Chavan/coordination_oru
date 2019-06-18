@@ -109,7 +109,6 @@ class OMPL_Wrapper():
                                         byref(path), byref(path_length), byref(path_cost), self.dist_between_points,
                                         self.turning_radius, self.planner_type, mode, self.is_holonomic_robot,
                                         self.experienceDBPath, self.logfile)
-        print("Found path with cost =", path_cost)
 
     def start_training(self):
         print("\n============ Starting Training ============")
@@ -132,7 +131,7 @@ def get_footprint(args):
     return footprint
 
 def get_database_filepath(args, map_name):
-    sampling_name = "Uniform" if args.no_hotspots else "UsingHotspots"
+    sampling_name = "Uniform" if args.uniform_sampling else "UsingHotspots"
     kinematics = "ReedsSheep" if args.non_holonomic else "Holonomic"
     planner_names = ["SIMPLE(RRT-Connect)", "Lightning.db", "Thunder.db", "EGraphs", "SIMPLE(RRT-Star)"]
     directory = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/experienceDBs/")
@@ -177,7 +176,7 @@ def main():
     parser.add_argument("--non_holonomic", type=bool, help="Flag to specify if the robot is non_holonomic. Default: False", default=False)
     parser.add_argument("--count", type=int, help="Number of problems present in the training dataset. Default: 10", default=10)
     parser.add_argument("--footprint", nargs="*", type=float, help="Robot footprint as a list of xmin xmax ymin ymax", default=[-0.25, 0.25, -0.25, 0.25])
-    parser.add_argument("--no_hotspots", type=bool, help="Indicate if the experience database is being generated using uniform sampling of the map. Default: False (hotspots used)", default=False)
+    parser.add_argument("--uniform_sampling", type=bool, help="Indicate if the experience database is being generated using uniform sampling of the map. Default: False (hotspots used)", default=False)
     args = parser.parse_args()
 
     root_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../")
@@ -185,7 +184,8 @@ def main():
     footprint = get_footprint(args)
 
     map_name = os.path.splitext(args.map_filename)[0]
-    training_dataset = os.path.abspath(root_dir + "/generated/trainingData/" + map_name + "-" + str(args.count) + "Problems.txt")
+    strategy = "UniformSampling/" if args.uniform_sampling is None else "UsingHospots/"
+    training_dataset = os.path.abspath(root_dir + "/generated/trainingData/" + strategy + map_name + "-" + str(args.count) + "Problems.txt")
 
     if not os.path.isfile(training_dataset):
         print("Could not find training dataset file at",training_dataset)

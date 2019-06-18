@@ -9,6 +9,7 @@ import glob
 import subprocess
 import sys
 import os
+import errno
 import yaml
 import time
 import pandas as pd
@@ -206,12 +207,30 @@ class DatasetGenerator():
         self.problems = self.problems.astype(int)
         return True
 
+    def get_or_create_dir(self, debugMaps=False):
+        strategy = "UniformSampling" if self.hotspot_means is None else "UsingHospots"
+        directory = os.path.join(self.root_dir, "generated/trainingData/")
+        directory = os.path.join(directory, strategy)
+        if debugMaps:
+            directory = os.path.join(directory, "debugMaps")
+
+        try:
+            os.makedirs(directory)
+        except OSError as exc:
+            if exc.errno ==errno.EEXIST and os.path.isdir(directory):
+                pass
+            else:
+                raise "Could not create directory {}".format(directory)
+
+        return directory
+
     def save_dataset_to_file(self, file_path=None):
         print("\nSaving dataset to a file...")
 
         if file_path is None:
-            file_path = self.root_dir + "/generated/trainingData/" + self.map_name +\
-                    "-" + str(self.problems.shape[0]) + "Problems.txt"
+            directory = self.get_or_create_dir()
+            filename = self.map_name + "-" + str(self.problems.shape[0]) + "Problems.txt"
+            file_path = os.path.join(directory, filename)
 
         height = self.img_height * self.resolution
 
@@ -318,8 +337,9 @@ class DatasetGenerator():
                  self.hotspot_means[i], self.sigma_interval))
 
         if file_path is None:
-            file_path = self.root_dir + "/generated/trainingData/debugMaps/" + self.map_name +\
-                        "-" + str(self.nProblems) + "Problems.svg"
+            directory = self.get_or_create_dir(debugMaps=True)
+            filename = self.map_name + "-" + str(self.nProblems) + "Problems.svg"
+            file_path = os.path.join(directory, filename)
         plt.savefig(file_path, format='svg')
         print("Saved debug map at", file_path)
 
