@@ -208,7 +208,7 @@ class DatasetGenerator():
         return True
 
     def get_or_create_dir(self, debugMaps=False):
-        strategy = "RandomSampling" if self.hotspot_means is None else "UsingHospots"
+        strategy = "UniformSampling" if self.hotspot_means is None else "UsingHospots"
         directory = os.path.join(self.root_dir, "generated/trainingData/")
         directory = os.path.join(directory, strategy)
         if debugMaps:
