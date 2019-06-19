@@ -184,7 +184,7 @@ def main():
     footprint = get_footprint(args)
 
     map_name = os.path.splitext(args.map_filename)[0]
-    strategy = "UniformSampling/" if args.uniform_sampling is None else "UsingHospots/"
+    strategy = "UniformSampling/" if args.uniform_sampling else "UsingHospots/"
     training_dataset = os.path.abspath(root_dir + "/generated/trainingData/" + strategy + map_name + "-" + str(args.count) + "Problems.txt")
 
     if not os.path.isfile(training_dataset):
