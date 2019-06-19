@@ -248,6 +248,9 @@ class FleetMissionData:
     def get_holonomic(self, robot_id=0):
         return self.robot_missions[robot_id].is_holonomic
 
+    def get_highest_robot_mission_execution_time(self):
+        return max([rm.total_execution_time for rm in self.robot_missions])
+
 # A class to extract relevant lines from a complete log file of a test run and generate a CSV logg file
 class LogAnalyzer:
     def __init__(self, planning_csv_abs_path, execution_csv_abs_path, nExperiences):
@@ -335,7 +338,8 @@ class LogAnalyzer:
 
     def custom_line_plot(self, ax, x, y, label=None, color=None, linestyle=None,
                     linewidth=None, xlabel=None, ylabel=None, title=None,
-                    xticks=None, yticks=None, useLog10Scale=False, avg_line_col=None, avg_text_color='black'):
+                    xticks=None, yticks=None, useLog10Scale=False, avg_line_col=None,
+                    avg_text_color='black', avg_line_style='--'):
         if useLog10Scale:
             y = np.log10(y)
             ylabel = ylabel + " ($log_{10}$ scale)"
@@ -343,7 +347,7 @@ class LogAnalyzer:
 
         if avg_line_col is not None:
             y_mean = np.ones_like(y) * self.clean_mean(y)
-            ax.plot(x, y_mean, label="Mean " + label, color=avg_line_col)
+            ax.plot(x, y_mean, label="Mean " + label, color=avg_line_col, linestyle=avg_line_style)
             ax.text(x[0], y_mean[0], str(np.round(y_mean[0], decimals=3)), color=avg_text_color, fontweight='bold', horizontalalignment='left', verticalalignment='bottom')
 
         if xticks is not None:
@@ -360,7 +364,7 @@ class LogAnalyzer:
     def custom_bar_plot(self, ax, x, height, label=None, color=None, barwidth=0.8,
                         bottom=0, xlabel=None, ylabel=None, title=None,
                         xticks=None, yticks=None, avg_line_col=None,
-                        avg_text_color='black', value_color=None):
+                        avg_text_color='black', avg_line_style='--', value_color=None):
         ax.bar(x, height, label=label, color=color, width=barwidth, bottom=bottom)
 
         if value_color is not None:
@@ -368,7 +372,7 @@ class LogAnalyzer:
                 ax.text(x[i], h, str(h), color=value_color, fontweight='bold', horizontalalignment='center')
         if avg_line_col is not None:
             mean_height = np.ones_like(height) * self.clean_mean(height)
-            ax.plot(x, mean_height, label="Mean " + label, color=avg_line_col, linewidth=3.0)
+            ax.plot(x, mean_height, label="Mean " + label, color=avg_line_col, linestyle=avg_line_style, linewidth=3.0)
             ax.text(x[0], mean_height[0], str(np.round(mean_height[0], decimals=3)), color=avg_text_color, fontweight='bold', horizontalalignment='left', verticalalignment='bottom')
 
         if isinstance(bottom, int) and bottom == 0:
@@ -424,23 +428,23 @@ class LogAnalyzer:
             nPlans_from_recall.append(f.nPlans_from_recall)
             nPlans_from_scratch.append(f.nPlans_from_scratch)
 
-        fig = plt.figure(figsize=(15, 15))
-        ax = fig.add_subplot(221)
+        fig = plt.figure(figsize=(15, 7.5))
+        ax = fig.add_subplot(121)
         self.custom_line_plot(ax, fleet_ids, path_planning_times, label="Path planning time",
                          color='r', xlabel="Fleet ID", ylabel="Time in seconds",
-                         xticks=fleet_ids, useLog10Scale=False, avg_line_col='b')
+                         xticks=fleet_ids, useLog10Scale=False, avg_line_col='r')
 
-        ax = fig.add_subplot(222)
+        # ax = fig.add_subplot(222)
         self.custom_line_plot(ax, fleet_ids, path_simpl_times, label="Path simplification time",
-                         color='r', xlabel="Fleet ID", ylabel="Time in seconds",
+                         color='b', xlabel="Fleet ID", ylabel="Time in seconds",
                          xticks=fleet_ids, useLog10Scale=False, avg_line_col='b')
 
-        ax = fig.add_subplot(223)
+        # ax = fig.add_subplot(223)
         self.custom_line_plot(ax, fleet_ids, total_plan_times, label="Total planning time",
-                         color='r', xlabel="Fleet ID", ylabel="Time in seconds",
-                         xticks=fleet_ids, useLog10Scale=False, avg_line_col='b')
+                         color='g', xlabel="Fleet ID", ylabel="Time in seconds",
+                         xticks=fleet_ids, useLog10Scale=False, avg_line_col='g')
 
-        ax = fig.add_subplot(224)
+        ax = fig.add_subplot(122)
         self.custom_bar_plot(ax, fleet_ids, nPlans_from_recall, label="Number of plans from recall",
                          color='g', xlabel="Fleet ID", ylabel="Count",
                          xticks=fleet_ids, avg_line_col='b')
@@ -458,14 +462,14 @@ class LogAnalyzer:
             fleets = self.fleet_missions
 
         num_replans = np.zeros(len(fleets))
-        mean_execution_times = np.zeros_like(num_replans)
+        max_execution_times = np.zeros_like(num_replans)
         success_markers = ['X'] * len(fleets)
         success_status = np.zeros((len(fleets), 4))
         fleet_ids = np.arange(1, len(fleets)+1, 1)
 
         for i, f in enumerate(fleets):
             num_replans[i] = f.nReplans
-            mean_execution_times[i] = f.total_path_execution_time / f.nRobots
+            max_execution_times[i] = f.get_highest_robot_mission_execution_time()
             percent, max_robots = f.get_percentage_of_mission_success()
             if np.allclose(percent, 100.0):
                 success_markers[i] = "^"
@@ -475,12 +479,12 @@ class LogAnalyzer:
 
         fig = plt.figure(figsize=(15, 15))
         ax = fig.add_subplot(221)
-        self.custom_line_plot(ax, fleet_ids, mean_execution_times, label="Path execution time",
+        self.custom_line_plot(ax, fleet_ids, max_execution_times, label="Execution time",
                          color='r', xlabel="Fleet ID", ylabel="Time in seconds",
                          xticks=fleet_ids, useLog10Scale=False, avg_line_col='b',
-                         title="Mean path execution times per robot")
+                         title="Complete fleet mission execution time")
         for i, m in enumerate(success_markers):
-            ax.scatter(fleet_ids[i], mean_execution_times[i], marker=m, c='g', s=100)
+            ax.scatter(fleet_ids[i], max_execution_times[i], marker=m, c='g', s=100)
 
         ax = fig.add_subplot(222)
         self.custom_bar_plot(ax, fleet_ids, num_replans, label="",
@@ -670,7 +674,6 @@ def main():
     parser.add_argument("--nExperiences", type=int, help="Number of training problems used to build the experience DB. Default: 100", default=100)
     args = parser.parse_args()
 
-    planner_names = ["rrt_connect", "lightning", "thunder", "rrt_star"]
     planning_csv_filename = "Planning.csv"
     execution_csv_filename = "Execution.csv"
     log_dir = get_log_dir(args)
