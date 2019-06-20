@@ -184,24 +184,27 @@ class LogAnalyzer:
         plot_name = os.path.join(self.get_directory_to_save_plots(fleets, assisted_sampling), "execution_stats.svg")
         plt.savefig(plot_name, format='svg')
 
+    def plot_predictability_subplot(self, ax, similarity_threshold, fleets):
+        similarities, nTests = self.dwt.determine_num_similar_paths(fleets, similarity_threshold=similarity_threshold)
+        dissimilarities = (np.ones_like(similarities) * nTests) - similarities
+        robot_ids = np.arange(1, similarities.size+1, 1)
+
+        self.plot_utils.custom_bar_plot(ax, robot_ids, similarities, label='Number of similar paths',
+                         color='g', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
+                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1), avg_line_col='b',
+                         title="Number of predictable paths with similarity threshold = {}".format(similarity_threshold))
+        self.plot_utils.custom_bar_plot(ax, robot_ids, dissimilarities, label="Number of non-similar paths",
+                         bottom=similarities, color='r', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
+                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1))
+
     def plot_path_predictability_stats(self, assisted_sampling, fleets=None, similarity_threshold = 0.3):
         if fleets is None:
             fleets = self.fleet_missions
         thresholds = [similarity_threshold, np.round(similarity_threshold-0.2, 2), np.round(similarity_threshold+0.2, 2)]
         fig = plt.figure(figsize=(15, 15))
 
-        similarities, nTests = self.dwt.determine_num_similar_paths(fleets, similarity_threshold=thresholds[0])
-        dissimilarities = (np.ones_like(similarities) * nTests) - similarities
-        robot_ids = np.arange(1, similarities.size+1, 1)
-
         ax1 = fig.add_subplot(221)
-        self.plot_utils.custom_bar_plot(ax1, robot_ids, similarities, label='Number of similar paths',
-                         color='g', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
-                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1), avg_line_col='b',
-                         title="Number of predictable paths with similarity threshold = {}".format(similarity_threshold))
-        self.plot_utils.custom_bar_plot(ax1, robot_ids, dissimilarities, label="Number of non-similar paths",
-                         bottom=similarities, color='r', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
-                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1))
+        self.plot_predictability_subplot(ax1, thresholds[0], fleets)
 
         # Get the path lengths of all the robot missions in all fleet trials
         path_lengths = np.zeros((len(fleets), fleets[0].nRobots))
@@ -225,31 +228,11 @@ class LogAnalyzer:
         self.plot_utils.custom_box_plot(ax2, robot_ids, robot_suboptimality,
                                         xlabel="Robot ID", ylabel="Suboptimality ratio", title="Path Suboptimality")
 
-        similarities, nTests = self.dwt.determine_num_similar_paths(fleets, similarity_threshold=thresholds[1])
-        dissimilarities = (np.ones_like(similarities) * nTests) - similarities
-        robot_ids = np.arange(1, similarities.size+1, 1)
-
         ax3 = fig.add_subplot(223)
-        self.plot_utils.custom_bar_plot(ax3, robot_ids, similarities, label='Number of similar paths',
-                         color='g', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
-                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1), avg_line_col='b',
-                         title="Number of predictable paths with similarity threshold = {}".format(thresholds[1]))
-        self.plot_utils.custom_bar_plot(ax3, robot_ids, dissimilarities, label="Number of non-similar paths",
-                         bottom=similarities, color='r', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
-                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1))
-
-        similarities, nTests = self.dwt.determine_num_similar_paths(fleets, similarity_threshold=thresholds[2])
-        dissimilarities = (np.ones_like(similarities) * nTests) - similarities
-        robot_ids = np.arange(1, similarities.size+1, 1)
+        self.plot_predictability_subplot(ax3, thresholds[1], fleets)
 
         ax4 = fig.add_subplot(224)
-        self.plot_utils.custom_bar_plot(ax4, robot_ids, similarities, label='Number of similar paths',
-                         color='g', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
-                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1), avg_line_col='b',
-                         title="Number of predictable paths with similarity threshold = {}".format(thresholds[2]))
-        self.plot_utils.custom_bar_plot(ax4, robot_ids, dissimilarities, label="Number of non-similar paths",
-                         bottom=similarities, color='r', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
-                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1))
+        self.plot_predictability_subplot(ax4, thresholds[2], fleets)
 
         # ax3 = fig.add_subplot(223)
         # for id in range(path_lengths.shape[1]):
