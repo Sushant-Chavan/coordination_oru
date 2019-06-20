@@ -12,8 +12,6 @@ import matplotlib.pyplot as plt
 from matplotlib.transforms import Bbox
 from ctypes import *
 from Utils import *
-import seaborn as sns
-sns.set(style="darkgrid")
 
 class LogAnalyzer:
     def __init__(self, planning_csv_abs_path, execution_csv_abs_path, nExperiences):
@@ -190,11 +188,12 @@ class LogAnalyzer:
         if fleets is None:
             fleets = self.fleet_missions
         thresholds = [similarity_threshold, np.round(similarity_threshold-0.2, 2), np.round(similarity_threshold+0.2, 2)]
+        fig = plt.figure(figsize=(15, 15))
+
         similarities, nTests = self.dwt.determine_num_similar_paths(fleets, similarity_threshold=thresholds[0])
         dissimilarities = (np.ones_like(similarities) * nTests) - similarities
         robot_ids = np.arange(1, similarities.size+1, 1)
 
-        fig = plt.figure(figsize=(15, 15))
         ax1 = fig.add_subplot(221)
         self.plot_utils.custom_bar_plot(ax1, robot_ids, similarities, label='Number of similar paths',
                          color='g', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
@@ -214,12 +213,17 @@ class LogAnalyzer:
 
         ax2 = fig.add_subplot(222)
         fleet_ids = np.arange(1, path_lengths.shape[0] + 1, 1)
+        robot_suboptimality = None
         for id in range(path_lengths.shape[1]):
-            robot_optimality_ratio = np.clip(path_lengths[:, id] / optimal_path_lengths[:, id], 1.0, 100.0)
-            self.plot_utils.custom_line_plot(ax2, fleet_ids, robot_optimality_ratio, label="Robot {}".format(id+1),
-                                  xlabel="Fleet ID", ylabel="Suboptimality ratio",
-                                  xticks=fleet_ids, useLog10Scale=False,
-                                  title="Path Suboptimality")
+            if robot_suboptimality is None:
+                robot_suboptimality = np.clip(path_lengths[:, id] / optimal_path_lengths[:, id], 1.0, 100.0)
+            else:
+                robot_suboptimality = np.vstack((robot_suboptimality, np.clip(path_lengths[:, id] / optimal_path_lengths[:, id], 1.0, 100.0)))
+
+        robot_suboptimality = robot_suboptimality.T
+        robot_ids = np.arange(1, robot_suboptimality.shape[1]+1)
+        self.plot_utils.custom_box_plot(ax2, robot_ids, robot_suboptimality,
+                                        xlabel="Robot ID", ylabel="Suboptimality ratio", title="Path Suboptimality")
 
         similarities, nTests = self.dwt.determine_num_similar_paths(fleets, similarity_threshold=thresholds[1])
         dissimilarities = (np.ones_like(similarities) * nTests) - similarities

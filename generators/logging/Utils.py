@@ -11,6 +11,8 @@ import re
 import matplotlib.pyplot as plt
 from matplotlib.transforms import Bbox
 from ctypes import *
+import seaborn as sns
+sns.set(style="darkgrid")
 
 # A class to pass the array of poses to the shared libarary for comparison
 class PathPose(Structure):
@@ -371,11 +373,28 @@ class PlotUtils:
             ax.grid(True)
         ax.legend()
 
+    def autopct_func(self, pct):
+        return ('%.1f%%' % pct) if pct >= 1 else ''
+
+
     def custom_pie_plot(self, ax, values, labels=None, title=None, startangle=90):
-        ax.pie(values, autopct='%1.1f%%', shadow=True, startangle=startangle)
+        ax.pie(values, autopct=self.autopct_func, shadow=True, startangle=startangle)
 
         ax.set_title(title)
         ax.legend(labels)
+
+    def custom_box_plot(self, ax, x_vals, data, color=None,
+                        xlabel=None, ylabel=None, title=None):
+        x = []
+        y = []
+        for i in range(data.shape[1]):
+            x.extend([x_vals[i]] * data.shape[0])
+            y.extend(data[:, i])
+            
+        sns.boxplot(ax=ax, x=x, y=y)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        ax.set_title(title)
 
     def subplot_extent(self, fig, ax, pad=0.0):
         """Get the full extent of an axes, including axes labels, tick labels, and
