@@ -317,7 +317,7 @@ def main():
     assisted_sampling = not args.no_hotspots
 
     la = LogAnalyzer(planning_csv_filename, execution_csv_filename, args.nExperiences)
-    la.plot_path_predictability_stats(assisted_sampling, similarity_threshold=0.4)
+    la.plot_path_predictability_stats(assisted_sampling, similarity_threshold=0.8)
     la.plot_fleet_planning_times(assisted_sampling)
     la.plot_execution_stats(assisted_sampling)
 
