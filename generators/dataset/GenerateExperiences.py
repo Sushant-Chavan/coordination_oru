@@ -143,7 +143,7 @@ def get_database_filepath(args, map_name):
         directory = os.path.join(directory, planner_names[args.planner_type])
         if os.path.isdir(directory):
             print("Clearing already existing EGraph paths")
-            # shutil.rmtree(directory)
+            shutil.rmtree(directory)
 
     # Make the directory if it does not exist
     try:
