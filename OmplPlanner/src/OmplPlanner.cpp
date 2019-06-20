@@ -315,7 +315,8 @@ extern "C" bool plan_multiple_circles(
         bool saveExperiences = mode == MODE::EXPERIENCE_GENERATION;
 
         // If determining optimal paths, do not set a time limit on the search
-        std::string boundExpansions = (mode == MODE::OPTIMAL_PATHS) ? "0.0" : "1.0";
+        std::string boundExpansions = ((mode == MODE::EXPERIENCE_GENERATION) ||
+                                       (mode == MODE::OPTIMAL_PATHS)) ? "0.0" : "1.0";
 
         std::string initialEpsilon = "100.0";
         std::string improveSolution =
