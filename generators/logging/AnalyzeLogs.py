@@ -18,11 +18,8 @@ class LogAnalyzer:
         self.planning_csv_path = planning_csv_abs_path
         self.execution_csv_path = execution_csv_abs_path
 
-        self.test_df = None
-        self.plan_stats = None
         self.nTests = None
         self.fleet_missions = None
-        self.nSimilar_paths = None
         self.save_path = None
         self.nExperiences = nExperiences
 

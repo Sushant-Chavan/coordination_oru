@@ -183,8 +183,7 @@ class MultiLogAnalyzer:
                list(set(params[:, 3])), list(set(params[:, 4])), list(set(params[:, 5]))
 
 
-    def plot_planning_times(self, params):
-        fleets_list = []
+    def plot_planning_times(self, params, filename):
         maps, planners, nRobots, holonomic, use_hotspots, nExperiences = self.get_unique_params(params)
         is_param_variable = self.get_variables(maps, planners, nRobots, holonomic, use_hotspots, nExperiences)
 
@@ -192,6 +191,7 @@ class MultiLogAnalyzer:
         ax1 = fig.add_subplot(121)
         ax2 = fig.add_subplot(122)
 
+        fleets_list = []
         for p in params:
             fleets_list.append(self.data_loader.get_fleet_data(p[0], p[1], p[2], p[3], p[4], p[5]))
 
@@ -239,88 +239,161 @@ class MultiLogAnalyzer:
                                             use_hotspots, nExperiences, is_param_variable))
 
         # plot_name = os.path.join(self.get_directory_to_save_plots(fleets, assisted_sampling), "planning_times.svg")
-        plt.savefig("/home/suvich15/Desktop/PlanningTimes.svg", format='svg')
+        plt.savefig(filename, format='svg')
 
-    def plot_execution_stats(self, assisted_sampling, fleets=None):
-        if fleets is None:
-            fleets = self.fleet_missions
+    def plot_exec_stats(self, params, filename):
+        maps, planners, nRobots, holonomic, use_hotspots, nExperiences = self.get_unique_params(params)
+        is_param_variable = self.get_variables(maps, planners, nRobots, holonomic, use_hotspots, nExperiences)
 
-        num_replans = np.zeros(len(fleets))
-        max_execution_times = np.zeros_like(num_replans)
-        success_markers = ['X'] * len(fleets)
-        success_status = np.zeros((len(fleets), 4))
-        fleet_ids = np.arange(1, len(fleets)+1, 1)
+        fig = plt.figure(figsize=(15, 7.5))
+        ax1 = fig.add_subplot(121)
+        ax2 = fig.add_subplot(122)
 
-        for i, f in enumerate(fleets):
-            num_replans[i] = f.nReplans
-            max_execution_times[i] = f.get_highest_robot_mission_execution_time()
-            percent, max_robots = f.get_percentage_of_mission_success()
-            if np.allclose(percent, 100.0):
-                success_markers[i] = "^"
-            exec_status = f.get_mission_execution_stats()
-            for num_success in range(4):
-                success_status[i, num_success] = exec_status[num_success]
+        fleets_list = []
+        for p in params:
+            fleets_list.append(self.data_loader.get_fleet_data(p[0], p[1], p[2], p[3], p[4], p[5]))
 
-        fig = plt.figure(figsize=(15, 15))
-        ax = fig.add_subplot(221)
-        self.plot_utils.custom_line_plot(ax, fleet_ids, max_execution_times, label="Execution time",
-                         color='r', xlabel="Fleet ID", ylabel="Time in seconds",
-                         xticks=fleet_ids, useLog10Scale=False, avg_line_col='b',
-                         title="Complete fleet mission execution time")
-        for i, m in enumerate(success_markers):
-            ax.scatter(fleet_ids[i], max_execution_times[i], marker=m, c='g', s=100)
+        max_execution_times = []
+        success_markers = []
+        success_status = []
 
-        ax = fig.add_subplot(222)
-        self.plot_utils.custom_bar_plot(ax, fleet_ids, num_replans, label="",
-                         color='g', xlabel="Fleet ID", ylabel="Number of replannings triggered",
-                         xticks=fleet_ids, avg_line_col='b',
-                         title="Replanning stats")
+        variable_names = []
+        color_ids = []
+        fleet_ids = []
 
-        all_success = success_status[:, 3]
-        one_failure = success_status[:, 2]
-        two_failure = success_status[:, 1]
-        all_failure = success_status[:, 0]
+        for i in range(len(fleets_list)):
+            variable_names.append(self.get_variable_name("", params[i], is_param_variable))
+            fleets = fleets_list[i]
+            color_ids.append(i/len(fleets_list))
+            fleet_ids.append(np.arange(1, len(fleets) + 1, 1))
 
-        ax = fig.add_subplot(223)
-        self.plot_utils.custom_bar_plot(ax, fleet_ids, all_success, label="All missions successful",
-                         color=(0, 1, 0), xlabel="Fleet ID", ylabel="Number of robots",
-                         xticks=fleet_ids, avg_line_col='b',
-                         title="Robot mission execution status per fleet")
-        self.plot_utils.custom_bar_plot(ax, fleet_ids, one_failure, label="Failed after delivering Mobidik",
-                         bottom=all_success, color='yellow', xlabel="Fleet ID", ylabel="Number of robots",
-                         xticks=fleet_ids)
-        self.plot_utils.custom_bar_plot(ax, fleet_ids, two_failure, label="Failed while transporting Mobidik",
-                         bottom=one_failure+all_success, color='orange', xlabel="Fleet ID", ylabel="Number of robots",
-                         xticks=fleet_ids)
-        self.plot_utils.custom_bar_plot(ax, fleet_ids, all_failure, label="Failed before reaching Mobidik",
-                         bottom=two_failure+one_failure+all_success, color=(1, 0, 0), xlabel="Fleet ID", ylabel="Number of robots",
-                         xticks=fleet_ids)
+            max_exec_time = np.zeros(len(fleets))
+            success_m = ['X'] * len(fleets)
+            success_s = np.zeros((len(fleets), 4))
 
-        ax = fig.add_subplot(224)
-        nSuccess = np.arange(0, 4, 1)
-        nSuccessful_robots = np.sum(success_status, axis=0)
+            for i, f in enumerate(fleets):
+                max_exec_time[i] = f.get_highest_robot_mission_execution_time()
+                percent, max_robots = f.get_percentage_of_mission_success()
+                if np.allclose(percent, 100.0):
+                    success_m[i] = "^"
+                exec_status = f.get_mission_execution_stats()
+                for num_success in range(4):
+                    success_s[i, num_success] = exec_status[num_success]
 
-        labels=["Failed before reaching Mobidik", "Failed while transporting Mobidik",
-                "Failed while returning to charging station", "All missions successful"]
-        self.plot_utils.custom_pie_plot(ax, nSuccessful_robots, labels=labels, title="Robot mission execution status over all fleets")
+            max_execution_times.append(max_exec_time)
+            success_markers.append(success_m)
+            success_status.append(success_s)
 
-        fig.suptitle(self.get_figure_title("Plan Execution stats", fleets, assisted_sampling))
+        max_execution_times = np.array(max_execution_times).T
+        
+        self.plot_utils.custom_box_plot(ax1, variable_names, max_execution_times,
+                                        ylabel="Time in seconds", title="Complete fleet mission execution time")
 
-        plot_name = os.path.join(self.get_directory_to_save_plots(fleets, assisted_sampling), "execution_stats.svg")
-        plt.savefig(plot_name, format='svg')
+        # for i in range(len(max_execution_times)):
+        #     c = plt.cm.jet(color_ids[i])
+        #     self.plot_utils.custom_line_plot(ax1, fleet_ids[i], max_execution_times[i], label=variable_names[i],
+        #                  color=c, xlabel="Fleet ID", ylabel="Time in seconds",
+        #                  useLog10Scale=False, avg_line_col=c,
+        #                  title="Complete fleet mission execution time")
+            # for j, m in enumerate(success_markers[i]):
+            #     ax1.scatter(fleet_ids[i][j], max_execution_times[i][j], marker=m, c=c, s=100)
 
-    def plot_predictability_subplot(self, ax, similarity_threshold, fleets):
-        similarities, nTests = self.dwt.determine_num_similar_paths(fleets, similarity_threshold=similarity_threshold)
-        dissimilarities = (np.ones_like(similarities) * nTests) - similarities
-        robot_ids = np.arange(1, similarities.size+1, 1)
+        all_success, all_success_percent = np.zeros(len(success_status)), np.zeros(len(success_status))
+        one_failure, one_failure_percent = np.zeros_like(all_success), np.zeros_like(all_success)
+        two_failure, two_failure_percent = np.zeros_like(all_success), np.zeros_like(all_success)
+        all_failure, all_failure_percent = np.zeros_like(all_success), np.zeros_like(all_success)
+        for i in range(len(success_status)):
+            all_success[i] = np.sum(success_status[i][:, 3])
+            one_failure[i] = np.sum(success_status[i][:, 2])
+            two_failure[i] = np.sum(success_status[i][:, 1])
+            all_failure[i] = np.sum(success_status[i][:, 0])
+            num_robots = np.sum(success_status[i])
+            all_success_percent[i] = np.round(all_success[i] / num_robots * 100, 1)
+            one_failure_percent[i] = np.round(one_failure[i] / num_robots * 100, 1)
+            two_failure_percent[i] = np.round(two_failure[i] / num_robots * 100, 1)
+            all_failure_percent[i] = np.round(all_failure[i] / num_robots * 100, 1)
 
-        self.plot_utils.custom_bar_plot(ax, robot_ids, similarities, label='Number of similar paths',
-                         color='g', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
-                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1), avg_line_col='b',
-                         title="Number of predictable paths with similarity threshold = {}".format(similarity_threshold))
-        self.plot_utils.custom_bar_plot(ax, robot_ids, dissimilarities, label="Number of non-similar paths",
-                         bottom=similarities, color='r', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
-                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1))
+        all_success_percent = [str(np.round(p, 1))+"%" if p > 0 else None for p in all_success_percent.tolist()]
+        one_failure_percent = [str(np.round(p, 1))+"%" if p > 0 else None for p in one_failure_percent.tolist()]
+        two_failure_percent = [str(np.round(p, 1))+"%" if p > 0 else None for p in two_failure_percent.tolist()]
+        all_failure_percent = [str(np.round(p, 1))+"%" if p > 0 else None for p in all_failure_percent.tolist()]
+
+        self.plot_utils.custom_bar_plot(ax2, variable_names, all_success, label="All missions successful",
+                         color=plt.cm.RdYlGn(1.0), ylabel="Number of robots",
+                         title="Robot mission execution status", value_color='k', value=all_success_percent)
+        self.plot_utils.custom_bar_plot(ax2, variable_names, one_failure, label="Failed after delivering Mobidik",
+                         bottom=all_success, color=plt.cm.RdYlGn(0.66), ylabel="Number of robots", value_color='k', value=one_failure_percent)
+        self.plot_utils.custom_bar_plot(ax2, variable_names, two_failure, label="Failed while transporting Mobidik",
+                         bottom=one_failure+all_success, color=plt.cm.RdYlGn(0.33), ylabel="Number of robots", value_color='k', value=two_failure_percent)
+        self.plot_utils.custom_bar_plot(ax2, variable_names, all_failure, label="Failed before reaching Mobidik",
+                         bottom=two_failure+one_failure+all_success, color=plt.cm.RdYlGn(0.0), ylabel="Number of robots", value_color='k', value=all_failure_percent)
+
+        fig.suptitle(self.get_figure_title("Execution stats", maps, planners, nRobots, holonomic, 
+                                            use_hotspots, nExperiences, is_param_variable))
+
+        # plot_name = os.path.join(self.get_directory_to_save_plots(fleets, assisted_sampling), "planning_times.svg")
+        plt.savefig(filename, format='svg')
+
+    def plot_path_quality_stats(self, params, filename, sim_thresh=0.8):
+        maps, planners, nRobots, holonomic, use_hotspots, nExperiences = self.get_unique_params(params)
+        is_param_variable = self.get_variables(maps, planners, nRobots, holonomic, use_hotspots, nExperiences)
+
+        fig = plt.figure(figsize=(15, 7.5))
+        ax1 = fig.add_subplot(121)
+        ax2 = fig.add_subplot(122)
+
+        fleets_list = []
+        for p in params:
+            fleets_list.append(self.data_loader.get_fleet_data(p[0], p[1], p[2], p[3], p[4], p[5]))
+
+        similarities = []
+        dissimilarities = []
+        path_suboptimalities = []
+
+        variable_names = []
+        color_ids = []
+        fleet_ids = []
+
+        nTests = 0
+        for i in range(len(fleets_list)):
+            variable_names.append(self.get_variable_name("", params[i], is_param_variable))
+            fleets = fleets_list[i]
+            color_ids.append(i/len(fleets_list))
+            fleet_ids.append(np.arange(1, len(fleets) + 1, 1))
+
+            sim, nTests = self.dwt.determine_num_similar_paths(fleets, similarity_threshold=sim_thresh)
+            similarities.append(np.sum(sim))
+            dissimilarities.append(np.sum((np.ones_like(sim) * nTests) - sim))
+
+            # Get the path suboptimalities of all the robot missions in all fleet trials
+            sub_optimalities = np.zeros((len(fleets), fleets[0].nRobots))
+            for i, f in enumerate(fleets):
+                for j, m in enumerate(f.robot_missions):
+                    sub_optimalities[i, j] = np.clip(m.complete_path_length / m.complete_optimal_path_length, 1.0, 100.0)
+            path_suboptimalities.append(np.reshape(sub_optimalities, sub_optimalities.size))
+
+        similarities = np.array(similarities)
+        dissimilarities = np.array(dissimilarities)
+        sim_percentage = similarities / (similarities + dissimilarities) * 100.0
+        dissim_percentage = 100.0 - sim_percentage
+        sim_percentage = [str(np.round(p, 1))+"%" if p > 0 else None for p in sim_percentage.tolist()]
+        dissim_percentage = [str(np.round(p, 1))+"%" if p > 0 else None for p in dissim_percentage.tolist()]
+
+        # Plot the predictability of the paths
+        self.plot_utils.custom_bar_plot(ax1, variable_names, similarities, label='Number of similar paths',
+                         color='g', ylabel="Number of paths", value_color='k', value=sim_percentage,
+                         title="Number of predictable paths with similarity threshold = {}".format(sim_thresh))
+        self.plot_utils.custom_bar_plot(ax1, variable_names, dissimilarities, label="Number of non-similar paths",
+                         bottom=similarities, color='r', ylabel="Number of paths", value_color='k', value=dissim_percentage)
+
+        # Plot the suboptimality of the paths
+        path_suboptimalities = np.array(path_suboptimalities).T
+        self.plot_utils.custom_box_plot(ax2, variable_names, path_suboptimalities,
+                                        ylabel="Suboptimality ratio", title="Path Suboptimality")
+
+        fig.suptitle(self.get_figure_title("Path quality stats", maps, planners, nRobots, holonomic, 
+                                            use_hotspots, nExperiences, is_param_variable))
+        plt.savefig(filename, format='svg')
 
     def plot_path_predictability_stats(self, assisted_sampling, fleets=None, similarity_threshold = 0.3):
         if fleets is None:
@@ -411,19 +484,14 @@ def main():
     # assisted_sampling = not args.no_hotspots
 
     mla = MultiLogAnalyzer()
-    mla.load_all_fleets(["BRSU_Floor0"], [1, 2], [5], [True], [True], [100])
+    mla.load_all_fleets(["BRSU_Floor0"], [0, 1, 2], [5], [True], [True], [100])
     mla.load_all_fleets(["BRSU_Floor0"], [3], [5], [True], [True], [25])
-    params = [["BRSU_Floor0", 1, 5, True, True, 100],
-              ["BRSU_Floor0", 2, 5, True, True, 100],
-              ["BRSU_Floor0", 3, 5, True, True, 25]]
-    # params = [["BRSU_Floor0", 1, 5, True, True, 100],
-    #           ["BRSU_Floor0", 1, 10, True, True, 100]]
-    mla.plot_planning_times(params)
-
-    # la = LogAnalyzer(planning_csv_filename, execution_csv_filename, args.nExperiences)
-    # la.plot_path_predictability_stats(assisted_sampling, similarity_threshold=0.8)
-    # la.plot_fleet_planning_times(assisted_sampling)
-    # la.plot_execution_stats(assisted_sampling)
+    params = [["BRSU_Floor0", 0, 5, True, True, 100],
+              ["BRSU_Floor0", 1, 5, True, True, 100],
+              ["BRSU_Floor0", 2, 5, True, True, 100]]
+    mla.plot_planning_times(params, "/home/suvich15/Desktop/PlanningTimes.svg")
+    mla.plot_exec_stats(params, "/home/suvich15/Desktop/ExecutionTimes.svg")
+    mla.plot_path_quality_stats(params, "/home/suvich15/Desktop/PathQuality.svg")
 
 if __name__ == "__main__":
     main()
