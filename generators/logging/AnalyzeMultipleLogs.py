@@ -220,10 +220,12 @@ class MultiLogAnalyzer:
             nPlans_from_scratch.append(sum(scratch))
 
         # Plot planning times
-        for i in range(len(total_plan_times)):
-            self.plot_utils.custom_line_plot(ax1, fleet_ids[i], total_plan_times[i], label=variable_names[i],
-                            color=plt.cm.summer(color_ids[i]), xlabel="Fleet ID", ylabel="Time in seconds",
-                            useLog10Scale=False, avg_line_col=plt.cm.summer(color_ids[i]), title="Total planning time")
+        self.plot_utils.custom_box_plot(ax1, variable_names, np.array(total_plan_times).T,
+                                        ylabel="Time in seconds", title="Total planning time")
+        # for i in range(len(total_plan_times)):
+        #     self.plot_utils.custom_line_plot(ax1, fleet_ids[i], total_plan_times[i], label=variable_names[i],
+        #                     color=plt.cm.summer(color_ids[i]), xlabel="Fleet ID", ylabel="Time in seconds",
+        #                     useLog10Scale=False, avg_line_col=plt.cm.summer(color_ids[i]), title="Total planning time")
 
         # Plot recall stats
         recall_percent = np.round(np.array(nPlans_from_recall) / (np.array(nPlans_from_recall) + np.array(nPlans_from_scratch)) * 100.0, 1)
@@ -372,6 +374,11 @@ class MultiLogAnalyzer:
                     sub_optimalities[i, j] = np.clip(m.complete_path_length / m.complete_optimal_path_length, 1.0, 100.0)
             path_suboptimalities.append(np.reshape(sub_optimalities, sub_optimalities.size))
 
+        # Plot the suboptimality of the paths
+        path_suboptimalities = np.array(path_suboptimalities).T
+        self.plot_utils.custom_box_plot(ax1, variable_names, path_suboptimalities,
+                                        ylabel="Suboptimality ratio", title="Path Suboptimality")
+
         similarities = np.array(similarities)
         dissimilarities = np.array(dissimilarities)
         sim_percentage = similarities / (similarities + dissimilarities) * 100.0
@@ -380,16 +387,11 @@ class MultiLogAnalyzer:
         dissim_percentage = [str(np.round(p, 1))+"%" if p > 0 else None for p in dissim_percentage.tolist()]
 
         # Plot the predictability of the paths
-        self.plot_utils.custom_bar_plot(ax1, variable_names, similarities, label='Number of similar paths',
+        self.plot_utils.custom_bar_plot(ax2, variable_names, similarities, label='Number of similar paths',
                          color='g', ylabel="Number of paths", value_color='k', value=sim_percentage,
                          title="Number of predictable paths with similarity threshold = {}".format(sim_thresh))
-        self.plot_utils.custom_bar_plot(ax1, variable_names, dissimilarities, label="Number of non-similar paths",
+        self.plot_utils.custom_bar_plot(ax2, variable_names, dissimilarities, label="Number of non-similar paths",
                          bottom=similarities, color='r', ylabel="Number of paths", value_color='k', value=dissim_percentage)
-
-        # Plot the suboptimality of the paths
-        path_suboptimalities = np.array(path_suboptimalities).T
-        self.plot_utils.custom_box_plot(ax2, variable_names, path_suboptimalities,
-                                        ylabel="Suboptimality ratio", title="Path Suboptimality")
 
         fig.suptitle(self.get_figure_title("Path quality stats", maps, planners, nRobots, holonomic, 
                                             use_hotspots, nExperiences, is_param_variable))
@@ -484,11 +486,18 @@ def main():
     # assisted_sampling = not args.no_hotspots
 
     mla = MultiLogAnalyzer()
-    mla.load_all_fleets(["BRSU_Floor0"], [0, 1, 2], [5], [True], [True], [100])
-    mla.load_all_fleets(["BRSU_Floor0"], [3], [5], [True], [True], [25])
-    params = [["BRSU_Floor0", 0, 5, True, True, 100],
-              ["BRSU_Floor0", 1, 5, True, True, 100],
-              ["BRSU_Floor0", 2, 5, True, True, 100]]
+    # mla.load_all_fleets(["BRSU_Floor0"], [0, 1, 2], [5], [True], [True], [100])
+    # mla.load_all_fleets(["BRSU_Floor0"], [3], [5], [True], [True], [25])
+    # params = [["BRSU_Floor0", 0, 5, True, True, 100],
+    #           ["BRSU_Floor0", 1, 5, True, True, 100],
+    #           ["BRSU_Floor0", 2, 5, True, True, 100]]
+    # mla.plot_planning_times(params, "/home/suvich15/Desktop/PlanningTimes.svg")
+    # mla.plot_exec_stats(params, "/home/suvich15/Desktop/ExecutionTimes.svg")
+    # # mla.plot_path_quality_stats(params, "/home/suvich15/Desktop/PathQuality.svg")
+
+    mla.load_all_fleets(["BRSU_Floor0"], [0, 1], [10], [True], [True], [100])
+    params = [["BRSU_Floor0", 0, 10, True, True, 100],
+              ["BRSU_Floor0", 1, 10, True, True, 100]]
     mla.plot_planning_times(params, "/home/suvich15/Desktop/PlanningTimes.svg")
     mla.plot_exec_stats(params, "/home/suvich15/Desktop/ExecutionTimes.svg")
     mla.plot_path_quality_stats(params, "/home/suvich15/Desktop/PathQuality.svg")
