@@ -183,7 +183,7 @@ class MultiLogAnalyzer:
                list(set(params[:, 3])), list(set(params[:, 4])), list(set(params[:, 5]))
 
 
-    def plot_planning_times(self, params, filename):
+    def plot_planning_times(self, params, filename, use_LogScale=False):
         maps, planners, nRobots, holonomic, use_hotspots, nExperiences = self.get_unique_params(params)
         is_param_variable = self.get_variables(maps, planners, nRobots, holonomic, use_hotspots, nExperiences)
 
@@ -220,7 +220,8 @@ class MultiLogAnalyzer:
             nPlans_from_scratch.append(sum(scratch))
 
         # Plot planning times
-        self.plot_utils.custom_box_plot(ax1, variable_names, np.array(total_plan_times).T,
+        total_plan_times = np.log10(np.array(total_plan_times).T) if use_LogScale else np.array(total_plan_times).T
+        self.plot_utils.custom_box_plot(ax1, variable_names, total_plan_times,
                                         ylabel="Time in seconds", title="Total planning time")
         # for i in range(len(total_plan_times)):
         #     self.plot_utils.custom_line_plot(ax1, fleet_ids[i], total_plan_times[i], label=variable_names[i],
@@ -230,8 +231,8 @@ class MultiLogAnalyzer:
         # Plot recall stats
         recall_percent = np.round(np.array(nPlans_from_recall) / (np.array(nPlans_from_recall) + np.array(nPlans_from_scratch)) * 100.0, 1)
         scratch_percent = 100-recall_percent
-        recall_percent = [str(np.round(p, 1))+"%" if p > 0 else None for p in recall_percent.tolist()]
-        scratch_percent = [str(np.round(p, 1))+"%" if p > 0 else None for p in scratch_percent.tolist()]
+        recall_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in recall_percent.tolist()]
+        scratch_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in scratch_percent.tolist()]
         self.plot_utils.custom_bar_plot(ax2, variable_names, nPlans_from_recall, label="Number of plans from recall",
                         color='g', ylabel="Count", value_color='k', value=recall_percent)
         self.plot_utils.custom_bar_plot(ax2, variable_names, nPlans_from_scratch, label="Number of plans from scratch",
@@ -315,10 +316,10 @@ class MultiLogAnalyzer:
             two_failure_percent[i] = np.round(two_failure[i] / num_robots * 100, 1)
             all_failure_percent[i] = np.round(all_failure[i] / num_robots * 100, 1)
 
-        all_success_percent = [str(np.round(p, 1))+"%" if p > 0 else None for p in all_success_percent.tolist()]
-        one_failure_percent = [str(np.round(p, 1))+"%" if p > 0 else None for p in one_failure_percent.tolist()]
-        two_failure_percent = [str(np.round(p, 1))+"%" if p > 0 else None for p in two_failure_percent.tolist()]
-        all_failure_percent = [str(np.round(p, 1))+"%" if p > 0 else None for p in all_failure_percent.tolist()]
+        all_success_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in all_success_percent.tolist()]
+        one_failure_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in one_failure_percent.tolist()]
+        two_failure_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in two_failure_percent.tolist()]
+        all_failure_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in all_failure_percent.tolist()]
 
         self.plot_utils.custom_bar_plot(ax2, variable_names, all_success, label="All missions successful",
                          color=plt.cm.RdYlGn(1.0), ylabel="Number of robots",
@@ -486,21 +487,23 @@ def main():
     # assisted_sampling = not args.no_hotspots
 
     mla = MultiLogAnalyzer()
+
+    mla.load_all_fleets(["BRSU_Floor0"], [0, 1, 2, 3], [5], [True], [True], [25])
+    params = [["BRSU_Floor0", 0, 5, True, True, 25],
+              ["BRSU_Floor0", 1, 5, True, True, 25],
+              ["BRSU_Floor0", 2, 5, True, True, 25],
+              ["BRSU_Floor0", 3, 5, True, True, 25]]
+    mla.plot_planning_times(params, "/home/suvich15/Desktop/25Exp_PlanningTimes.svg", use_LogScale=True)
+    mla.plot_exec_stats(params, "/home/suvich15/Desktop/25Exp_ExecutionTimes.svg")
+    mla.plot_path_quality_stats(params, "/home/suvich15/Desktop/25Exp_PathQuality.svg")
+
     # mla.load_all_fleets(["BRSU_Floor0"], [0, 1, 2], [5], [True], [True], [100])
-    # mla.load_all_fleets(["BRSU_Floor0"], [3], [5], [True], [True], [25])
     # params = [["BRSU_Floor0", 0, 5, True, True, 100],
     #           ["BRSU_Floor0", 1, 5, True, True, 100],
     #           ["BRSU_Floor0", 2, 5, True, True, 100]]
-    # mla.plot_planning_times(params, "/home/suvich15/Desktop/PlanningTimes.svg")
-    # mla.plot_exec_stats(params, "/home/suvich15/Desktop/ExecutionTimes.svg")
-    # # mla.plot_path_quality_stats(params, "/home/suvich15/Desktop/PathQuality.svg")
-
-    mla.load_all_fleets(["BRSU_Floor0"], [0, 1], [10], [True], [True], [100])
-    params = [["BRSU_Floor0", 0, 10, True, True, 100],
-              ["BRSU_Floor0", 1, 10, True, True, 100]]
-    mla.plot_planning_times(params, "/home/suvich15/Desktop/PlanningTimes.svg")
-    mla.plot_exec_stats(params, "/home/suvich15/Desktop/ExecutionTimes.svg")
-    mla.plot_path_quality_stats(params, "/home/suvich15/Desktop/PathQuality.svg")
+    # mla.plot_planning_times(params, "/home/suvich15/Desktop/100Exp_PlanningTimes.svg")
+    # mla.plot_exec_stats(params, "/home/suvich15/Desktop/100Exp_ExecutionTimes.svg")
+    # # mla.plot_path_quality_stats(params, "/home/suvich15/Desktop/100Exp_PathQuality.svg")
 
 if __name__ == "__main__":
     main()
