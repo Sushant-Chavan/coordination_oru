@@ -289,21 +289,32 @@ class DWT:
 
         similarity_count = np.zeros(fleets[0].nRobots)
         for robot_id in range(fleets[0].nRobots):
-            num_of_matches = np.zeros(len(fleets))
+            max_matches = 0
+            similarity_matrix = np.array([[False] * len(fleets)] * len(fleets))
+
             for fleet_id_1 in range(len(fleets)):
-                for fleet_id_2 in range(len(fleets)):
+
+                for fleet_id_2 in range(fleet_id_1+1, len(fleets), 1):
                     if fleet_id_1 != fleet_id_2:
                         path1 = fleets[fleet_id_1].robot_missions[robot_id].complete_path
                         path2 = fleets[fleet_id_2].robot_missions[robot_id].complete_path
                         is_holonomic = fleets[fleet_id_2].robot_missions[robot_id].is_holonomic
                         if self.compare_paths(path1, path2, is_holonomic, similarity_threshold):
-                            num_of_matches[fleet_id_1] += 1
-                            if num_of_matches[fleet_id_1] >= max_num_matches:
-                                break
-                if num_of_matches[fleet_id_1] >= max_num_matches:
+                            # Update the symmetric elements of the matrix
+                            similarity_matrix[fleet_id_1, fleet_id_2] = True
+                            similarity_matrix[fleet_id_2, fleet_id_1] = True
+
+                num_matches = similarity_matrix[fleet_id_1].tolist().count(True)
+                if num_matches > max_matches:
+                    max_matches = num_matches
+
+                if max_matches >= max_num_matches:
+                    # Early stop since max matches found
                     break
-            similarity_count[robot_id] = np.max(num_of_matches)
+
+            similarity_count[robot_id] = max_matches
             print("\tNumber of similar paths for Robot", robot_id+1, "=", similarity_count[robot_id])
+
         print("Path similarity tests complete!")
         return similarity_count, max_num_matches
 
