@@ -352,6 +352,7 @@ extern "C" bool plan_multiple_circles(
         if (plannerType == PLANNER_TYPE::EXPERIENCE_GRAPHS) {
             ob::PlannerSolution sol(nullptr);
             ssPtr->getProblemDefinition()->getSolution(sol);
+            // Hack: Planner name represents if the solution was from scratch or recall
             log(logFilename, sol.plannerName_ + std::string("\n"));
         }
 

@@ -128,12 +128,18 @@ class MultiLogAnalyzer:
 
         return is_param_variable
 
+    def clean_planner_name(self, planner_name):
+        if "SIMPLE" in planner_name:
+            planner_name = planner_name.split("(")[1]
+            planner_name = planner_name.split(")")[0]
+        return planner_name
+
     def get_figure_title(self, prefix, maps, planners, nRobots, holonomic, use_hotspots, nExperiences, is_param_variable):
         title = prefix + "\n"
         if not is_param_variable[0]:
             title += "Map:{}, ".format(maps[0])
         if not is_param_variable[1]:
-            title += "Planner:{}, ".format(planners[0])
+            title += "Planner:{}, ".format(self.clean_planner_name(planners[0]))
         if not is_param_variable[2]:
             title += "Num of robots:{}, ".format(nRobots[0])
         if not is_param_variable[3]:
@@ -151,29 +157,29 @@ class MultiLogAnalyzer:
         variable_name = prefix
         if is_param_variable[0]:
             if len(variable_name) > 0:
-                variable_name += "-"
+                variable_name += "-\n"
             variable_name += params[0]
         if is_param_variable[1]:
             if len(variable_name) > 0:
-                variable_name += "-"
-            variable_name += planner_names[params[1]]
+                variable_name += "-\n"
+            variable_name += self.clean_planner_name(planner_names[params[1]])
         if is_param_variable[2]:
             if len(variable_name) > 0:
-                variable_name += "-"
+                variable_name += "-\n"
             variable_name += str(params[2]) + "Robots"
         if is_param_variable[3]:
             kinematics = "Holonomic" if params[3] else "ReedsSheep"
             if len(variable_name) > 0:
-                variable_name += "-"
+                variable_name += "-\n"
             variable_name += kinematics
         if is_param_variable[4]:
             sampling_name = "UsingHotspots" if params[4] else "Uniform"
             if len(variable_name) > 0:
-                variable_name += "-"
+                variable_name += "-\n"
             variable_name += sampling_name
         if is_param_variable[5]:
             if len(variable_name) > 0:
-                variable_name += "-"
+                variable_name += "-\n"
             variable_name += str(params[5]) + "Exp"
         return variable_name
 
@@ -220,9 +226,12 @@ class MultiLogAnalyzer:
             nPlans_from_scratch.append(sum(scratch))
 
         # Plot planning times
+        y_label = "Time in seconds"
+        if use_LogScale:
+            y_label += " ($log_{10}$ scale)"
         total_plan_times = np.log10(np.array(total_plan_times).T) if use_LogScale else np.array(total_plan_times).T
         self.plot_utils.custom_box_plot(ax1, variable_names, total_plan_times,
-                                        ylabel="Time in seconds", title="Total planning time")
+                                        ylabel=y_label, title="Total planning time")
         # for i in range(len(total_plan_times)):
         #     self.plot_utils.custom_line_plot(ax1, fleet_ids[i], total_plan_times[i], label=variable_names[i],
         #                     color=plt.cm.summer(color_ids[i]), xlabel="Fleet ID", ylabel="Time in seconds",
