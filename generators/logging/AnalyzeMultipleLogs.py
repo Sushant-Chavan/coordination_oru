@@ -257,9 +257,10 @@ class MultiLogAnalyzer:
         maps, planners, nRobots, holonomic, use_hotspots, nExperiences = self.get_unique_params(params)
         is_param_variable = self.get_variables(maps, planners, nRobots, holonomic, use_hotspots, nExperiences)
 
-        fig = plt.figure(figsize=(15, 7.5))
-        ax1 = fig.add_subplot(121)
-        ax2 = fig.add_subplot(122)
+        fig = plt.figure(figsize=(15, 15))
+        ax1 = fig.add_subplot(211)
+        ax2 = fig.add_subplot(223)
+        ax3 = fig.add_subplot(224)
 
         fleets_list = []
         for p in params:
@@ -268,6 +269,7 @@ class MultiLogAnalyzer:
         max_execution_times = []
         success_markers = []
         success_status = []
+        throughput = []
 
         variable_names = []
         color_ids = []
@@ -282,6 +284,8 @@ class MultiLogAnalyzer:
             max_exec_time = np.zeros(len(fleets))
             success_m = ['X'] * len(fleets)
             success_s = np.zeros((len(fleets), 4))
+            delivery_times = np.zeros_like(max_exec_time)
+            num_deliveries = np.zeros_like(max_exec_time)
 
             for i, f in enumerate(fleets):
                 max_exec_time[i] = f.get_highest_robot_mission_execution_time()
@@ -291,15 +295,22 @@ class MultiLogAnalyzer:
                 exec_status = f.get_mission_execution_stats()
                 for num_success in range(4):
                     success_s[i, num_success] = exec_status[num_success]
+                delivery_status = f.get_mobidik_delivery_status()
+                num_deliveries[i] = delivery_status[0]
+                if num_deliveries[i] > 0:
+                    # Only consider delivery times if atleast one mobidik was delivered
+                    delivery_times[i] = delivery_status[1]
 
             max_execution_times.append(max_exec_time)
             success_markers.append(success_m)
             success_status.append(success_s)
+            # Throughtput per hour (3600 seconds)
+            throughput.append(int(np.sum(num_deliveries)/np.sum(delivery_times) * 3600))
 
+        # Plot mission execution times
         max_execution_times = np.array(max_execution_times).T
-        
-        self.plot_utils.custom_box_plot(ax1, variable_names, max_execution_times,
-                                        ylabel="Time in seconds", title="Complete fleet mission execution time")
+        self.plot_utils.custom_box_plot(ax1, variable_names, max_execution_times, horizontal=True,
+                                        xlabel="Time in seconds", title="Complete fleet mission execution time")
 
         # for i in range(len(max_execution_times)):
         #     c = plt.cm.jet(color_ids[i])
@@ -310,6 +321,13 @@ class MultiLogAnalyzer:
             # for j, m in enumerate(success_markers[i]):
             #     ax1.scatter(fleet_ids[i][j], max_execution_times[i][j], marker=m, c=c, s=100)
 
+        # Plot throughput
+        self.plot_utils.custom_bar_plot(ax2, variable_names, throughput,
+                         color=plt.cm.RdYlGn(1.0), ylabel="Number of mobidik deliveries per hour",
+                         title="Throughput", value_color='k', value=throughput)
+
+
+        # Plot Mission executions status
         all_success, all_success_percent = np.zeros(len(success_status)), np.zeros(len(success_status))
         one_failure, one_failure_percent = np.zeros_like(all_success), np.zeros_like(all_success)
         two_failure, two_failure_percent = np.zeros_like(all_success), np.zeros_like(all_success)
@@ -330,14 +348,14 @@ class MultiLogAnalyzer:
         two_failure_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in two_failure_percent.tolist()]
         all_failure_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in all_failure_percent.tolist()]
 
-        self.plot_utils.custom_bar_plot(ax2, variable_names, all_success, label="All missions successful",
+        self.plot_utils.custom_bar_plot(ax3, variable_names, all_success, label="All missions successful",
                          color=plt.cm.RdYlGn(1.0), ylabel="Number of robots",
                          title="Robot mission execution status", value_color='k', value=all_success_percent)
-        self.plot_utils.custom_bar_plot(ax2, variable_names, one_failure, label="Failed after delivering Mobidik",
+        self.plot_utils.custom_bar_plot(ax3, variable_names, one_failure, label="Failed after delivering Mobidik",
                          bottom=all_success, color=plt.cm.RdYlGn(0.66), ylabel="Number of robots", value_color='k', value=one_failure_percent)
-        self.plot_utils.custom_bar_plot(ax2, variable_names, two_failure, label="Failed while transporting Mobidik",
+        self.plot_utils.custom_bar_plot(ax3, variable_names, two_failure, label="Failed while transporting Mobidik",
                          bottom=one_failure+all_success, color=plt.cm.RdYlGn(0.33), ylabel="Number of robots", value_color='k', value=two_failure_percent)
-        self.plot_utils.custom_bar_plot(ax2, variable_names, all_failure, label="Failed before reaching Mobidik",
+        self.plot_utils.custom_bar_plot(ax3, variable_names, all_failure, label="Failed before reaching Mobidik",
                          bottom=two_failure+one_failure+all_success, color=plt.cm.RdYlGn(0.0), ylabel="Number of robots", value_color='k', value=all_failure_percent)
 
         fig.suptitle(self.get_figure_title("Execution stats", maps, planners, nRobots, holonomic, 

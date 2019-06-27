@@ -143,6 +143,12 @@ class RobotMissionData:
             p.set_optimal_path_length(lengths[i])
         self.complete_optimal_path_length = np.sum(lengths)
 
+    def get_time_to_deliver_mobidik(self):
+        if self.nSuccessful_mission_executions >= 2:
+            return np.sum(self.mission_execution_durations[0:2])
+        else:
+            return None
+
 class FleetMissionData:
     def __init__(self, planning_df, execution_df, nExperiences):
         self.robot_missions = None
@@ -252,6 +258,17 @@ class FleetMissionData:
 
     def get_highest_robot_mission_execution_time(self):
         return max([rm.total_execution_time for rm in self.robot_missions])
+
+    def get_mobidik_delivery_status(self):
+        total_delivery_time = self.total_planning_time
+        num_of_deliveries = 0
+        for m in self.robot_missions:
+            delivery_time = m.get_time_to_deliver_mobidik()
+            if delivery_time is not None:
+                total_delivery_time += delivery_time
+                num_of_deliveries += 1
+
+        return num_of_deliveries, total_delivery_time
 
 class DWT:
     def __init__(self):
