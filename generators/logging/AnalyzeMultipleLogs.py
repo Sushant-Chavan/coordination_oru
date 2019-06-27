@@ -373,6 +373,7 @@ class MultiLogAnalyzer:
             color_ids.append(i/len(fleets_list))
             fleet_ids.append(np.arange(1, len(fleets) + 1, 1))
 
+            print("Find similarities for:", variable_names[-1].replace('\n', ''))
             sim, nTests = self.dwt.determine_num_similar_paths(fleets, similarity_threshold=sim_thresh)
             similarities.append(np.sum(sim))
             dissimilarities.append(np.sum((np.ones_like(sim) * nTests) - sim))
@@ -406,58 +407,6 @@ class MultiLogAnalyzer:
         fig.suptitle(self.get_figure_title("Path quality stats", maps, planners, nRobots, holonomic, 
                                             use_hotspots, nExperiences, is_param_variable))
         plt.savefig(filename, format='svg')
-
-    def plot_path_predictability_stats(self, assisted_sampling, fleets=None, similarity_threshold = 0.3):
-        if fleets is None:
-            fleets = self.fleet_missions
-        thresholds = [similarity_threshold, np.round(similarity_threshold-0.2, 2), np.round(similarity_threshold+0.2, 2)]
-        fig = plt.figure(figsize=(15, 15))
-
-        ax1 = fig.add_subplot(221)
-        self.plot_predictability_subplot(ax1, thresholds[0], fleets)
-
-        # Get the path lengths of all the robot missions in all fleet trials
-        path_lengths = np.zeros((len(fleets), fleets[0].nRobots))
-        optimal_path_lengths = np.zeros_like(path_lengths)
-        for i, f in enumerate(fleets):
-            for j, m in enumerate(f.robot_missions):
-                path_lengths[i, j] = m.complete_path_length
-                optimal_path_lengths[i, j] = m.complete_optimal_path_length
-
-        ax2 = fig.add_subplot(222)
-        fleet_ids = np.arange(1, path_lengths.shape[0] + 1, 1)
-        robot_suboptimality = None
-        for id in range(path_lengths.shape[1]):
-            if robot_suboptimality is None:
-                robot_suboptimality = np.clip(path_lengths[:, id] / optimal_path_lengths[:, id], 1.0, 100.0)
-            else:
-                robot_suboptimality = np.vstack((robot_suboptimality, np.clip(path_lengths[:, id] / optimal_path_lengths[:, id], 1.0, 100.0)))
-
-        robot_suboptimality = robot_suboptimality.T
-        robot_ids = np.arange(1, robot_suboptimality.shape[1]+1)
-        self.plot_utils.custom_box_plot(ax2, robot_ids, robot_suboptimality,
-                                        xlabel="Robot ID", ylabel="Suboptimality ratio", title="Path Suboptimality")
-
-        ax3 = fig.add_subplot(223)
-        self.plot_predictability_subplot(ax3, thresholds[1], fleets)
-
-        ax4 = fig.add_subplot(224)
-        self.plot_predictability_subplot(ax4, thresholds[2], fleets)
-
-        # ax3 = fig.add_subplot(223)
-        # for id in range(path_lengths.shape[1]):
-        #     robot_path_lengths = path_lengths[:, id]
-        #     # TODO: Although the units seems to be correct in meters, how do we describe the rotation since that is also included in the path length?
-        #     self.plot_utils.custom_line_plot(ax3, fleet_ids, robot_path_lengths, label="Robot {}".format(id+1),
-        #                           xlabel="Fleet ID", ylabel="Length measure",
-        #                           xticks=fleet_ids, useLog10Scale=False,
-        #                           title="Path Lengths")
-
-        fig.suptitle(self.get_figure_title("Plan stats", fleets, assisted_sampling))
-
-        plot_name = os.path.join(self.get_directory_to_save_plots(fleets, assisted_sampling), "path_predictability.svg")
-        plt.savefig(plot_name, format='svg')
-        # fig.savefig(os.path.join(self.get_directory_to_save_plots(fleets, assisted_sampling), "PathLengths.svg"), bbox_inches=self.plot_utils.subplot_extent(fig, ax2))
 
     def get_directory_to_save_plots(self, fleets, assisted_sampling):
         if self.save_path is None:
