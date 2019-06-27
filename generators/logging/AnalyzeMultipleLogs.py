@@ -346,7 +346,7 @@ class MultiLogAnalyzer:
         # plot_name = os.path.join(self.get_directory_to_save_plots(fleets, assisted_sampling), "planning_times.svg")
         plt.savefig(filename, format='svg')
 
-    def plot_path_quality_stats(self, params, filename, sim_thresh=0.8):
+    def plot_path_quality_stats(self, params, filename, sim_thresh=0.3):
         maps, planners, nRobots, holonomic, use_hotspots, nExperiences = self.get_unique_params(params)
         is_param_variable = self.get_variables(maps, planners, nRobots, holonomic, use_hotspots, nExperiences)
 
@@ -394,8 +394,8 @@ class MultiLogAnalyzer:
         dissimilarities = np.array(dissimilarities)
         sim_percentage = similarities / (similarities + dissimilarities) * 100.0
         dissim_percentage = 100.0 - sim_percentage
-        sim_percentage = [str(np.round(p, 1))+"%" if p > 0 else None for p in sim_percentage.tolist()]
-        dissim_percentage = [str(np.round(p, 1))+"%" if p > 0 else None for p in dissim_percentage.tolist()]
+        sim_percentage = [str(np.round(p, 1))+"%" if p > 5 else None for p in sim_percentage.tolist()]
+        dissim_percentage = [str(np.round(p, 1))+"%" if p > 5 else None for p in dissim_percentage.tolist()]
 
         # Plot the predictability of the paths
         self.plot_utils.custom_bar_plot(ax2, variable_names, similarities, label='Number of similar paths',

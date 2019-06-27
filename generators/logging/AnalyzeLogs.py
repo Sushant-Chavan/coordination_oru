@@ -186,18 +186,18 @@ class LogAnalyzer:
         dissimilarities = (np.ones_like(similarities) * nTests) - similarities
         robot_ids = np.arange(1, similarities.size+1, 1)
 
-        self.plot_utils.custom_bar_plot(ax, robot_ids, similarities, label='Number of similar paths',
-                         color='g', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
-                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1), avg_line_col='b',
-                         title="Number of predictable paths with similarity threshold = {}".format(similarity_threshold))
-        self.plot_utils.custom_bar_plot(ax, robot_ids, dissimilarities, label="Number of non-similar paths",
-                         bottom=similarities, color='r', xlabel="Robot ID", ylabel="Number of similar/non-similar paths",
+        self.plot_utils.custom_bar_plot(ax, robot_ids, similarities, label='Similar paths',
+                         color='g', xlabel="Robot ID", ylabel="Number of paths",
+                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1),
+                         title="Similarity between paths with similarity threshold = {}".format(similarity_threshold))
+        self.plot_utils.custom_bar_plot(ax, robot_ids, dissimilarities, label="Non-similar paths",
+                         bottom=similarities, color='r', xlabel="Robot ID", ylabel="Number paths",
                          xticks=robot_ids, yticks=np.arange(0, nTests+1, 1))
 
     def plot_path_predictability_stats(self, assisted_sampling, fleets=None, similarity_threshold = 0.3):
         if fleets is None:
             fleets = self.fleet_missions
-        thresholds = [similarity_threshold, np.round(similarity_threshold-0.2, 2), np.round(similarity_threshold+0.2, 2)]
+        thresholds = [similarity_threshold, np.round(similarity_threshold-0.1, 2), np.round(similarity_threshold+0.1, 2)]
         fig = plt.figure(figsize=(15, 15))
 
         ax1 = fig.add_subplot(221)
@@ -222,23 +222,28 @@ class LogAnalyzer:
 
         robot_suboptimality = robot_suboptimality.T
         robot_ids = np.arange(1, robot_suboptimality.shape[1]+1)
-        self.plot_utils.custom_box_plot(ax2, robot_ids, robot_suboptimality,
-                                        xlabel="Robot ID", ylabel="Suboptimality ratio", title="Path Suboptimality")
+        # self.plot_utils.custom_box_plot(ax2, robot_ids, robot_suboptimality,
+        #                                 xlabel="Robot ID", ylabel="Suboptimality ratio", title="Path Suboptimality")
+
+        colors = ['r', 'g', 'b', 'k', 'orange', 'yellow', 'magenta', 'purple', 'cyan', 'pink']
+        for id in range(path_lengths.shape[1]):
+            c = colors[id] if id < len(colors) else plt.cm.jet(id/path_lengths.shape[1])
+            robot_path_lengths = path_lengths[:, id]
+            # TODO: Although the units seems to be correct in meters, how do we describe the rotation since that is also included in the path length?
+            self.plot_utils.custom_line_plot(ax2, fleet_ids, robot_path_lengths, label="Robot {}".format(id+1),
+                                  color=c, xlabel="Iteration number", ylabel="Length measure",
+                                  xticks=fleet_ids, useLog10Scale=False,
+                                  title="Path Lengths")
+            mean = self.plot_utils.clean_mean(robot_path_lengths, outlier_threshold=2, force_outlier_removal=True)
+            var = np.var(robot_path_lengths)
+            ax2.axhline(y=mean + 2, linestyle=':', color=c)
+            ax2.axhline(y=mean - 2, linestyle=':', color=c)
 
         ax3 = fig.add_subplot(223)
         self.plot_predictability_subplot(ax3, thresholds[1], fleets)
 
         ax4 = fig.add_subplot(224)
         self.plot_predictability_subplot(ax4, thresholds[2], fleets)
-
-        # ax3 = fig.add_subplot(223)
-        # for id in range(path_lengths.shape[1]):
-        #     robot_path_lengths = path_lengths[:, id]
-        #     # TODO: Although the units seems to be correct in meters, how do we describe the rotation since that is also included in the path length?
-        #     self.plot_utils.custom_line_plot(ax3, fleet_ids, robot_path_lengths, label="Robot {}".format(id+1),
-        #                           xlabel="Fleet ID", ylabel="Length measure",
-        #                           xticks=fleet_ids, useLog10Scale=False,
-        #                           title="Path Lengths")
 
         fig.suptitle(self.get_figure_title("Plan stats", fleets, assisted_sampling))
 
@@ -297,7 +302,7 @@ def main():
     assisted_sampling = not args.no_hotspots
 
     la = LogAnalyzer(planning_csv_filename, execution_csv_filename, args.nExperiences)
-    la.plot_path_predictability_stats(assisted_sampling, similarity_threshold=0.8)
+    la.plot_path_predictability_stats(assisted_sampling, similarity_threshold=0.3)
     la.plot_fleet_planning_times(assisted_sampling)
     la.plot_execution_stats(assisted_sampling)
 

@@ -319,14 +319,14 @@ class DWT:
         return similarity_count, max_num_matches
 
 class PlotUtils:
-    def reject_outliers(self, data, m=2):
-        if data.size <= 20:
+    def reject_outliers(self, data, m=2, force=False):
+        if not force and data.size <= 20:
             return data
 
         return data[abs(data - np.mean(data)) < m * np.std(data)]
 
-    def clean_mean(self, data, outlier_threshold=2):
-        clean_data = self.reject_outliers(np.array(data), outlier_threshold)
+    def clean_mean(self, data, outlier_threshold=2, force_outlier_removal=False):
+        clean_data = self.reject_outliers(np.array(data), outlier_threshold, force_outlier_removal)
         if clean_data.size > 0:
             return np.mean(clean_data)
         else:
@@ -402,14 +402,17 @@ class PlotUtils:
         ax.legend(labels)
 
     def custom_box_plot(self, ax, x_vals, data, color=None,
-                        xlabel=None, ylabel=None, title=None):
+                        xlabel=None, ylabel=None, title=None, horizontal=False):
         x = []
         y = []
         for i in range(data.shape[1]):
             x.extend([x_vals[i]] * data.shape[0])
             y.extend(data[:, i])
             
-        sns.boxplot(ax=ax, x=x, y=y)
+        if horizontal:
+            sns.boxplot(ax=ax, x=y, y=x, orient='h')
+        else:
+            sns.boxplot(ax=ax, x=x, y=y, orient='v')
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         ax.set_title(title)
