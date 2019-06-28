@@ -226,13 +226,14 @@ class LogAnalyzer:
         #                                 xlabel="Robot ID", ylabel="Suboptimality ratio", title="Path Suboptimality")
 
         colors = ['r', 'g', 'b', 'k', 'orange', 'yellow', 'magenta', 'purple', 'cyan', 'pink']
+        ticks = np.arange(1, path_lengths.shape[0] + 5, 5) if path_lengths.shape[0] > 20 else fleet_ids
         for id in range(path_lengths.shape[1]):
             c = colors[id] if id < len(colors) else plt.cm.jet(id/path_lengths.shape[1])
             robot_path_lengths = path_lengths[:, id]
             # TODO: Although the units seems to be correct in meters, how do we describe the rotation since that is also included in the path length?
             self.plot_utils.custom_line_plot(ax2, fleet_ids, robot_path_lengths, label="Robot {}".format(id+1),
                                   color=c, xlabel="Iteration number", ylabel="Length measure",
-                                  xticks=fleet_ids, useLog10Scale=False,
+                                  xticks=ticks, useLog10Scale=False,
                                   title="Path Lengths")
             mean = self.plot_utils.clean_mean(robot_path_lengths, outlier_threshold=2, force_outlier_removal=True)
             var = np.var(robot_path_lengths)
