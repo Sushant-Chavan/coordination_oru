@@ -160,15 +160,26 @@ class DatasetGenerator():
 
         # Divide all samples equallly among the different hotspot centers
         sampleSize = int(float(nSamples) / nMeans)
+        print("Sample Size:", sampleSize)
 
-        for i in range(nMeans):
-            size = sampleSize if (i != (nMeans-1)) else (nSamples - (sampleSize * (nMeans - 1)))
-            newSamples = self.get_bivariate_samples(size, self.hotspot_means[i], self.hotspot_covs[i])
-            if self.samples is None:
-                self.samples = newSamples
-            else:
-                self.samples = np.vstack((self.samples, newSamples))
-            print("\tGenerated", newSamples.shape[0], "samples for hotspot", i+1, "of", nMeans)
+        if sampleSize > 0:
+            extra_samples = nSamples % nMeans
+            for i in range(nMeans):
+                size = (sampleSize + 1) if (i < extra_samples) else sampleSize
+                newSamples = self.get_bivariate_samples(size, self.hotspot_means[i], self.hotspot_covs[i])
+                if self.samples is None:
+                    self.samples = newSamples
+                else:
+                    self.samples = np.vstack((self.samples, newSamples))
+                print("\tGenerated", newSamples.shape[0], "samples for hotspot", i+1, "of", nMeans)
+        else:
+            for i in range(nSamples):
+                newSamples = self.get_bivariate_samples(1, self.hotspot_means[i], self.hotspot_covs[i])
+                if self.samples is None:
+                    self.samples = newSamples
+                else:
+                    self.samples = np.vstack((self.samples, newSamples))
+                print("\tGenerated", newSamples.shape[0], "samples for hotspot", i+1, "of", nMeans)
 
         # Set the resolution
         self.samples[:, 0:2] = self.samples[:, 0:2] * self.resolution
@@ -354,15 +365,17 @@ class DatasetGenerator():
             print("Oversampling rate:\t", self.oversamplingFactor)
             print("------------------------------------------------")
 
-            # Add some wiggle room for creating problems. Ideally we need (nProblems * 2) samples for nProblems.
-            # We generate more samples than needed to spread out the problems more evenly
-            wiggle_factor = 2
-            nSamples = self.nProblems * 2 * wiggle_factor
+            # Ideally we need (nProblems * 2) samples for nProblems.
+            nSamples = self.nProblems * 2
 
             if self.hotspot_means is not None:
-                print("Generating", nSamples, "samples (with wiggle factor of", wiggle_factor, "), at the hotspots...")
+                print("Generating", nSamples, "samples at the hotspots...")
                 self.generate_focussed_samples(nSamples)
             else:
+                # Add some wiggle room for creating problems.
+                # We generate more samples than needed to spread out the problems more evenly
+                wiggle_factor = 2
+                nSamples = nSamples * wiggle_factor
                 print("Generating", nSamples, "samples (with wiggle factor of", wiggle_factor, "), uniformly over the map...")
                 self.generate_random_samples(nSamples)
             print("Successfully generated", self.samples.shape[0], "samples")
