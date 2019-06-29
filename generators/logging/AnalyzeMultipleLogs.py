@@ -451,17 +451,6 @@ class MultiLogAnalyzer:
 
 
 def main():
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("map", type=str, help=" Name of the map (Ex. BRSU_Floor0)")
-    # parser.add_argument("planner", type=int, help="ID of the planner (SIMPLE_RRT-Connect:0, LIGHTNING:1, THUNDER:2, SIMPLE_RRT-Star:3)")
-    # parser.add_argument("--nRobots", type=int, help="Number of robots to be used in the testing. Default: 3", default=3)
-    # parser.add_argument("--constrained", type=bool, help="Indicate if the robots are ReedsSheep like vehicles. Default: False (holonomic)", default=False)
-    # parser.add_argument("--no_hotspots", type=bool, help="Indicate if the experience databases are generated using uniform sampling of the map. Default: False (hotspots used)", default=False)
-    # parser.add_argument("--nExperiences", type=int, help="Number of training problems used to build the experience DB. Default: 100", default=100)
-    # args = parser.parse_args()
-
-    # assisted_sampling = not args.no_hotspots
-
     mla = MultiLogAnalyzer()
 
     mla.load_all_fleets(["BRSU_Floor0"], [0, 1, 2, 3], [5], [True], [True], [25])
@@ -469,17 +458,9 @@ def main():
               ["BRSU_Floor0", 1, 5, True, True, 25],
               ["BRSU_Floor0", 2, 5, True, True, 25],
               ["BRSU_Floor0", 3, 5, True, True, 25]]
-    mla.plot_planning_times(params, "/home/suvich15/Desktop/25Exp_PlanningTimes.svg", use_LogScale=True)
-    mla.plot_exec_stats(params, "/home/suvich15/Desktop/25Exp_ExecutionTimes.svg")
-    mla.plot_path_quality_stats(params, "/home/suvich15/Desktop/25Exp_PathQuality.svg")
-
-    # mla.load_all_fleets(["BRSU_Floor0"], [0, 1, 2], [5], [True], [True], [100])
-    # params = [["BRSU_Floor0", 0, 5, True, True, 100],
-    #           ["BRSU_Floor0", 1, 5, True, True, 100],
-    #           ["BRSU_Floor0", 2, 5, True, True, 100]]
-    # mla.plot_planning_times(params, "/home/suvich15/Desktop/100Exp_PlanningTimes.svg")
-    # mla.plot_exec_stats(params, "/home/suvich15/Desktop/100Exp_ExecutionTimes.svg")
-    # # mla.plot_path_quality_stats(params, "/home/suvich15/Desktop/100Exp_PathQuality.svg")
+    mla.plot_planning_times(params, "/home/suvich15/Desktop/25Exp_5Robots_PlanningTimes.svg")
+    mla.plot_exec_stats(params, "/home/suvich15/Desktop/25Exp_5Robots_ExecutionTimes.svg")
+    mla.plot_path_quality_stats(params, "/home/suvich15/Desktop/25Exp_5Robots_PathQuality.svg")
 
 if __name__ == "__main__":
     main()
