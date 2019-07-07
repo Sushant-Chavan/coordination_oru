@@ -458,9 +458,9 @@ def main():
               ["BRSU_Floor0", 1, 5, True, True, 25],
               ["BRSU_Floor0", 2, 5, True, True, 25],
               ["BRSU_Floor0", 3, 5, True, True, 25]]
-    mla.plot_planning_times(params, "/home/suvich15/Desktop/25Exp_5Robots_PlanningTimes.svg")
-    mla.plot_exec_stats(params, "/home/suvich15/Desktop/25Exp_5Robots_ExecutionTimes.svg")
-    mla.plot_path_quality_stats(params, "/home/suvich15/Desktop/25Exp_5Robots_PathQuality.svg")
+    mla.plot_planning_times(params, "/home/suvich15/Desktop/PlanningTimes.svg")
+    mla.plot_exec_stats(params, "/home/suvich15/Desktop/ExecutionTimes.svg")
+    mla.plot_path_quality_stats(params, "/home/suvich15/Desktop/PathQuality.svg")
 
 if __name__ == "__main__":
     main()
