@@ -409,11 +409,11 @@ class PlotUtils:
         ax.legend()
 
     def autopct_func(self, pct):
-        return ('%.1f%%' % pct) if pct >= 1 else ''
+        return ('%.1f%%' % pct) if pct >= 5 else ''
 
 
-    def custom_pie_plot(self, ax, values, labels=None, title=None, startangle=90):
-        ax.pie(values, autopct=self.autopct_func, shadow=True, startangle=startangle)
+    def custom_pie_plot(self, ax, values, labels=None, title=None, startangle=90, colors=None):
+        ax.pie(values, autopct=self.autopct_func, shadow=True, startangle=startangle, colors=colors)
 
         ax.set_title(title)
         ax.legend(labels)

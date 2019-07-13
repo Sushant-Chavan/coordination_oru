@@ -54,6 +54,7 @@ comparePaths(const PathPose *path1, int pathLength1, const PathPose *path2, int 
         reals[2] = path1[i].theta;
         space->deserialize(state, reals.data());
         pg1.append(state);
+        si->freeState(state);
     }
 
     og::PathGeometric pg2 = og::PathGeometric(si);
@@ -66,6 +67,7 @@ comparePaths(const PathPose *path1, int pathLength1, const PathPose *path2, int 
         reals[2] = path2[i].theta;
         space->deserialize(state, reals.data());
         pg2.append(state);
+        si->freeState(state);
     }
 
     NullBuffer null_buffer;
