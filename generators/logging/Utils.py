@@ -301,7 +301,7 @@ class DWT:
                                      bool(is_holonomic), c_double(4.0), c_double(similarity_threshold))
 
     def determine_num_similar_paths(self, fleets, similarity_threshold=0.25):
-        print("Checking similarity of paths. This may take some time...")
+        print("Checking similarity of paths with threshold {}. This may take some time...".format(similarity_threshold))
         max_num_matches = (len(fleets) -1) # -1 because we dont test a path against itself
 
         similarity_count = np.zeros(fleets[0].nRobots)
@@ -430,6 +430,17 @@ class PlotUtils:
             sns.boxplot(ax=ax, x=y, y=x, orient='h')
         else:
             sns.boxplot(ax=ax, x=x, y=y, orient='v')
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        ax.set_title(title)
+
+    def custom_grouped_box_plot(self, ax, data, x=None, y=None, hue=None, color=None,
+                        xlabel=None, ylabel=None, title=None, horizontal=False):
+            
+        if horizontal:
+            sns.boxplot(ax=ax, x=y, y=x, hue=hue, data=data, orient='h')
+        else:
+            sns.boxplot(ax=ax, x=x, y=y, hue=hue, data=data, orient='v')
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         ax.set_title(title)

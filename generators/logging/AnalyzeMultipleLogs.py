@@ -196,6 +196,49 @@ class MultiLogAnalyzer:
         return list(set(params[:, 0])), list(set(params[:, 1])), list(set(params[:, 2])),\
                list(set(params[:, 3])), list(set(params[:, 4])), list(set(params[:, 5]))
 
+    def generate_df(self, fleets_list, params):
+        maps, planners, nRobots, holonomic, use_hotspots, nExperiences = self.get_unique_params(params)
+        is_param_variable = self.get_variables(maps, planners, nRobots, holonomic, use_hotspots, nExperiences)
+
+        planner_names = ["RRT-Connect", "Lightning", "Thunder", "EGraphs", "RRT-Star"]
+        kinematics = ["ReedShepp", "Holonomic"]
+        sampling = ["Uniform", "Hotspots"]
+
+        columns = ["Map", "Planner", "NumRobots", "Kinematics", "SamplingStrategy", "NumExperience", "TotalPlanningTime",
+                   "NumPlansFromRecall", "NumPlansFromScratch", "MaxExecutionTime"]
+        df = pd.DataFrame(columns=columns)
+
+        for i in range(len(fleets_list)):
+            fleets = fleets_list[i]
+            plan_times = []
+            recall = []
+            scratch = []
+            max_exec_time = []
+
+            for f in fleets:
+                plan_times.append(f.total_planning_time)
+                recall.append(f.nPlans_from_recall)
+                scratch.append(f.nPlans_from_scratch)
+                max_exec_time.append(f.get_highest_robot_mission_execution_time())
+
+            indices = np.arange(1, len(fleets)+1, 1)
+            newdf = pd.DataFrame(columns=columns)
+            newdf = newdf.fillna("-")
+            newdf["Map"] = [params[i][0]] * len(fleets)
+            newdf["Planner"] = [planner_names[params[i][1]]] * len(fleets)
+            newdf["NumRobots"] = [params[i][2]] * len(fleets)
+            newdf["Kinematics"] = [kinematics[params[i][3]]] * len(fleets)
+            newdf["SamplingStrategy"] = [sampling[params[i][4]]] * len(fleets)
+            newdf["NumExperience"] = [params[i][5]] * len(fleets)
+            newdf["TotalPlanningTime"] = plan_times
+            newdf["NumPlansFromRecall"] = recall
+            newdf["NumPlansFromScratch"] = scratch
+            newdf["MaxExecutionTime"] = max_exec_time
+
+            df = df.append(newdf, ignore_index=True, sort=None)
+
+        return df
+
 
     def plot_planning_times(self, params, filename, use_LogScale=False):
         maps, planners, nRobots, holonomic, use_hotspots, nExperiences = self.get_unique_params(params)
@@ -215,6 +258,9 @@ class MultiLogAnalyzer:
         nPlans_from_scratch = []
         variable_names = []
         color_ids = []
+
+        df = self.generate_df(fleets_list, params)
+
         for i in range(len(fleets_list)):
             variable_names.append(self.get_variable_name("", params[i], is_param_variable))
             fleets = fleets_list[i]
@@ -238,8 +284,11 @@ class MultiLogAnalyzer:
         if use_LogScale:
             y_label += " ($log_{10}$ scale)"
         total_plan_times = np.log10(np.array(total_plan_times).T) if use_LogScale else np.array(total_plan_times).T
-        self.plot_utils.custom_box_plot(ax1, variable_names, total_plan_times,
+        # self.plot_utils.custom_box_plot(ax1, variable_names, total_plan_times,
+        #                                 ylabel=y_label, title="Total planning time")
+        self.plot_utils.custom_grouped_box_plot(ax1, df, x="Planner", y="TotalPlanningTime", hue="NumExperience",
                                         ylabel=y_label, title="Total planning time")
+
         # for i in range(len(total_plan_times)):
         #     self.plot_utils.custom_line_plot(ax1, fleet_ids[i], total_plan_times[i], label=variable_names[i],
         #                     color=plt.cm.summer(color_ids[i]), xlabel="Fleet ID", ylabel="Time in seconds",
@@ -316,9 +365,12 @@ class MultiLogAnalyzer:
             throughput.append(int(np.sum(num_deliveries)/np.sum(delivery_times) * 3600))
 
         # Plot mission execution times
+        df = self.generate_df(fleets_list, params)
         max_execution_times = np.array(max_execution_times).T
-        self.plot_utils.custom_box_plot(ax1, variable_names, max_execution_times, horizontal=True,
-                                        xlabel="Time in seconds", title="Complete fleet mission execution time")
+        # self.plot_utils.custom_box_plot(ax1, variable_names, max_execution_times, horizontal=True,
+        #                                 xlabel="Time in seconds", title="Complete fleet mission execution time")
+        self.plot_utils.custom_grouped_box_plot(ax1, df, x="Planner", y="MaxExecutionTime", hue="NumExperience",
+                                        xlabel="Time in seconds", title="Complete fleet mission execution time", horizontal=True)
 
         # for i in range(len(max_execution_times)):
         #     c = plt.cm.jet(color_ids[i])
