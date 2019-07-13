@@ -105,7 +105,7 @@ def main():
 
     initialize_test(args)
 
-    run_test_cmd = ["./gradlew", "run", "-Pdemo=customTests.CustomTesting", "-PnRobots="+str(args.nRobots),
+    run_test_cmd = ["./gradlew", "run", "--offline","-Pdemo=customTests.CustomTesting", "-PnRobots="+str(args.nRobots),
            "-Pplanner="+str(args.planner), "-Pmap="+args.map, "-Pconstrained="+str(int(args.constrained)),
            "-Pno_hotspots="+str(int(args.no_hotspots)), "-Pexp="+str(args.nExperiences)]
 
