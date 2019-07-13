@@ -143,10 +143,14 @@ class MultiLogAnalyzer:
         if not is_param_variable[2]:
             title += "Num of robots:{}, ".format(nRobots[0])
         if not is_param_variable[3]:
-            kinematics = "Holonomic" if holonomic[0] else "ReedsSheep"
+            kinematics = "Holonomic" 
+            if not holonomic[0]:
+                kinematics = "ReedsSheep"
             title += "Kinematics:{}, ".format(kinematics)
         if not is_param_variable[4]:
-            sampling_name = "UsingHotspots" if use_hotspots[0] else "Uniform"
+            sampling_name = "UsingHotspots"
+            if not use_hotspots[0]:
+                sampling_name = "Uniform"
             title += "Sampling:{}, ".format(sampling_name)
         if not is_param_variable[5]:
             title += "Experience Count:{}, ".format(nExperiences[0])
@@ -168,12 +172,16 @@ class MultiLogAnalyzer:
                 variable_name += "-\n"
             variable_name += str(params[2]) + "Robots"
         if is_param_variable[3]:
-            kinematics = "Holonomic" if params[3] else "ReedsSheep"
+            kinematics = "Holonomic" 
+            if not params[3]:
+                kinematics = "ReedsSheep"
             if len(variable_name) > 0:
                 variable_name += "-\n"
             variable_name += kinematics
         if is_param_variable[4]:
-            sampling_name = "UsingHotspots" if params[4] else "Uniform"
+            sampling_name = "UsingHotspots"
+            if not params[4]:
+                sampling_name = "Uniform"
             if len(variable_name) > 0:
                 variable_name += "-\n"
             variable_name += sampling_name
@@ -325,7 +333,6 @@ class MultiLogAnalyzer:
         self.plot_utils.custom_bar_plot(ax2, variable_names, throughput,
                          color=plt.cm.RdYlGn(1.0), ylabel="Number of mobidik deliveries per hour",
                          title="Throughput", value_color='k', value=throughput)
-
 
         # Plot Mission executions status
         all_success, all_success_percent = np.zeros(len(success_status)), np.zeros(len(success_status))
