@@ -241,6 +241,91 @@ class MultiLogAnalyzer:
 
         return df
 
+    def plot_plans_from_recall(self, ax, nPlans_from_recall, nPlans_from_scratch, variable_names):
+        recall_percent = np.round(np.array(nPlans_from_recall) / (np.array(nPlans_from_recall) + np.array(nPlans_from_scratch)) * 100.0, 1)
+        scratch_percent = 100-recall_percent
+        recall_percent = [str(np.round(p, 1))+"%" if p > 10 else None for p in recall_percent.tolist()]
+        scratch_percent = [str(np.round(p, 1))+"%" if p > 10 else None for p in scratch_percent.tolist()]
+        # Add some buffer ticks above the bars
+        yticks = np.arange(0, nPlans_from_recall[0] + nPlans_from_scratch[0]+51, 50)
+        self.plot_utils.custom_bar_plot(ax, variable_names, nPlans_from_recall, label="Recall",
+                        color='g', ylabel="Number of plans", value_color='k', value=recall_percent,
+                        title="Plans generated from recall/scratch", yticks=yticks)
+        self.plot_utils.custom_bar_plot(ax, variable_names, nPlans_from_scratch, label="Scratch",
+                        bottom=nPlans_from_recall, color='r', ylabel="Number of plans", value_color='k', value=scratch_percent,
+                        title="Plans generated from recall/scratch", yticks=yticks)
+
+    def plot_plans_from_recall_group(self, ax, nPlans_from_recall, nPlans_from_scratch, variable_names, variable_pos, params):
+        param_sets = self.get_unique_params(params)
+        nPlans_from_recall = np.array(nPlans_from_recall)
+        nPlans_from_scratch = np.array(nPlans_from_scratch)
+
+        nGroups = len(param_sets[variable_pos[0]])
+        group_size = len(param_sets[variable_pos[1]])
+
+        first_variable_names = []
+        second_variable_names = []
+        for v in variable_names:
+            n1, n2 = v.split("-\n")
+            if n1 not in first_variable_names:
+                first_variable_names.append(n1)
+            if n2 not in second_variable_names:
+                second_variable_names.append(n2)
+
+        bar_width = 0.25
+        complete_bar_width = bar_width*group_size
+
+        start_indices = np.arange(1, (nGroups+1)*(complete_bar_width+bar_width), (complete_bar_width+bar_width))
+        start_indices = start_indices[0:nGroups]
+
+        recall_percent = np.round(nPlans_from_recall / (nPlans_from_recall + nPlans_from_scratch) * 100.0, 1)
+        scratch_percent = 100-recall_percent
+        recall_percent = np.array([str(np.round(p, 1))+"%" if p > 10 else None for p in recall_percent.tolist()])
+        scratch_percent = np.array([str(np.round(p, 1))+"%" if p > 10 else None for p in scratch_percent.tolist()])
+        # Add some buffer ticks above the bars
+        max_idx = np.argmax(nPlans_from_recall)
+        yticks = np.arange(0, nPlans_from_recall[max_idx] + nPlans_from_scratch[max_idx]+51, 50)
+
+        group_recall_vals = []
+        group_scratch_vals = []
+        group_recall_percent = []
+        group_scratch_percent = []
+        for i in range(nGroups):
+            start = i*group_size
+            res = np.zeros(group_size)
+            res[:nPlans_from_recall[start:start+group_size].size] = nPlans_from_recall[start:start+group_size]
+            group_recall_vals.append(res)
+
+            res = np.zeros(group_size)
+            res[:nPlans_from_scratch[start:start+group_size].size] = nPlans_from_scratch[start:start+group_size]
+            group_scratch_vals.append(res)
+
+            res = np.zeros(group_size).astype(str)
+            res[:recall_percent[start:start+group_size].size] = recall_percent[start:start+group_size]
+            group_recall_percent.append(res)
+
+            res = np.zeros(group_size).astype(str)
+            res[:scratch_percent[start:start+group_size].size] = scratch_percent[start:start+group_size]
+            group_scratch_percent.append(res)
+
+        group_recall_vals = np.array(group_recall_vals).T
+        group_scratch_vals = np.array(group_scratch_vals).T
+        group_recall_percent = np.array(group_recall_percent).T
+        group_scratch_percent = np.array(group_scratch_percent).T
+
+        res = [None]*group_size
+        for i in range(group_size):
+            res[i] = self.plot_utils.custom_bar_plot(ax, start_indices+(i*bar_width), group_recall_vals[i], barwidth=bar_width, label="Recall",
+                        ylabel="Number of plans", value_color='k', value=group_recall_percent[i],
+                        title="Plans generated from recall/scratch", yticks=yticks)
+        # for i in range(group_size):
+        #     self.plot_utils.custom_bar_plot(ax, start_indices+(i*bar_width), group_scratch_vals[i], barwidth=bar_width, label="Recall",
+        #                 ylabel="Number of plans", value_color='k', value=group_scratch_percent[i], bottom=group_recall_vals[i],
+        #                 title="Plans generated from recall/scratch", yticks=yticks, legend_loc='lower right')
+
+        ax.set_xticks(start_indices - (bar_width/2.0) + (complete_bar_width / 2.0))
+        ax.set_xticklabels(first_variable_names)
+        ax.legend(res, second_variable_names, loc='lower right')
 
     def plot_planning_times(self, params, filename, use_LogScale=False):
         maps, planners, nRobots, holonomic, use_hotspots, nExperiences = self.get_unique_params(params)
@@ -248,6 +333,8 @@ class MultiLogAnalyzer:
 
         assert is_param_variable.count(True) <=2, "Max allowed variable params is 2 to support the plotting using grouped plots"
         variable_pos = [i for i, val in enumerate(is_param_variable) if val]
+        if len(variable_pos) < 2:
+            variable_pos.append(None)
 
         fig = plt.figure(figsize=(15, 7.5))
         ax1 = fig.add_subplot(121)
@@ -291,8 +378,11 @@ class MultiLogAnalyzer:
         total_plan_times = np.log10(np.array(total_plan_times).T) if use_LogScale else np.array(total_plan_times).T
         # self.plot_utils.custom_box_plot(ax1, variable_names, total_plan_times,
         #                                 ylabel=y_label, title="Total planning time")
+        hue = None
+        if variable_pos[1] is not None:
+            hue = self.dataframe_columns[variable_pos[1]]
         self.plot_utils.custom_grouped_box_plot(ax1, df, x=self.dataframe_columns[variable_pos[0]],
-                                                y="TotalPlanningTime", hue=self.dataframe_columns[variable_pos[1]],
+                                                y="TotalPlanningTime", hue=hue,
                                                 ylabel=y_label, title="Total planning time")
 
         # for i in range(len(total_plan_times)):
@@ -301,18 +391,11 @@ class MultiLogAnalyzer:
         #                     useLog10Scale=False, avg_line_col=plt.cm.summer(color_ids[i]), title="Total planning time")
 
         # Plot recall stats
-        recall_percent = np.round(np.array(nPlans_from_recall) / (np.array(nPlans_from_recall) + np.array(nPlans_from_scratch)) * 100.0, 1)
-        scratch_percent = 100-recall_percent
-        recall_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in recall_percent.tolist()]
-        scratch_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in scratch_percent.tolist()]
-        # Add some buffer ticks above the bars
-        yticks = np.arange(0, nPlans_from_recall[0] + nPlans_from_scratch[0]+51, 50)
-        self.plot_utils.custom_bar_plot(ax2, variable_names, nPlans_from_recall, label="Recall",
-                        color='g', ylabel="Number of plans", value_color='k', value=recall_percent,
-                        title="Plans generated from recall/scratch", yticks=yticks)
-        self.plot_utils.custom_bar_plot(ax2, variable_names, nPlans_from_scratch, label="Scratch",
-                        bottom=nPlans_from_recall, color='r', ylabel="Number of plans", value_color='k', value=scratch_percent,
-                        title="Plans generated from recall/scratch", yticks=yticks)
+        if variable_pos[1] is None:
+            self.plot_plans_from_recall(ax2, nPlans_from_recall, nPlans_from_scratch, variable_names)
+        else:
+            self.plot_plans_from_recall_group(ax2, nPlans_from_recall, nPlans_from_scratch, variable_names, variable_pos, params)
+        
 
         fig.suptitle(self.get_figure_title("Planning time stats", maps, planners, nRobots, holonomic, 
                                             use_hotspots, nExperiences, is_param_variable))
@@ -320,16 +403,66 @@ class MultiLogAnalyzer:
         # plot_name = os.path.join(self.get_directory_to_save_plots(fleets, assisted_sampling), "planning_times.svg")
         plt.savefig(filename, format='svg')
 
+    def plot_throughput(self, ax, throughput, params, variable_names):
+        max_throughput = np.max(throughput)
+        param_sets = self.get_unique_params(params)
+        self.plot_utils.custom_bar_plot(ax, variable_names, throughput, ylabel="Number of mobidik deliveries per hour",
+                         title="Throughput", value_color='k', value=throughput, yticks=np.arange(0, max_throughput+11, 10))
+
+    def plot_throughput_group(self, ax, throughput, params, variable_pos, variable_names):
+        throughput = np.array(throughput)
+        max_throughput = np.max(throughput)
+        param_sets = self.get_unique_params(params)
+
+        nGroups = len(param_sets[variable_pos[0]])
+        group_size = len(param_sets[variable_pos[1]])
+
+        first_variable_names = []
+        second_variable_names = []
+        for v in variable_names:
+            n1, n2 = v.split("-\n")
+            if n1 not in first_variable_names:
+                first_variable_names.append(n1)
+            if n2 not in second_variable_names:
+                second_variable_names.append(n2)
+
+        bar_width = 0.25
+        complete_bar_width = bar_width*group_size
+
+        start_indices = np.arange(1, (nGroups+1)*(complete_bar_width+bar_width), (complete_bar_width+bar_width))
+        start_indices = start_indices[0:nGroups]
+
+        group_vals = []
+        for i in range(nGroups):
+            start = i*group_size
+            res = np.zeros(group_size)
+            res[:throughput[start:start+group_size].size] = throughput[start:start+group_size]
+            group_vals.append(res)
+        group_vals = np.array(group_vals).T
+
+        res = [None]*group_size
+        for i in range(group_size):
+            res[i] = self.plot_utils.custom_bar_plot(ax, start_indices+(i*bar_width), group_vals[i], barwidth=bar_width,
+                            ylabel="Number of mobidik deliveries per hour",
+                            title="Throughput", value_color='k', value=group_vals[i].astype(int), yticks=np.arange(0, max_throughput+11, 10))[0]
+
+        ax.set_xticks(start_indices - (bar_width/2.0) + (complete_bar_width / 2.0))
+        ax.set_xticklabels(first_variable_names)
+        ax.legend(res, second_variable_names)
+
+
     def plot_exec_stats(self, params, filename):
         maps, planners, nRobots, holonomic, use_hotspots, nExperiences = self.get_unique_params(params)
         is_param_variable = self.get_variables(maps, planners, nRobots, holonomic, use_hotspots, nExperiences)
         assert is_param_variable.count(True) <=2, "Max allowed variable params is 2 to support the plotting using grouped plots"
         variable_pos = [i for i, val in enumerate(is_param_variable) if val]
+        if len(variable_pos) < 2:
+            variable_pos.append(None)
 
         fig = plt.figure(figsize=(15, 15))
-        ax1 = fig.add_subplot(211)
+        ax3 = fig.add_subplot(211)
         ax2 = fig.add_subplot(223)
-        ax3 = fig.add_subplot(224)
+        ax1 = fig.add_subplot(224)
 
         fleets_list = []
         for p in params:
@@ -381,10 +514,13 @@ class MultiLogAnalyzer:
         max_execution_times = np.array(max_execution_times).T
         # self.plot_utils.custom_box_plot(ax1, variable_names, max_execution_times, horizontal=True,
         #                                 xlabel="Time in seconds", title="Complete fleet mission execution time")
+        hue = None
+        if variable_pos[1] is not None:
+            hue = self.dataframe_columns[variable_pos[1]]
         self.plot_utils.custom_grouped_box_plot(ax1, df, x=self.dataframe_columns[variable_pos[0]], 
-                                                y="MaxExecutionTime", hue=self.dataframe_columns[variable_pos[1]],
-                                                xlabel="Time in seconds", title="Complete fleet mission execution time", 
-                                                horizontal=True)
+                                                y="MaxExecutionTime", hue=hue,
+                                                ylabel="Time in seconds", title="Complete fleet mission execution time", 
+                                                horizontal=False)
 
         # for i in range(len(max_execution_times)):
         #     c = plt.cm.jet(color_ids[i])
@@ -396,10 +532,10 @@ class MultiLogAnalyzer:
             #     ax1.scatter(fleet_ids[i][j], max_execution_times[i][j], marker=m, c=c, s=100)
 
         # Plot throughput
-        max_throughput = np.max(throughput)
-        self.plot_utils.custom_bar_plot(ax2, variable_names, throughput,
-                         color=plt.cm.RdYlGn(1.0), ylabel="Number of mobidik deliveries per hour",
-                         title="Throughput", value_color='k', value=throughput, yticks=np.arange(0, max_throughput+11, 10))
+        if variable_pos[1] is None:
+            self.plot_throughput(ax2, throughput, params, variable_names)
+        else:
+            self.plot_throughput_group(ax2, throughput, params, variable_pos, variable_names)
 
         # Plot Mission executions status
         all_success, all_success_percent = np.zeros(len(success_status)), np.zeros(len(success_status))
@@ -422,18 +558,19 @@ class MultiLogAnalyzer:
         two_failure_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in two_failure_percent.tolist()]
         all_failure_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in all_failure_percent.tolist()]
 
-        total_mission_count = all_success[0] + one_failure[0] + two_failure[0] + all_failure[0]
+        max_idx = np.argmax(all_success)
+        total_mission_count = all_success[max_idx] + one_failure[max_idx] + two_failure[max_idx] + all_failure[max_idx]
         # Add some buffer space abive the bars
         yticks = np.arange(0, total_mission_count + 50, 25)
 
-        self.plot_utils.custom_bar_plot(ax3, variable_names, all_success, label="All missions successful",
-                         color=plt.cm.RdYlGn(1.0), ylabel="Number of robots", yticks=yticks,
+        self.plot_utils.custom_horizontal_bar_plot(ax3, variable_names, all_success, label="All missions successful",
+                         color=plt.cm.RdYlGn(1.0), ylabel="Number of robots", yticks=yticks, legend_loc='lower left',
                          title="Robot mission execution status", value_color='k', value=all_success_percent)
-        self.plot_utils.custom_bar_plot(ax3, variable_names, one_failure, label="Failed after delivering Mobidik", yticks=yticks,
+        self.plot_utils.custom_horizontal_bar_plot(ax3, variable_names, one_failure, label="Failed after delivering Mobidik", yticks=yticks, legend_loc='lower left',
                          bottom=all_success, color=plt.cm.RdYlGn(0.66), ylabel="Number of robots", value_color='k', value=one_failure_percent)
-        self.plot_utils.custom_bar_plot(ax3, variable_names, two_failure, label="Failed while transporting Mobidik", yticks=yticks,
+        self.plot_utils.custom_horizontal_bar_plot(ax3, variable_names, two_failure, label="Failed while transporting Mobidik", yticks=yticks, legend_loc='lower left',
                          bottom=one_failure+all_success, color=plt.cm.RdYlGn(0.33), ylabel="Number of robots", value_color='k', value=two_failure_percent)
-        self.plot_utils.custom_bar_plot(ax3, variable_names, all_failure, label="Failed before reaching Mobidik", yticks=yticks,
+        self.plot_utils.custom_horizontal_bar_plot(ax3, variable_names, all_failure, label="Failed before reaching Mobidik", yticks=yticks, legend_loc='lower left',
                          bottom=two_failure+one_failure+all_success, color=plt.cm.RdYlGn(0.0), ylabel="Number of robots", value_color='k', value=all_failure_percent)
 
         fig.suptitle(self.get_figure_title("Execution stats", maps, planners, nRobots, holonomic, 

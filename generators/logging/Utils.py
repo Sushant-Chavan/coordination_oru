@@ -376,9 +376,9 @@ class PlotUtils:
 
     def custom_bar_plot(self, ax, x, height, label=None, color=None, barwidth=0.8,
                         bottom=0, xlabel=None, ylabel=None, title=None,
-                        xticks=None, yticks=None, avg_line_col=None,
+                        xticks=None, yticks=None, avg_line_col=None, legend_loc='best',
                         avg_text_color='black', avg_line_style='--', value_color=None, value=None):
-        ax.bar(x, height, label=label, color=color, width=barwidth, bottom=bottom)
+        retval = ax.bar(x, height, label=label, color=color, width=barwidth, bottom=bottom)
 
         if value_color is not None:
             for i, h in enumerate(height):
@@ -388,8 +388,9 @@ class PlotUtils:
                 if value is None and h > 0:
                     value = str(h)
 
-                if value is not None:
-                    ax.text(x[i], y_pos, value[i], color=value_color, fontweight='bold', horizontalalignment='center', verticalalignment='top')
+                if value is not None and value[i] != "None" and h > 0:
+                    ax.text(x[i], y_pos, value[i], color=value_color, fontweight='bold', horizontalalignment='center', verticalalignment='top',
+                            rotation='vertical')
         if avg_line_col is not None:
             mean_height = np.ones_like(height) * self.clean_mean(height)
             ax.plot(x, mean_height, label="Mean " + label, color=avg_line_col, linestyle=avg_line_style, linewidth=3.0)
@@ -406,7 +407,46 @@ class PlotUtils:
             ax.set_xticks(xticks)
         if yticks is not None:
             ax.set_yticks(yticks)
-        ax.legend()
+        ax.legend(loc=legend_loc)
+
+        return retval
+
+    def custom_horizontal_bar_plot(self, ax, x, height, label=None, color=None, barwidth=0.8,
+                        bottom=0, xlabel=None, ylabel=None, title=None,
+                        xticks=None, yticks=None, avg_line_col=None, legend_loc='best',
+                        avg_text_color='black', avg_line_style='--', value_color=None, value=None):
+        retval = ax.barh(x, height, label=label, color=color, height=barwidth, left=bottom)
+
+        if value_color is not None:
+            for i, h in enumerate(height):
+                y_pos = h
+                if not isinstance(bottom, int):
+                    y_pos += bottom[i]
+                if value is None and h > 0:
+                    value = str(h)
+
+                if value is not None and value[i] != "None" and h > 0:
+                    ax.text(y_pos, x[i], value[i], color=value_color, fontweight='bold', horizontalalignment='right', verticalalignment='center',
+                            rotation='horizontal')
+        if avg_line_col is not None:
+            mean_height = np.ones_like(height) * self.clean_mean(height)
+            ax.plot(x, mean_height, label="Mean " + label, color=avg_line_col, linestyle=avg_line_style, linewidth=3.0)
+            ax.text(x[0], mean_height[0], str(np.round(mean_height[0], decimals=3)), color=avg_text_color, fontweight='bold', horizontalalignment='left', verticalalignment='bottom')
+
+        if isinstance(bottom, int) and bottom == 0:
+            ax.set_xlabel(ylabel)
+            ax.set_ylabel(xlabel)
+
+            ax.set_title(title)
+            ax.grid(True)
+
+        if xticks is not None:
+            ax.set_yticks(xticks)
+        if yticks is not None:
+            ax.set_xticks(yticks)
+        ax.legend(loc=legend_loc)
+
+        return retval
 
     def autopct_func(self, pct):
         return ('%.1f%%' % pct) if pct >= 5 else ''
