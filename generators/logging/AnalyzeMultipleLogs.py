@@ -305,10 +305,14 @@ class MultiLogAnalyzer:
         scratch_percent = 100-recall_percent
         recall_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in recall_percent.tolist()]
         scratch_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in scratch_percent.tolist()]
-        self.plot_utils.custom_bar_plot(ax2, variable_names, nPlans_from_recall, label="Number of plans from recall",
-                        color='g', ylabel="Count", value_color='k', value=recall_percent)
-        self.plot_utils.custom_bar_plot(ax2, variable_names, nPlans_from_scratch, label="Number of plans from scratch",
-                        bottom=nPlans_from_recall, color='r', ylabel="Count", value_color='k', value=scratch_percent)
+        # Add some buffer ticks above the bars
+        yticks = np.arange(0, nPlans_from_recall[0] + nPlans_from_scratch[0]+51, 50)
+        self.plot_utils.custom_bar_plot(ax2, variable_names, nPlans_from_recall, label="Recall",
+                        color='g', ylabel="Number of plans", value_color='k', value=recall_percent,
+                        title="Plans generated from recall/scratch", yticks=yticks)
+        self.plot_utils.custom_bar_plot(ax2, variable_names, nPlans_from_scratch, label="Scratch",
+                        bottom=nPlans_from_recall, color='r', ylabel="Number of plans", value_color='k', value=scratch_percent,
+                        title="Plans generated from recall/scratch", yticks=yticks)
 
         fig.suptitle(self.get_figure_title("Planning time stats", maps, planners, nRobots, holonomic, 
                                             use_hotspots, nExperiences, is_param_variable))
@@ -392,9 +396,10 @@ class MultiLogAnalyzer:
             #     ax1.scatter(fleet_ids[i][j], max_execution_times[i][j], marker=m, c=c, s=100)
 
         # Plot throughput
+        max_throughput = np.max(throughput)
         self.plot_utils.custom_bar_plot(ax2, variable_names, throughput,
                          color=plt.cm.RdYlGn(1.0), ylabel="Number of mobidik deliveries per hour",
-                         title="Throughput", value_color='k', value=throughput)
+                         title="Throughput", value_color='k', value=throughput, yticks=np.arange(0, max_throughput+11, 10))
 
         # Plot Mission executions status
         all_success, all_success_percent = np.zeros(len(success_status)), np.zeros(len(success_status))
@@ -417,14 +422,18 @@ class MultiLogAnalyzer:
         two_failure_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in two_failure_percent.tolist()]
         all_failure_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in all_failure_percent.tolist()]
 
+        total_mission_count = all_success[0] + one_failure[0] + two_failure[0] + all_failure[0]
+        # Add some buffer space abive the bars
+        yticks = np.arange(0, total_mission_count + 50, 25)
+
         self.plot_utils.custom_bar_plot(ax3, variable_names, all_success, label="All missions successful",
-                         color=plt.cm.RdYlGn(1.0), ylabel="Number of robots",
+                         color=plt.cm.RdYlGn(1.0), ylabel="Number of robots", yticks=yticks,
                          title="Robot mission execution status", value_color='k', value=all_success_percent)
-        self.plot_utils.custom_bar_plot(ax3, variable_names, one_failure, label="Failed after delivering Mobidik",
+        self.plot_utils.custom_bar_plot(ax3, variable_names, one_failure, label="Failed after delivering Mobidik", yticks=yticks,
                          bottom=all_success, color=plt.cm.RdYlGn(0.66), ylabel="Number of robots", value_color='k', value=one_failure_percent)
-        self.plot_utils.custom_bar_plot(ax3, variable_names, two_failure, label="Failed while transporting Mobidik",
+        self.plot_utils.custom_bar_plot(ax3, variable_names, two_failure, label="Failed while transporting Mobidik", yticks=yticks,
                          bottom=one_failure+all_success, color=plt.cm.RdYlGn(0.33), ylabel="Number of robots", value_color='k', value=two_failure_percent)
-        self.plot_utils.custom_bar_plot(ax3, variable_names, all_failure, label="Failed before reaching Mobidik",
+        self.plot_utils.custom_bar_plot(ax3, variable_names, all_failure, label="Failed before reaching Mobidik", yticks=yticks,
                          bottom=two_failure+one_failure+all_success, color=plt.cm.RdYlGn(0.0), ylabel="Number of robots", value_color='k', value=all_failure_percent)
 
         fig.suptitle(self.get_figure_title("Execution stats", maps, planners, nRobots, holonomic, 
