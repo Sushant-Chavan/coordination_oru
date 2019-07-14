@@ -223,7 +223,6 @@ class MultiLogAnalyzer:
                 scratch.append(f.nPlans_from_scratch)
                 max_exec_time.append(f.get_highest_robot_mission_execution_time())
 
-            indices = np.arange(1, len(fleets)+1, 1)
             newdf = pd.DataFrame(columns=self.dataframe_columns)
             newdf = newdf.fillna("-")
             newdf["Map"] = [params[i][0]] * len(fleets)
@@ -317,11 +316,11 @@ class MultiLogAnalyzer:
         for i in range(group_size):
             res[i] = self.plot_utils.custom_bar_plot(ax, start_indices+(i*bar_width), group_recall_vals[i], barwidth=bar_width, label="Recall",
                         ylabel="Number of plans", value_color='k', value=group_recall_percent[i],
-                        title="Plans generated from recall/scratch", yticks=yticks)
+                        title="Plans generated from recall", yticks=yticks)
         # for i in range(group_size):
         #     self.plot_utils.custom_bar_plot(ax, start_indices+(i*bar_width), group_scratch_vals[i], barwidth=bar_width, label="Recall",
         #                 ylabel="Number of plans", value_color='k', value=group_scratch_percent[i], bottom=group_recall_vals[i],
-        #                 title="Plans generated from recall/scratch", yticks=yticks, legend_loc='lower right')
+        #                 title="Plans generated from recall", yticks=yticks, legend_loc='lower right')
 
         ax.set_xticks(start_indices - (bar_width/2.0) + (complete_bar_width / 2.0))
         ax.set_xticklabels(first_variable_names)
@@ -579,10 +578,102 @@ class MultiLogAnalyzer:
         # plot_name = os.path.join(self.get_directory_to_save_plots(fleets, assisted_sampling), "planning_times.svg")
         plt.savefig(filename, format='svg')
 
+    def plot_predictable_paths(self, ax, similarities, dissimilarities, variable_names, sim_thresh):
+        similarities = np.array(similarities)
+        dissimilarities = np.array(dissimilarities)
+
+        sim_percentage = similarities / (similarities + dissimilarities) * 100.0
+        dissim_percentage = 100.0 - sim_percentage
+        sim_percentage = [str(np.round(p, 1))+"%" if p > 10 else None for p in sim_percentage.tolist()]
+        dissim_percentage = [str(np.round(p, 1))+"%" if p > 10 else None for p in dissim_percentage.tolist()]
+
+        # Plot the predictability of the paths
+        self.plot_utils.custom_bar_plot(ax, variable_names, similarities, label='Number of similar paths',
+                         color='g', ylabel="Number of paths", value_color='k', value=sim_percentage,
+                         title="Number of predictable paths with similarity threshold = {}".format(sim_thresh))
+        self.plot_utils.custom_bar_plot(ax, variable_names, dissimilarities, label="Number of non-similar paths",
+                         bottom=similarities, color='r', ylabel="Number of paths", value_color='k', value=dissim_percentage)
+
+    def plot_predictable_paths_group(self, ax, similarities, dissimilarities, variable_names, sim_thresh, variable_pos, params):
+        param_sets = self.get_unique_params(params)
+        similarities = np.array(similarities)
+        dissimilarities = np.array(dissimilarities)
+
+        nGroups = len(param_sets[variable_pos[0]])
+        group_size = len(param_sets[variable_pos[1]])
+
+        first_variable_names = []
+        second_variable_names = []
+        for v in variable_names:
+            n1, n2 = v.split("-\n")
+            if n1 not in first_variable_names:
+                first_variable_names.append(n1)
+            if n2 not in second_variable_names:
+                second_variable_names.append(n2)
+
+        bar_width = 0.25
+        complete_bar_width = bar_width*group_size
+
+        start_indices = np.arange(1, (nGroups+1)*(complete_bar_width+bar_width), (complete_bar_width+bar_width))
+        start_indices = start_indices[0:nGroups]
+
+        sim_percentage = similarities / (similarities + dissimilarities) * 100.0
+        dissim_percentage = 100.0 - sim_percentage
+        sim_percentage = np.array([str(np.round(p, 1))+"%" if p > 10 else None for p in sim_percentage.tolist()])
+        dissim_percentage = np.array([str(np.round(p, 1))+"%" if p > 10 else None for p in dissim_percentage.tolist()])
+        # Add some buffer ticks above the bars
+        max_idx = np.argmax(similarities)
+        yticks = np.arange(0, similarities[max_idx] + dissimilarities[max_idx]+51, 50)
+
+        group_sim_vals = []
+        group_dissim_vals = []
+        group_sim_percent = []
+        group_dissim_percent = []
+        for i in range(nGroups):
+            start = i*group_size
+            res = np.zeros(group_size)
+            res[:similarities[start:start+group_size].size] = similarities[start:start+group_size]
+            group_sim_vals.append(res)
+
+            res = np.zeros(group_size)
+            res[:dissimilarities[start:start+group_size].size] = dissimilarities[start:start+group_size]
+            group_dissim_vals.append(res)
+
+            res = np.zeros(group_size).astype(str)
+            res[:sim_percentage[start:start+group_size].size] = sim_percentage[start:start+group_size]
+            group_sim_percent.append(res)
+
+            res = np.zeros(group_size).astype(str)
+            res[:dissim_percentage[start:start+group_size].size] = dissim_percentage[start:start+group_size]
+            group_dissim_percent.append(res)
+
+        group_sim_vals = np.array(group_sim_vals).T
+        group_dissim_vals = np.array(group_dissim_vals).T
+        group_sim_percent = np.array(group_sim_percent).T
+        group_dissim_percent = np.array(group_dissim_percent).T
+
+        res = [None]*group_size
+        for i in range(group_size):
+            res[i] = self.plot_utils.custom_bar_plot(ax, start_indices+(i*bar_width), group_sim_vals[i], barwidth=bar_width, label="Recall",
+                        ylabel="Number of paths", value_color='k', value=group_sim_percent[i],
+                        title="Predictability of paths with similarity threshold = {}".format(sim_thresh), yticks=yticks)
+        # for i in range(group_size):
+        #     self.plot_utils.custom_bar_plot(ax, start_indices+(i*bar_width), group_dissim_vals[i], barwidth=bar_width, label="Recall",
+        #                 ylabel="Number of paths", value_color='k', value=group_dissim_percent[i], bottom=group_sim_vals[i],
+        #                 title="Predictability of paths with similarity threshold = {}".format(sim_thresh), yticks=yticks,
+        #                 legend_loc='lower right')
+
+        ax.set_xticks(start_indices - (bar_width/2.0) + (complete_bar_width / 2.0))
+        ax.set_xticklabels(first_variable_names)
+        ax.legend(res, second_variable_names, loc='lower right')
+
     def plot_path_quality_stats(self, params, filename, sim_thresh=0.3):
         maps, planners, nRobots, holonomic, use_hotspots, nExperiences = self.get_unique_params(params)
         is_param_variable = self.get_variables(maps, planners, nRobots, holonomic, use_hotspots, nExperiences)
         assert is_param_variable.count(True) <=2, "Max allowed variable params is 2 to support the plotting using grouped plots"
+        variable_pos = [i for i, val in enumerate(is_param_variable) if val]
+        if len(variable_pos) < 2:
+            variable_pos.append(None)
 
         fig = plt.figure(figsize=(15, 7.5))
         ax1 = fig.add_subplot(121)
@@ -600,43 +691,64 @@ class MultiLogAnalyzer:
         color_ids = []
         fleet_ids = []
 
+        columns = ["Map", "Planner", "NumRobots", "Kinematics", "SamplingStrategy", "NumExperience", "RobotID", "Suboptimality"]
+        subopt_df = pd.DataFrame(columns=columns)
+
         nTests = 0
-        for i in range(len(fleets_list)):
-            variable_names.append(self.get_variable_name("", params[i], is_param_variable))
-            fleets = fleets_list[i]
-            color_ids.append(i/len(fleets_list))
+        for f_id in range(len(fleets_list)):
+            variable_names.append(self.get_variable_name("", params[f_id], is_param_variable))
+            fleets = fleets_list[f_id]
+            color_ids.append(f_id/len(fleets_list))
             fleet_ids.append(np.arange(1, len(fleets) + 1, 1))
 
-            print("Find similarities for:", variable_names[-1].replace('\n', ''))
+            # print("Find similarities for:", variable_names[-1].replace('\n', ''))
+            sim, nTests = np.random.randint(150, 250), 250
             sim, nTests = self.dwt.determine_num_similar_paths(fleets, similarity_threshold=sim_thresh)
             similarities.append(np.sum(sim))
             dissimilarities.append(np.sum((np.ones_like(sim) * nTests) - sim))
 
             # Get the path suboptimalities of all the robot missions in all fleet trials
             sub_optimalities = np.zeros((len(fleets), fleets[0].nRobots))
+            robot_ids = np.zeros((len(fleets), fleets[0].nRobots))
             for i, f in enumerate(fleets):
                 for j, m in enumerate(f.robot_missions):
                     sub_optimalities[i, j] = np.clip(m.complete_path_length / m.complete_optimal_path_length, 1.0, 100.0)
+                    robot_ids[i, j] = j
             path_suboptimalities.append(np.reshape(sub_optimalities, sub_optimalities.size))
+
+            planner_names = ["RRT-Connect", "Lightning", "Thunder", "EGraphs", "RRT-Star"]
+            kinematics = ["ReedShepp", "Holonomic"]
+            sampling = ["Uniform", "Hotspots"]
+
+            newdf = pd.DataFrame(columns=columns)
+            newdf = newdf.fillna("-")
+            newdf["Map"] = [params[f_id][0]] * sub_optimalities.size
+            newdf["Planner"] = [planner_names[params[f_id][1]]] * sub_optimalities.size
+            newdf["NumRobots"] = [params[f_id][2]] * sub_optimalities.size
+            newdf["Kinematics"] = [kinematics[params[f_id][3]]] * sub_optimalities.size
+            newdf["SamplingStrategy"] = [sampling[params[f_id][4]]] * sub_optimalities.size
+            newdf["NumExperience"] = [params[f_id][5]] * sub_optimalities.size
+            newdf["Suboptimality"] = np.reshape(sub_optimalities, sub_optimalities.size)
+            newdf["RobotID"] = np.reshape(robot_ids, robot_ids.size).astype(int)
+            subopt_df = subopt_df.append(newdf, ignore_index=True, sort=None)
 
         # Plot the suboptimality of the paths
         path_suboptimalities = np.array(path_suboptimalities).T
-        self.plot_utils.custom_box_plot(ax1, variable_names, path_suboptimalities,
+        if variable_pos[1] is None:
+            self.plot_utils.custom_box_plot(ax, variable_names, path_suboptimalities,
                                         ylabel="Suboptimality ratio", title="Path Suboptimality")
+        else:
+            hue = None
+            if variable_pos[1] is not None:
+                hue = self.dataframe_columns[variable_pos[1]]
+            self.plot_utils.custom_grouped_box_plot(ax1, subopt_df, x=columns[variable_pos[0]], 
+                                                    y="Suboptimality", hue=hue,
+                                                    ylabel="Suboptimality ratio", title="Path Suboptimality")
 
-        similarities = np.array(similarities)
-        dissimilarities = np.array(dissimilarities)
-        sim_percentage = similarities / (similarities + dissimilarities) * 100.0
-        dissim_percentage = 100.0 - sim_percentage
-        sim_percentage = [str(np.round(p, 1))+"%" if p > 5 else None for p in sim_percentage.tolist()]
-        dissim_percentage = [str(np.round(p, 1))+"%" if p > 5 else None for p in dissim_percentage.tolist()]
-
-        # Plot the predictability of the paths
-        self.plot_utils.custom_bar_plot(ax2, variable_names, similarities, label='Number of similar paths',
-                         color='g', ylabel="Number of paths", value_color='k', value=sim_percentage,
-                         title="Number of predictable paths with similarity threshold = {}".format(sim_thresh))
-        self.plot_utils.custom_bar_plot(ax2, variable_names, dissimilarities, label="Number of non-similar paths",
-                         bottom=similarities, color='r', ylabel="Number of paths", value_color='k', value=dissim_percentage)
+        if variable_pos[1] is None:
+            self.plot_predictable_paths(ax2, similarities, dissimilarities, variable_names, sim_thresh)
+        else:
+            self.plot_predictable_paths_group(ax2, similarities, dissimilarities, variable_names, sim_thresh, variable_pos, params)
 
         fig.suptitle(self.get_figure_title("Path quality stats", maps, planners, nRobots, holonomic, 
                                             use_hotspots, nExperiences, is_param_variable))
