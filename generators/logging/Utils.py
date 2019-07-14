@@ -399,13 +399,13 @@ class PlotUtils:
             ax.set_xlabel(xlabel)
             ax.set_ylabel(ylabel)
 
-            if xticks is not None:
-                ax.set_xticks(xticks)
-            if yticks is not None:
-                ax.set_yticks(yticks)
-
             ax.set_title(title)
             ax.grid(True)
+
+        if xticks is not None:
+            ax.set_xticks(xticks)
+        if yticks is not None:
+            ax.set_yticks(yticks)
         ax.legend()
 
     def autopct_func(self, pct):
