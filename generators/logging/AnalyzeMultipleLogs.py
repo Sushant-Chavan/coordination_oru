@@ -698,10 +698,11 @@ class MultiLogAnalyzer:
             fleets = fleets_list[f_id]
             color_ids.append(f_id/len(fleets_list))
             fleet_ids.append(np.arange(1, len(fleets) + 1, 1))
+            assisted_sampling = params[f_id][4]
 
             # print("Find similarities for:", variable_names[-1].replace('\n', ''))
             sim, nTests = np.random.randint(150, 250), 250
-            sim, nTests = self.dwt.determine_num_similar_paths(fleets, similarity_threshold=sim_thresh)
+            sim, nTests = self.dwt.determine_num_similar_paths(fleets, assisted_sampling, similarity_threshold=sim_thresh)
             similarities.append(np.sum(sim))
             dissimilarities.append(np.sum((np.ones_like(sim) * nTests) - sim))
 
