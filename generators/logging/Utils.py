@@ -272,7 +272,7 @@ class FleetMissionData:
 
     def get_log_path(self, assisted_sampling):
         sampling_name = "UsingHotspots" if assisted_sampling else "Uniform"
-        kinematics = "ReedsSheep" if self.get_holonomic() else "Holonomic"
+        kinematics = "Holonomic" if self.get_holonomic() else "ReedsSheep"
         planner_names = ["SIMPLE(RRT-Connect)", "Lightning", "Thunder", "EGraphs", "SIMPLE(RRT-Star)"]
 
         directory = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/executionData/")
