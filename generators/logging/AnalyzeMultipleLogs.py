@@ -247,12 +247,11 @@ class MultiLogAnalyzer:
         scratch_percent = [str(np.round(p, 1))+"%" if p > 10 else None for p in scratch_percent.tolist()]
         # Add some buffer ticks above the bars
         yticks = np.arange(0, nPlans_from_recall[0] + nPlans_from_scratch[0]+51, 50)
-        self.plot_utils.custom_bar_plot(ax, variable_names, nPlans_from_recall, label="Recall",
-                        color='g', ylabel="Number of plans", value_color='k', value=recall_percent,
-                        title="Plans generated from recall/scratch", yticks=yticks)
-        self.plot_utils.custom_bar_plot(ax, variable_names, nPlans_from_scratch, label="Scratch",
-                        bottom=nPlans_from_recall, color='r', ylabel="Number of plans", value_color='k', value=scratch_percent,
-                        title="Plans generated from recall/scratch", yticks=yticks)
+        self.plot_utils.custom_bar_plot(ax, variable_names, nPlans_from_recall, ylabel="Number of plans", value_color='k', value=recall_percent,
+                        title="Plans generated from recall", yticks=yticks)
+        # self.plot_utils.custom_bar_plot(ax, variable_names, nPlans_from_scratch, label="Scratch",
+        #                 bottom=nPlans_from_recall, color='r', ylabel="Number of plans", value_color='k', value=scratch_percent,
+        #                 title="Plans generated from recall", yticks=yticks)
 
     def plot_plans_from_recall_group(self, ax, nPlans_from_recall, nPlans_from_scratch, variable_names, variable_pos, params):
         param_sets = self.get_unique_params(params)
@@ -588,11 +587,10 @@ class MultiLogAnalyzer:
         dissim_percentage = [str(np.round(p, 1))+"%" if p > 10 else None for p in dissim_percentage.tolist()]
 
         # Plot the predictability of the paths
-        self.plot_utils.custom_bar_plot(ax, variable_names, similarities, label='Number of similar paths',
-                         color='g', ylabel="Number of paths", value_color='k', value=sim_percentage,
+        self.plot_utils.custom_bar_plot(ax, variable_names, similarities, ylabel="Number of paths", value_color='k', value=sim_percentage,
                          title="Number of predictable paths with similarity threshold = {}".format(sim_thresh))
-        self.plot_utils.custom_bar_plot(ax, variable_names, dissimilarities, label="Number of non-similar paths",
-                         bottom=similarities, color='r', ylabel="Number of paths", value_color='k', value=dissim_percentage)
+        # self.plot_utils.custom_bar_plot(ax, variable_names, dissimilarities, label="Number of non-similar paths",
+        #                  bottom=similarities, color='r', ylabel="Number of paths", value_color='k', value=dissim_percentage)
 
     def plot_predictable_paths_group(self, ax, similarities, dissimilarities, variable_names, sim_thresh, variable_pos, params):
         param_sets = self.get_unique_params(params)
@@ -735,7 +733,7 @@ class MultiLogAnalyzer:
         # Plot the suboptimality of the paths
         path_suboptimalities = np.array(path_suboptimalities).T
         if variable_pos[1] is None:
-            self.plot_utils.custom_box_plot(ax, variable_names, path_suboptimalities,
+            self.plot_utils.custom_box_plot(ax1, variable_names, path_suboptimalities,
                                         ylabel="Suboptimality ratio", title="Path Suboptimality")
         else:
             hue = None
