@@ -784,13 +784,14 @@ def main():
     exp_results_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/ExperimentResults/")
 
     # Experiment - 1
-    mla.load_all_fleets(["BRSU_Floor0"], [0, 1, 2, 3], [5], [True], [True], [25])
-    params = sorted([
+    mla.load_all_fleets(["BRSU_Floor0"], [0, 1, 2, 3, 4], [5], [True], [True], [25])
+    params = [
               ["BRSU_Floor0", 0, 5, True, True, 25],
+              ["BRSU_Floor0", 4, 5, True, True, 25],
               ["BRSU_Floor0", 1, 5, True, True, 25],
               ["BRSU_Floor0", 2, 5, True, True, 25],
               ["BRSU_Floor0", 3, 5, True, True, 25]
-              ])
+              ]
     mla.plot_planning_times(params, os.path.join(exp_results_dir, "Experiment1/Planning.svg"))
     mla.plot_exec_stats(params, os.path.join(exp_results_dir, "Experiment1/Execution.svg"))
     mla.plot_path_quality_stats(params, os.path.join(exp_results_dir, "Experiment1/PathQuality.svg"))
