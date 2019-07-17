@@ -246,10 +246,10 @@ class LogAnalyzer:
             ax2.axhline(y=mean - 2, linestyle=':', color=c)
 
         ax3 = fig.add_subplot(223)
-        self.plot_predictability_subplot(ax3, thresholds[1], fleets)
+        self.plot_predictability_subplot(ax3, thresholds[1], fleets, assisted_sampling)
 
         ax4 = fig.add_subplot(224)
-        self.plot_predictability_subplot(ax4, thresholds[2], fleets)
+        self.plot_predictability_subplot(ax4, thresholds[2], fleets, assisted_sampling)
 
         fig.suptitle(self.get_figure_title("Plan stats", fleets, assisted_sampling))
 

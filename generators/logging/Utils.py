@@ -319,11 +319,12 @@ class DWT:
         filename = "Similarities_" + str(similarity_threshold) + '.txt'
         filepath = os.path.join(directory, filename)
 
+        common_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/executionData/")
+        relative_path = os.path.relpath(filepath, common_dir)
+
         if os.path.isfile(filepath):
             loaded_data = np.loadtxt(filepath)
 
-            common_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/executionData/")
-            relative_path = os.path.relpath(filepath, common_dir)
             print("Loaded Similarity data from", relative_path, ":", loaded_data)
 
             max_num_matches = loaded_data[0]
@@ -331,7 +332,7 @@ class DWT:
 
             return similarities, max_num_matches
         else:
-            print("Similarities data file not found at", filepath)
+            print("Similarities data file not found at", relative_path)
             return None
 
 
@@ -527,10 +528,11 @@ class PlotUtils:
             x.extend([x_vals[i]] * data.shape[0])
             y.extend(data[:, i])
             
+        meanprops = {"marker":'^', 'markerfacecolor':(1.0, 0.0, 0.0), "markeredgecolor":'k'}
         if horizontal:
-            sns.boxplot(ax=ax, x=y, y=x, orient='h')
+            sns.boxplot(ax=ax, x=y, y=x, orient='h', showmeans=True, meanprops=meanprops)
         else:
-            sns.boxplot(ax=ax, x=x, y=y, orient='v')
+            sns.boxplot(ax=ax, x=x, y=y, orient='v', showmeans=True, meanprops=meanprops)
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         ax.set_title(title)
@@ -538,10 +540,11 @@ class PlotUtils:
     def custom_grouped_box_plot(self, ax, data, x=None, y=None, hue=None, color=None,
                         xlabel=None, ylabel=None, title=None, horizontal=False):
             
+        meanprops = {"marker":'^', 'markerfacecolor':(1.0, 0.0, 0.0), "markeredgecolor":'k'}
         if horizontal:
-            sns.boxplot(ax=ax, x=y, y=x, hue=hue, data=data, orient='h')
+            sns.boxplot(ax=ax, x=y, y=x, hue=hue, data=data, orient='h', showmeans=True, meanprops=meanprops)
         else:
-            sns.boxplot(ax=ax, x=x, y=y, hue=hue, data=data, orient='v')
+            sns.boxplot(ax=ax, x=x, y=y, hue=hue, data=data, orient='v', showmeans=True, meanprops=meanprops)
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         ax.set_title(title)
