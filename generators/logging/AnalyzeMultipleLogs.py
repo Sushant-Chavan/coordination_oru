@@ -458,9 +458,9 @@ class MultiLogAnalyzer:
             variable_pos.append(None)
 
         fig = plt.figure(figsize=(15, 15))
-        ax3 = fig.add_subplot(211)
-        ax2 = fig.add_subplot(223)
-        ax1 = fig.add_subplot(224)
+        ax1 = fig.add_subplot(211)
+        ax3 = fig.add_subplot(223)
+        ax2 = fig.add_subplot(224)
 
         fleets_list = []
         for p in params:
@@ -518,7 +518,7 @@ class MultiLogAnalyzer:
         self.plot_utils.custom_grouped_box_plot(ax1, df, x=self.dataframe_columns[variable_pos[0]], 
                                                 y="MaxExecutionTime", hue=hue,
                                                 ylabel="Time in seconds", title="Complete fleet mission execution time", 
-                                                horizontal=False)
+                                                horizontal=True)
 
         # for i in range(len(max_execution_times)):
         #     c = plt.cm.jet(color_ids[i])
@@ -698,10 +698,11 @@ class MultiLogAnalyzer:
             fleets = fleets_list[f_id]
             color_ids.append(f_id/len(fleets_list))
             fleet_ids.append(np.arange(1, len(fleets) + 1, 1))
+            assisted_sampling = params[f_id][4]
 
             # print("Find similarities for:", variable_names[-1].replace('\n', ''))
             sim, nTests = np.random.randint(150, 250), 250
-            sim, nTests = self.dwt.determine_num_similar_paths(fleets, similarity_threshold=sim_thresh)
+            sim, nTests = self.dwt.determine_num_similar_paths(fleets, assisted_sampling, similarity_threshold=sim_thresh)
             similarities.append(np.sum(sim))
             dissimilarities.append(np.sum((np.ones_like(sim) * nTests) - sim))
 
@@ -779,14 +780,102 @@ class MultiLogAnalyzer:
 def main():
     mla = MultiLogAnalyzer()
 
+    # Order: maps, planners, nRobots, holonomic, use_hotspots, nExperiences
+    exp_results_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/ExperimentResults/")
+
+    # Experiment - 1
     mla.load_all_fleets(["BRSU_Floor0"], [0, 1, 2, 3], [5], [True], [True], [25])
-    params = [["BRSU_Floor0", 0, 5, True, True, 25],
+    params = sorted([
+              ["BRSU_Floor0", 0, 5, True, True, 25],
               ["BRSU_Floor0", 1, 5, True, True, 25],
               ["BRSU_Floor0", 2, 5, True, True, 25],
-              ["BRSU_Floor0", 3, 5, True, True, 25]]
-    mla.plot_planning_times(params, "/home/suvich15/Desktop/PlanningTimes.svg")
-    mla.plot_exec_stats(params, "/home/suvich15/Desktop/ExecutionTimes.svg")
-    mla.plot_path_quality_stats(params, "/home/suvich15/Desktop/PathQuality.svg")
+              ["BRSU_Floor0", 3, 5, True, True, 25]
+              ])
+    mla.plot_planning_times(params, os.path.join(exp_results_dir, "Experiment1/Planning.svg"))
+    mla.plot_exec_stats(params, os.path.join(exp_results_dir, "Experiment1/Execution.svg"))
+    mla.plot_path_quality_stats(params, os.path.join(exp_results_dir, "Experiment1/PathQuality.svg"))
+
+    # Experiment - 2
+    mla.load_all_fleets(["BRSU_Floor0"], [1, 2, 3], [5, 7, 10], [True], [True], [25])
+    params = sorted([
+              ["BRSU_Floor0", 1, 5, True, True, 25],
+              ["BRSU_Floor0", 2, 5, True, True, 25],
+              ["BRSU_Floor0", 3, 5, True, True, 25],
+              ["BRSU_Floor0", 1, 7, True, True, 25],
+              ["BRSU_Floor0", 2, 7, True, True, 25],
+              ["BRSU_Floor0", 3, 7, True, True, 25],
+              ["BRSU_Floor0", 1, 10, True, True, 25],
+              ["BRSU_Floor0", 2, 10, True, True, 25],
+              ["BRSU_Floor0", 3, 10, True, True, 25]
+              ])
+    mla.plot_planning_times(params, os.path.join(exp_results_dir, "Experiment2/Planning.svg"))
+    mla.plot_exec_stats(params, os.path.join(exp_results_dir, "Experiment2/Execution.svg"))
+    mla.plot_path_quality_stats(params, os.path.join(exp_results_dir, "Experiment2/PathQuality.svg"))
+
+    # Experiment - 3
+    mla.load_all_fleets(["BRSU_Floor0"], [1, 2, 3], [5], [True], [True], [10, 25])
+    mla.load_all_fleets(["BRSU_Floor0"], [1, 2], [5], [True], [True], [50, 100])
+    params = sorted([
+              ["BRSU_Floor0", 1, 5, True, True, 10],
+              ["BRSU_Floor0", 2, 5, True, True, 10],
+              ["BRSU_Floor0", 3, 5, True, True, 10],
+              ["BRSU_Floor0", 1, 5, True, True, 25],
+              ["BRSU_Floor0", 2, 5, True, True, 25],
+              ["BRSU_Floor0", 3, 5, True, True, 25],
+              ["BRSU_Floor0", 1, 5, True, True, 50],
+              ["BRSU_Floor0", 2, 5, True, True, 50],
+              ["BRSU_Floor0", 1, 5, True, True, 100],
+              ["BRSU_Floor0", 2, 5, True, True, 100],
+              ])
+    mla.plot_planning_times(params, os.path.join(exp_results_dir, "Experiment3/Planning.svg"))
+    mla.plot_exec_stats(params, os.path.join(exp_results_dir, "Experiment3/Execution.svg"))
+    mla.plot_path_quality_stats(params, os.path.join(exp_results_dir, "Experiment3/PathQuality.svg"))
+
+    # Experiment - 4
+    mla.load_all_fleets(["BRSU_Floor0"], [1, 2], [5], [True, False], [True], [25])
+    params = sorted([
+              ["BRSU_Floor0", 1, 5, True, True, 25],
+              ["BRSU_Floor0", 2, 5, True, True, 25],
+              ["BRSU_Floor0", 1, 5, False, True, 25],
+              ["BRSU_Floor0", 2, 5, False, True, 25]
+              ])
+    mla.plot_planning_times(params, os.path.join(exp_results_dir, "Experiment4/Planning.svg"))
+    mla.plot_exec_stats(params, os.path.join(exp_results_dir, "Experiment4/Execution.svg"))
+    mla.plot_path_quality_stats(params, os.path.join(exp_results_dir, "Experiment4/PathQuality.svg"))
+
+    # Experiment - 5
+    mla.load_all_fleets(["BRSU_Floor0"], [1, 2, 3], [5], [True], [True, False], [25])
+    params = sorted([
+              ["BRSU_Floor0", 1, 5, True, True, 25],
+              ["BRSU_Floor0", 2, 5, True, True, 25],
+              ["BRSU_Floor0", 3, 5, True, True, 25],
+              ["BRSU_Floor0", 1, 5, True, False, 25],
+              ["BRSU_Floor0", 2, 5, True, False, 25],
+              ["BRSU_Floor0", 3, 5, True, False, 25]
+              ])
+    mla.plot_planning_times(params, os.path.join(exp_results_dir, "Experiment5/Planning.svg"))
+    mla.plot_exec_stats(params, os.path.join(exp_results_dir, "Experiment5/Execution.svg"))
+    mla.plot_path_quality_stats(params, os.path.join(exp_results_dir, "Experiment5/PathQuality.svg"))
+
+    # Experiment - 6
+    mla.load_all_fleets(["BRSU_Floor0", "AGP_Basement", "AGP_Floor4"], [0, 1, 2, 3], [5], [True], [True], [25])
+    params = sorted([
+              ["BRSU_Floor0", 0, 5, True, True, 25],
+              ["BRSU_Floor0", 1, 5, True, True, 25],
+              ["BRSU_Floor0", 2, 5, True, True, 25],
+              ["BRSU_Floor0", 3, 5, True, True, 25],
+              ["AGP_Basement", 0, 5, True, True, 25],
+              ["AGP_Basement", 1, 5, True, True, 25],
+              ["AGP_Basement", 2, 5, True, True, 25],
+              ["AGP_Basement", 3, 5, True, True, 25],
+              ["AGP_Floor4", 0, 5, True, True, 25],
+              ["AGP_Floor4", 1, 5, True, True, 25],
+              ["AGP_Floor4", 2, 5, True, True, 25],
+              ["AGP_Floor4", 3, 5, True, True, 25]
+              ])
+    mla.plot_planning_times(params, os.path.join(exp_results_dir, "Experiment6/Planning.svg"))
+    mla.plot_exec_stats(params, os.path.join(exp_results_dir, "Experiment6/Execution.svg"))
+    mla.plot_path_quality_stats(params, os.path.join(exp_results_dir, "Experiment6/PathQuality.svg"))
 
 if __name__ == "__main__":
     main()

@@ -186,8 +186,8 @@ class LogAnalyzer:
         plot_name = os.path.join(self.get_directory_to_save_plots(fleets, assisted_sampling), "execution_stats.svg")
         plt.savefig(plot_name, format='svg')
 
-    def plot_predictability_subplot(self, ax, similarity_threshold, fleets):
-        similarities, nTests = self.dwt.determine_num_similar_paths(fleets, similarity_threshold=similarity_threshold)
+    def plot_predictability_subplot(self, ax, similarity_threshold, fleets, assisted_sampling):
+        similarities, nTests = self.dwt.determine_num_similar_paths(fleets, assisted_sampling, similarity_threshold=similarity_threshold)
         dissimilarities = (np.ones_like(similarities) * nTests) - similarities
         robot_ids = np.arange(1, similarities.size+1, 1)
 
@@ -206,7 +206,7 @@ class LogAnalyzer:
         fig = plt.figure(figsize=(15, 15))
 
         ax1 = fig.add_subplot(221)
-        self.plot_predictability_subplot(ax1, thresholds[0], fleets)
+        self.plot_predictability_subplot(ax1, thresholds[0], fleets, assisted_sampling)
 
         # Get the path lengths of all the robot missions in all fleet trials
         path_lengths = np.zeros((len(fleets), fleets[0].nRobots))
@@ -246,10 +246,10 @@ class LogAnalyzer:
             ax2.axhline(y=mean - 2, linestyle=':', color=c)
 
         ax3 = fig.add_subplot(223)
-        self.plot_predictability_subplot(ax3, thresholds[1], fleets)
+        self.plot_predictability_subplot(ax3, thresholds[1], fleets, assisted_sampling)
 
         ax4 = fig.add_subplot(224)
-        self.plot_predictability_subplot(ax4, thresholds[2], fleets)
+        self.plot_predictability_subplot(ax4, thresholds[2], fleets, assisted_sampling)
 
         fig.suptitle(self.get_figure_title("Plan stats", fleets, assisted_sampling))
 

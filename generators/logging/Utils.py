@@ -270,6 +270,21 @@ class FleetMissionData:
 
         return num_of_deliveries, total_delivery_time
 
+    def get_log_path(self, assisted_sampling):
+        sampling_name = "UsingHotspots" if assisted_sampling else "Uniform"
+        kinematics = "Holonomic" if self.get_holonomic() else "ReedsSheep"
+        planner_names = ["SIMPLE(RRT-Connect)", "Lightning", "Thunder", "EGraphs", "SIMPLE(RRT-Star)"]
+
+        directory = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/executionData/")
+        directory = os.path.join(directory, self.map)
+        directory = os.path.join(directory, self.planner)
+        directory = os.path.join(directory, str(self.nRobots)+"_Robots")
+        directory = os.path.join(directory, kinematics)
+        directory = os.path.join(directory, sampling_name)
+        directory = os.path.join(directory, str(self.nExperiences)+"_TrainingExperiences/Logs")
+
+        return directory
+
 class DWT:
     def __init__(self):
         self.load_native_library()
@@ -300,11 +315,57 @@ class DWT:
                                      (PathPose * len(pose_array2))(*pose_array2), len(pose_array2),
                                      bool(is_holonomic), c_double(4.0), c_double(similarity_threshold))
 
-    def determine_num_similar_paths(self, fleets, similarity_threshold=0.25):
-        print("Checking similarity of paths with threshold {}. This may take some time...".format(similarity_threshold))
+    def load_similarities_from_file(self, directory, assisted_sampling, similarity_threshold):
+        filename = "Similarities_" + str(similarity_threshold) + '.txt'
+        filepath = os.path.join(directory, filename)
+
+        common_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/executionData/")
+        relative_path = os.path.relpath(filepath, common_dir)
+
+        if os.path.isfile(filepath):
+            loaded_data = np.loadtxt(filepath)
+
+            print("Loaded Similarity data from", relative_path, ":", loaded_data)
+
+            max_num_matches = loaded_data[0]
+            similarities = loaded_data[1:]
+
+            return similarities, max_num_matches
+        else:
+            print("Similarities data file not found at", relative_path)
+            return None
+
+
+    def save_similarities_to_file(self, directory, similarities, max_num_matches, assisted_sampling, similarity_threshold):
+        data_to_save = np.zeros(similarities.size+1)
+        data_to_save[0] = max_num_matches
+        data_to_save[1:] = similarities
+
+        filename = "Similarities_" + str(similarity_threshold) + '.txt'
+        filepath = os.path.join(directory, filename)
+        np.savetxt(filepath, data_to_save)
+
+        common_dir = os.path.abspath(os.path.split(os.path.abspath(sys.argv[0]))[0]  + "/../../generated/executionData/")
+        relative_path = os.path.relpath(filepath, common_dir)
+        print("Saved similarities data to", relative_path, ":\n", data_to_save)
+
+    def determine_num_similar_paths(self, fleets, assisted_sampling, similarity_threshold=0.25):
         max_num_matches = (len(fleets) -1) # -1 because we dont test a path against itself
+        path_to_data = fleets[0].get_log_path(assisted_sampling)
 
         similarity_count = np.zeros(fleets[0].nRobots)
+
+        loaded_data = self.load_similarities_from_file(path_to_data, assisted_sampling, similarity_threshold)
+        if loaded_data is not None:
+            assert similarity_count.size == loaded_data[0].size, "Loaded data size does not match required size!"
+            assert max_num_matches == loaded_data[1], "Loaded max num of matches does not match required size!"
+
+            similarity_count = loaded_data[0]
+            max_num_matches = loaded_data[1]
+
+            return similarity_count, max_num_matches
+
+        print("Checking similarity of paths with threshold {}. This may take some time...".format(similarity_threshold))
         for robot_id in range(fleets[0].nRobots):
             max_matches = 0
             similarity_matrix = np.array([[False] * len(fleets)] * len(fleets))
@@ -332,6 +393,7 @@ class DWT:
             similarity_count[robot_id] = max_matches
             print("\tNumber of similar paths for Robot", robot_id+1, "=", similarity_count[robot_id])
 
+        self.save_similarities_to_file(path_to_data, similarity_count, max_num_matches, assisted_sampling, similarity_threshold)
         print("Path similarity tests complete!")
         return similarity_count, max_num_matches
 
@@ -466,10 +528,11 @@ class PlotUtils:
             x.extend([x_vals[i]] * data.shape[0])
             y.extend(data[:, i])
             
+        meanprops = {"marker":'^', 'markerfacecolor':(1.0, 0.0, 0.0), "markeredgecolor":'k'}
         if horizontal:
-            sns.boxplot(ax=ax, x=y, y=x, orient='h')
+            sns.boxplot(ax=ax, x=y, y=x, orient='h', showmeans=True, meanprops=meanprops)
         else:
-            sns.boxplot(ax=ax, x=x, y=y, orient='v')
+            sns.boxplot(ax=ax, x=x, y=y, orient='v', showmeans=True, meanprops=meanprops)
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         ax.set_title(title)
@@ -477,10 +540,11 @@ class PlotUtils:
     def custom_grouped_box_plot(self, ax, data, x=None, y=None, hue=None, color=None,
                         xlabel=None, ylabel=None, title=None, horizontal=False):
             
+        meanprops = {"marker":'^', 'markerfacecolor':(1.0, 0.0, 0.0), "markeredgecolor":'k'}
         if horizontal:
-            sns.boxplot(ax=ax, x=y, y=x, hue=hue, data=data, orient='h')
+            sns.boxplot(ax=ax, x=y, y=x, hue=hue, data=data, orient='h', showmeans=True, meanprops=meanprops)
         else:
-            sns.boxplot(ax=ax, x=x, y=y, hue=hue, data=data, orient='v')
+            sns.boxplot(ax=ax, x=x, y=y, hue=hue, data=data, orient='v', showmeans=True, meanprops=meanprops)
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         ax.set_title(title)
