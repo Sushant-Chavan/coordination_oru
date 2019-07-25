@@ -13,6 +13,7 @@ import errno
 import yaml
 import time
 import pandas as pd
+import glob
 
 class DatasetGenerator():
     def __init__(self, args):
@@ -117,6 +118,29 @@ class DatasetGenerator():
                 filtered_sample_indices.append(s_id)
 
         return samples[filtered_sample_indices,:]
+
+    def load_previously_generated_samples(self):
+        directory = self.get_or_create_dir()
+        files = [f for f in glob.glob(directory + '/' + self.map_filename.split('.')[0]+'*.txt')]
+
+        highest_exp_idx = None
+        highest_exp = None
+        for i, f in enumerate(files):
+            count = f.split('-')[-1]
+            count = int(count.split('P')[0])
+
+            if highest_exp is None or count > highest_exp:
+                highest_exp = count
+                highest_exp_idx = i
+        
+        df = pd.read_csv(files[highest_exp_idx], header=None, sep='\t', usecols=[1,2,3])
+        data = df.values
+        nProblems = int(data.shape[0]/2)
+        start_training_poses = data[:nProblems, :]
+        goal_training_poses = data[nProblems:, :]
+
+        return start_training_poses, goal_training_poses
+
 
     def generate_random_samples(self, nSamples):
         # Oversample to account for samples that will discarded due to obstacles
@@ -266,15 +290,43 @@ class DatasetGenerator():
         headers = ["Pose_name", "X", "Y", "Theta"]
         indices = np.arange(0, len(x_pos), 1)
 
-        df = pd.DataFrame(index=indices, columns=headers)
-        df = df.fillna("-")
-        df["Pose_name"] = pose_names
-        df["X"] = x_pos
-        df["Y"] = y_pos
-        df["Theta"] = theta
+        self.df = pd.DataFrame(index=indices, columns=headers)
+        self.df = self.df.fillna("-")
+        self.df["Pose_name"] = pose_names
+        self.df["X"] = x_pos
+        self.df["Y"] = y_pos
+        self.df["Theta"] = theta
 
-        df.to_csv(file_path, sep="\t", header=False, index=False)
+        self.df = self.replace_with_generated_data(self.df)
+
+        self.df.to_csv(file_path, sep="\t", header=False, index=False)
         print("Saved generated dataset at", file_path)
+
+    def replace_with_generated_data(self, df):
+        nProblems = self.problems.shape[0]
+
+        start_poses, end_poses = self.load_previously_generated_samples()
+        n_loaded_poses = start_poses.shape[0]
+
+        print(nProblems, n_loaded_poses)
+        if nProblems < n_loaded_poses:
+            df["X"][0:nProblems] = start_poses[0:nProblems, 0]
+            df["Y"][0:nProblems] = start_poses[0:nProblems, 1]
+            df["Theta"][0:nProblems] = start_poses[0:nProblems, 2]
+
+            df["X"][nProblems:] = end_poses[0:nProblems, 0]
+            df["Y"][nProblems:] = end_poses[0:nProblems, 1]
+            df["Theta"][nProblems:] = end_poses[0:nProblems, 2]
+        else:
+            df["X"][0:n_loaded_poses] = start_poses[:, 0]
+            df["Y"][0:n_loaded_poses] = start_poses[:, 1]
+            df["Theta"][0:n_loaded_poses] = start_poses[:, 2]
+
+            df["X"][nProblems:nProblems+n_loaded_poses] = end_poses[:, 0]
+            df["Y"][nProblems:nProblems+n_loaded_poses] = end_poses[:, 1]
+            df["Theta"][nProblems:nProblems+n_loaded_poses] = end_poses[:, 2]
+
+        return df
 
     def plot_map(self, ax):
         ax.imshow(self.img)
@@ -307,6 +359,13 @@ class DatasetGenerator():
 
             start_sample_poses = self.samples[start_pose_ids, :]
             goal_sample_poses = self.samples[goal_pose_ids, :]
+            poses = np.vstack((start_sample_poses, goal_sample_poses))
+
+            print(np.array(start_sample_poses))
+
+            start_sample_poses = self.df.iloc[:self.nProblems, 1:4]
+            goal_sample_poses = self.df.iloc[self.nProblems:, 1:4]
+            print(np.array(start_sample_poses))
             poses = np.vstack((start_sample_poses, goal_sample_poses))
         else:
             poses = self.samples
