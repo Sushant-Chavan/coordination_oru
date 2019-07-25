@@ -352,23 +352,21 @@ class DatasetGenerator():
         ell.set_edgecolor('r')
         return ell
 
-    def plot_samples(self, ax, filter_samples=True):
+    def get_poses_to_polt(self, filter_samples=True):
         if filter_samples:
-            start_pose_ids = self.problems[:, 0].astype(int)
-            goal_pose_ids = self.problems[:, 1].astype(int)
-
-            start_sample_poses = self.samples[start_pose_ids, :]
-            goal_sample_poses = self.samples[goal_pose_ids, :]
-            poses = np.vstack((start_sample_poses, goal_sample_poses))
-
-            print(np.array(start_sample_poses))
-
-            start_sample_poses = self.df.iloc[:self.nProblems, 1:4]
-            goal_sample_poses = self.df.iloc[self.nProblems:, 1:4]
-            print(np.array(start_sample_poses))
+            height = self.img_height * self.resolution
+            start_sample_poses = np.array(self.df.iloc[:self.nProblems, 1:4])
+            goal_sample_poses = np.array(self.df.iloc[self.nProblems:, 1:4])
+            start_sample_poses[:, 1] = height - start_sample_poses[:, 1]
+            goal_sample_poses[:, 1] = height - goal_sample_poses[:, 1]
             poses = np.vstack((start_sample_poses, goal_sample_poses))
         else:
             poses = self.samples
+
+        return poses
+
+    def plot_samples(self, ax, filter_samples=True):
+        poses = self.get_poses_to_polt(filter_samples)
 
         thetas = poses[:, 2]
         poses = poses / self.resolution
@@ -383,9 +381,13 @@ class DatasetGenerator():
                     head_width=self.robot_radius/2.0, head_length=self.robot_radius/2.0, fc='k', ec='k')
 
     def plot_problems(self, ax):
-        for p in self.problems:
-            start = self.samples[p[0]]
-            goal = self.samples[p[1]]
+        poses = self.get_poses_to_polt(filter_samples=True)
+        start_poses = poses[0:self.nProblems, :]
+        goal_poses = poses[self.nProblems:, :]
+
+        for i in range(self.nProblems):
+            start = start_poses[i]
+            goal = goal_poses[i]
             x = np.array([start[0], goal[0]]) / self.resolution
             y = np.array([start[1], goal[1]]) / self.resolution
             plt.plot(x, y)
