@@ -71,6 +71,7 @@ class LogAnalyzer:
 
         nFleets = len(fleets)
         fleet_ids = np.arange(1, nFleets + 1, 1)
+        xticks = np.arange(0, len(fleets)+1, 5)
         path_planning_times = []
         path_simpl_times = []
         total_plan_times = []
@@ -85,28 +86,29 @@ class LogAnalyzer:
             nPlans_from_scratch.append(f.nPlans_from_scratch)
 
         fig = plt.figure(figsize=(15, 7.5))
+
+        # Plot planning times
         ax = fig.add_subplot(121)
-        self.plot_utils.custom_line_plot(ax, fleet_ids, path_planning_times, label="Path planning time",
+        self.plot_utils.custom_line_plot(ax, fleet_ids, path_planning_times, label="Path planning",
                          color='r', xlabel="Fleet ID", ylabel="Time in seconds",
-                         xticks=fleet_ids, useLog10Scale=False, avg_line_col='r')
+                         xticks=xticks, useLog10Scale=False, avg_line_col='r', title="Planning time")
 
-        # ax = fig.add_subplot(222)
-        self.plot_utils.custom_line_plot(ax, fleet_ids, path_simpl_times, label="Path simplification time",
+        self.plot_utils.custom_line_plot(ax, fleet_ids, path_simpl_times, label="Path simplification",
                          color='b', xlabel="Fleet ID", ylabel="Time in seconds",
-                         xticks=fleet_ids, useLog10Scale=False, avg_line_col='b')
+                         xticks=xticks, useLog10Scale=False, avg_line_col='b', title="Planning time")
 
-        # ax = fig.add_subplot(223)
         self.plot_utils.custom_line_plot(ax, fleet_ids, total_plan_times, label="Total planning time",
                          color='g', xlabel="Fleet ID", ylabel="Time in seconds",
-                         xticks=fleet_ids, useLog10Scale=False, avg_line_col='g')
+                         xticks=xticks, useLog10Scale=False, avg_line_col='g', title="Planning time")
 
+        # Plot Recall statistics
         ax = fig.add_subplot(122)
-        self.plot_utils.custom_bar_plot(ax, fleet_ids, nPlans_from_recall, label="Number of plans from recall",
-                         color='g', xlabel="Fleet ID", ylabel="Count",
-                         xticks=fleet_ids, avg_line_col='b')
-        self.plot_utils.custom_bar_plot(ax, fleet_ids, nPlans_from_scratch, label="Number of plans from scratch",
-                         bottom=nPlans_from_recall, color='r', xlabel="Fleet ID", ylabel="Count",
-                         xticks=fleet_ids)
+        self.plot_utils.custom_bar_plot(ax, fleet_ids, nPlans_from_recall, label="Recall",
+                         color='g', xlabel="Fleet ID", ylabel="Number of plans",
+                         xticks=xticks, title="Plans generated from recall/scratch")
+        self.plot_utils.custom_bar_plot(ax, fleet_ids, nPlans_from_scratch, label="Scratch",
+                         bottom=nPlans_from_recall, color='r', xlabel="Fleet ID", ylabel="Number of plans",
+                         xticks=xticks, title="Plans generated from recall/scratch")
 
         fig.suptitle(self.get_figure_title("Planning time stats", fleets, assisted_sampling))
 
@@ -122,6 +124,7 @@ class LogAnalyzer:
         success_markers = ['X'] * len(fleets)
         success_status = np.zeros((len(fleets), 4))
         fleet_ids = np.arange(1, len(fleets)+1, 1)
+        xticks = np.arange(0, len(fleets)+1, 5)
 
         for i, f in enumerate(fleets):
             num_replans[i] = f.nReplans
@@ -137,7 +140,7 @@ class LogAnalyzer:
         ax = fig.add_subplot(221)
         self.plot_utils.custom_line_plot(ax, fleet_ids, max_execution_times, label="Execution time",
                          color='r', xlabel="Fleet ID", ylabel="Time in seconds",
-                         xticks=fleet_ids, useLog10Scale=False, avg_line_col='b',
+                         xticks=xticks, useLog10Scale=False, avg_line_col='b',
                          title="Complete fleet mission execution time")
         for i, m in enumerate(success_markers):
             ax.scatter(fleet_ids[i], max_execution_times[i], marker=m, c='g', s=100)
@@ -145,7 +148,7 @@ class LogAnalyzer:
         ax = fig.add_subplot(222)
         self.plot_utils.custom_bar_plot(ax, fleet_ids, num_replans, label="",
                          color='g', xlabel="Fleet ID", ylabel="Number of replannings triggered",
-                         xticks=fleet_ids, avg_line_col='b',
+                         xticks=xticks, avg_line_col='b',
                          title="Replanning stats")
 
         all_success = success_status[:, 3]
@@ -153,46 +156,48 @@ class LogAnalyzer:
         two_failure = success_status[:, 1]
         all_failure = success_status[:, 0]
 
+        colors=[(0, 0.75, 0), 'yellow', 'orange', (0.75, 0, 0)]
+
         ax = fig.add_subplot(223)
-        self.plot_utils.custom_bar_plot(ax, fleet_ids, all_success, label="All missions successful",
-                         color=(0, 1, 0), xlabel="Fleet ID", ylabel="Number of robots",
-                         xticks=fleet_ids, avg_line_col='b',
-                         title="Robot mission execution status per fleet")
+        self.plot_utils.custom_bar_plot(ax, fleet_ids, all_success, label="Successful execution",
+                         color=colors[0], xlabel="Fleet ID", ylabel="Number of robots",
+                         xticks=xticks, title="Robot mission execution status per fleet")
         self.plot_utils.custom_bar_plot(ax, fleet_ids, one_failure, label="Failed after delivering Mobidik",
-                         bottom=all_success, color='yellow', xlabel="Fleet ID", ylabel="Number of robots",
-                         xticks=fleet_ids)
+                         bottom=all_success, color=colors[1], xlabel="Fleet ID", ylabel="Number of robots",
+                         xticks=xticks)
         self.plot_utils.custom_bar_plot(ax, fleet_ids, two_failure, label="Failed while transporting Mobidik",
-                         bottom=one_failure+all_success, color='orange', xlabel="Fleet ID", ylabel="Number of robots",
-                         xticks=fleet_ids)
+                         bottom=one_failure+all_success, color=colors[2], xlabel="Fleet ID", ylabel="Number of robots",
+                         xticks=xticks)
         self.plot_utils.custom_bar_plot(ax, fleet_ids, all_failure, label="Failed before reaching Mobidik",
-                         bottom=two_failure+one_failure+all_success, color=(1, 0, 0), xlabel="Fleet ID", ylabel="Number of robots",
-                         xticks=fleet_ids)
+                         bottom=two_failure+one_failure+all_success, color=colors[3], xlabel="Fleet ID", ylabel="Number of robots",
+                         xticks=xticks)
 
         ax = fig.add_subplot(224)
         nSuccess = np.arange(0, 4, 1)
         nSuccessful_robots = np.sum(success_status, axis=0)
 
         labels=["Failed before reaching Mobidik", "Failed while transporting Mobidik",
-                "Failed while returning to charging station", "All missions successful"]
-        self.plot_utils.custom_pie_plot(ax, nSuccessful_robots, labels=labels, title="Robot mission execution status over all fleets")
+                "Failed while returning to charging station", "Successful execution"]
+        self.plot_utils.custom_pie_plot(ax, nSuccessful_robots[::-1], labels=labels[::-1], title="Robot mission execution status over all fleets",
+                                        colors=colors)
 
         fig.suptitle(self.get_figure_title("Plan Execution stats", fleets, assisted_sampling))
 
         plot_name = os.path.join(self.get_directory_to_save_plots(fleets, assisted_sampling), "execution_stats.svg")
         plt.savefig(plot_name, format='svg')
 
-    def plot_predictability_subplot(self, ax, similarity_threshold, fleets):
-        similarities, nTests = self.dwt.determine_num_similar_paths(fleets, similarity_threshold=similarity_threshold)
+    def plot_predictability_subplot(self, ax, similarity_threshold, fleets, assisted_sampling):
+        similarities, nTests = self.dwt.determine_num_similar_paths(fleets, assisted_sampling, similarity_threshold=similarity_threshold)
         dissimilarities = (np.ones_like(similarities) * nTests) - similarities
         robot_ids = np.arange(1, similarities.size+1, 1)
 
         self.plot_utils.custom_bar_plot(ax, robot_ids, similarities, label='Similar paths',
                          color='g', xlabel="Robot ID", ylabel="Number of paths",
-                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1),
+                         xticks=robot_ids, yticks=np.arange(0, nTests+2, 2),
                          title="Similarity between paths with similarity threshold = {}".format(similarity_threshold))
         self.plot_utils.custom_bar_plot(ax, robot_ids, dissimilarities, label="Non-similar paths",
                          bottom=similarities, color='r', xlabel="Robot ID", ylabel="Number paths",
-                         xticks=robot_ids, yticks=np.arange(0, nTests+1, 1))
+                         xticks=robot_ids, yticks=np.arange(0, nTests+2, 2))
 
     def plot_path_predictability_stats(self, assisted_sampling, fleets=None, similarity_threshold = 0.3):
         if fleets is None:
@@ -201,7 +206,7 @@ class LogAnalyzer:
         fig = plt.figure(figsize=(15, 15))
 
         ax1 = fig.add_subplot(221)
-        self.plot_predictability_subplot(ax1, thresholds[0], fleets)
+        self.plot_predictability_subplot(ax1, thresholds[0], fleets, assisted_sampling)
 
         # Get the path lengths of all the robot missions in all fleet trials
         path_lengths = np.zeros((len(fleets), fleets[0].nRobots))
@@ -226,7 +231,7 @@ class LogAnalyzer:
         #                                 xlabel="Robot ID", ylabel="Suboptimality ratio", title="Path Suboptimality")
 
         colors = ['r', 'g', 'b', 'k', 'orange', 'yellow', 'magenta', 'purple', 'cyan', 'pink']
-        ticks = np.arange(1, path_lengths.shape[0] + 5, 5) if path_lengths.shape[0] > 20 else fleet_ids
+        ticks = np.arange(0, path_lengths.shape[0] + 5, 5) if path_lengths.shape[0] > 20 else fleet_ids
         for id in range(path_lengths.shape[1]):
             c = colors[id] if id < len(colors) else plt.cm.jet(id/path_lengths.shape[1])
             robot_path_lengths = path_lengths[:, id]
@@ -241,10 +246,10 @@ class LogAnalyzer:
             ax2.axhline(y=mean - 2, linestyle=':', color=c)
 
         ax3 = fig.add_subplot(223)
-        self.plot_predictability_subplot(ax3, thresholds[1], fleets)
+        self.plot_predictability_subplot(ax3, thresholds[1], fleets, assisted_sampling)
 
         ax4 = fig.add_subplot(224)
-        self.plot_predictability_subplot(ax4, thresholds[2], fleets)
+        self.plot_predictability_subplot(ax4, thresholds[2], fleets, assisted_sampling)
 
         fig.suptitle(self.get_figure_title("Plan stats", fleets, assisted_sampling))
 
@@ -303,9 +308,9 @@ def main():
     assisted_sampling = not args.no_hotspots
 
     la = LogAnalyzer(planning_csv_filename, execution_csv_filename, args.nExperiences)
-    la.plot_path_predictability_stats(assisted_sampling, similarity_threshold=0.3)
     la.plot_fleet_planning_times(assisted_sampling)
     la.plot_execution_stats(assisted_sampling)
+    la.plot_path_predictability_stats(assisted_sampling, similarity_threshold=0.3)
 
 if __name__ == "__main__":
     main()

@@ -44,6 +44,8 @@ comparePaths(const PathPose *path1, int pathLength1, const PathPose *path2, int 
 
     ob::SpaceInformationPtr si = std::make_shared<ob::SpaceInformation>(space);
 
+    std::vector<ob::State*> allocatedStates; 
+
     og::PathGeometric pg1 = og::PathGeometric(si);
     for (int i = 0; i < pathLength1; i++)
     {
@@ -54,6 +56,7 @@ comparePaths(const PathPose *path1, int pathLength1, const PathPose *path2, int 
         reals[2] = path1[i].theta;
         space->deserialize(state, reals.data());
         pg1.append(state);
+        allocatedStates.push_back(state);
     }
 
     og::PathGeometric pg2 = og::PathGeometric(si);
@@ -66,6 +69,7 @@ comparePaths(const PathPose *path1, int pathLength1, const PathPose *path2, int 
         reals[2] = path2[i].theta;
         space->deserialize(state, reals.data());
         pg2.append(state);
+        allocatedStates.push_back(state);
     }
 
     NullBuffer null_buffer;
@@ -78,6 +82,12 @@ comparePaths(const PathPose *path1, int pathLength1, const PathPose *path2, int 
     double score2 = dwt->getPathsScore(pg1, pg2);
 
     // std::cout << "Path Score: " << score1 << " " << score2 << std::endl;
+
+    // for (unsigned int i = 0; i < allocatedStates.size(); i++)
+    // {
+    //     si->freeState(allocatedStates[i]);
+    //     allocatedStates[i] = NULL;
+    // }
 
     dwt = NULL;
     si = NULL;
