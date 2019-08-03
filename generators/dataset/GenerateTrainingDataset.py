@@ -123,6 +123,9 @@ class DatasetGenerator():
         directory = self.get_or_create_dir()
         files = [f for f in glob.glob(directory + '/' + self.map_filename.split('.')[0]+'*.txt')]
 
+        if len(files) < 1:
+            return None
+
         highest_exp_idx = None
         highest_exp = None
         for i, f in enumerate(files):
@@ -305,7 +308,12 @@ class DatasetGenerator():
     def replace_with_generated_data(self, df):
         nProblems = self.problems.shape[0]
 
-        start_poses, end_poses = self.load_previously_generated_samples()
+        previous_samples = self.load_previously_generated_samples()
+        if previous_samples is None:
+            return df
+        
+        start_poses = previous_samples[0]
+        end_poses = previous_samples[1]
         n_loaded_poses = start_poses.shape[0]
 
         print(nProblems, n_loaded_poses)
