@@ -551,10 +551,10 @@ class MultiLogAnalyzer:
             two_failure_percent[i] = np.round(two_failure[i] / num_robots * 100, 1)
             all_failure_percent[i] = np.round(all_failure[i] / num_robots * 100, 1)
 
-        all_success_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in all_success_percent.tolist()]
-        one_failure_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in one_failure_percent.tolist()]
-        two_failure_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in two_failure_percent.tolist()]
-        all_failure_percent = [str(np.round(p, 1))+"%" if p > 5 else None for p in all_failure_percent.tolist()]
+        all_success_percent = [str(np.round(p, 1))+"%" if p > 10 else None for p in all_success_percent.tolist()]
+        one_failure_percent = [str(np.round(p, 1))+"%" if p > 10 else None for p in one_failure_percent.tolist()]
+        two_failure_percent = [str(np.round(p, 1))+"%" if p > 10 else None for p in two_failure_percent.tolist()]
+        all_failure_percent = [str(np.round(p, 1))+"%" if p > 10 else None for p in all_failure_percent.tolist()]
 
         max_idx = np.argmax(all_success)
         total_mission_count = all_success[max_idx] + one_failure[max_idx] + two_failure[max_idx] + all_failure[max_idx]
@@ -814,8 +814,8 @@ def main():
     mla.plot_path_quality_stats(params, os.path.join(exp_results_dir, "Experiment2/PathQuality.svg"))
 
     # Experiment - 3
-    mla.load_all_fleets(["BRSU_Floor0"], [1, 2, 3], [5], [True], [True], [10, 25])
-    mla.load_all_fleets(["BRSU_Floor0"], [1, 2], [5], [True], [True], [50, 100])
+    mla.load_all_fleets(["BRSU_Floor0"], [1, 2, 3], [5], [True], [True], [10, 25, 50])
+    mla.load_all_fleets(["BRSU_Floor0"], [1, 2], [5], [True], [True], [100])
     params = sorted([
               ["BRSU_Floor0", 1, 5, True, True, 10],
               ["BRSU_Floor0", 2, 5, True, True, 10],
@@ -825,6 +825,7 @@ def main():
               ["BRSU_Floor0", 3, 5, True, True, 25],
               ["BRSU_Floor0", 1, 5, True, True, 50],
               ["BRSU_Floor0", 2, 5, True, True, 50],
+              ["BRSU_Floor0", 3, 5, True, True, 50],
               ["BRSU_Floor0", 1, 5, True, True, 100],
               ["BRSU_Floor0", 2, 5, True, True, 100],
               ])
@@ -859,7 +860,7 @@ def main():
     mla.plot_path_quality_stats(params, os.path.join(exp_results_dir, "Experiment5/PathQuality.svg"))
 
     # Experiment - 6
-    mla.load_all_fleets(["BRSU_Floor0", "AGP_Basement", "AGP_Floor4"], [0, 1, 2, 3], [5], [True], [True], [25])
+    mla.load_all_fleets(["BRSU_Floor0", "AGP_Basement", "AGP_Floor4", "hospital_stage"], [0, 1, 2, 3], [5], [True], [True], [25])
     params = sorted([
               ["BRSU_Floor0", 0, 5, True, True, 25],
               ["BRSU_Floor0", 1, 5, True, True, 25],
@@ -872,7 +873,11 @@ def main():
               ["AGP_Floor4", 0, 5, True, True, 25],
               ["AGP_Floor4", 1, 5, True, True, 25],
               ["AGP_Floor4", 2, 5, True, True, 25],
-              ["AGP_Floor4", 3, 5, True, True, 25]
+              ["AGP_Floor4", 3, 5, True, True, 25],
+              ["hospital_stage", 0, 5, True, True, 25],
+              ["hospital_stage", 1, 5, True, True, 25],
+              ["hospital_stage", 2, 5, True, True, 25],
+              ["hospital_stage", 3, 5, True, True, 25]
               ])
     mla.plot_planning_times(params, os.path.join(exp_results_dir, "Experiment6/Planning.svg"))
     mla.plot_exec_stats(params, os.path.join(exp_results_dir, "Experiment6/Execution.svg"))

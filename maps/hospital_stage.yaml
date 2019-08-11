@@ -1,0 +1,6 @@
+image: hospital_stage.png
+resolution: 0.055
+origin: [0, 0, 0]
+negate: 0
+occupied_thresh: 0.20
+free_thresh: 0.10
