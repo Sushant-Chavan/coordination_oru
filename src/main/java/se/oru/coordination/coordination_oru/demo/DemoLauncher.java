@@ -23,7 +23,14 @@ public class DemoLauncher {
 	
 	private static void printUsage() {
 
-		System.out.println("Usage: ./gradlew run -Pdemo=<demo>\n\nAvailable options for <demo>");
+        System.out.println("Usage: \n./gradlew run -Pdemo=<demo> \n\tOR \n./gradlew run -Pdemo=<demo> -PnRobots=N -Pplanner=ID -Pmap=mapName" +
+        "\n\nN represents the number of robots to be used in the simulations."+
+        "\nID represents the planner to be used (SIMPLE_RRT-Connect:0, LIGHTNING:1, THUNDER:2, SIMPLE_RRT-Star:3)"+
+        "\nmapName represents the name of the map to be used for simulations eg. (AGP_Basement)"+
+        "\nconstrained represents if the robot must follow ReedsSheep car like motion"+
+        "\nno_hotspots represents if the experiences were generated using uniform sampling of the map"+
+        "\nexp represents the number of training problems used to build the experience DB"+
+        "\nAvailable options for <demo>");
 
 		List<ClassLoader> classLoadersList = new LinkedList<ClassLoader>();
 		classLoadersList.add(ClasspathHelper.contextClassLoader());
@@ -63,15 +70,21 @@ public class DemoLauncher {
 	public static void main(String[] args) throws ClassNotFoundException {
 		
 		//Forces to loads the class so that license and (c) are printed even if no demo is invoked
-		Class.forName("se.oru.coordination.coordination_oru.TrajectoryEnvelopeCoordinator");
-		
-		if (args.length != 1) printUsage();
-		else {
+        Class.forName("se.oru.coordination.coordination_oru.TrajectoryEnvelopeCoordinator");
+
+		if (args.length == 1 || args.length == 7) {
 			String className = args[0];
 			try {
 				Class<?> cl = Class.forName(testsPackage+"."+className);
 				Method meth = cl.getMethod("main", String[].class);
-			    String[] params = null;
+                String[] params = null;
+                if (args.length >= 3)
+                {
+                    params = new String[args.length - 1];
+                    for (int i = 0; i < params.length; i++){
+                        params[i] = args[i+1];
+                    }
+                }
 			    meth.invoke(null, (Object) params);
 			}
 			catch (IllegalAccessException e) { e.printStackTrace(); }
@@ -80,7 +93,9 @@ public class DemoLauncher {
 			catch (SecurityException e) { e.printStackTrace(); }
 			catch (IllegalArgumentException e) { e.printStackTrace(); }
 			catch (InvocationTargetException e) { e.printStackTrace(); }
-		}
+        }
+        else
+            printUsage();
 	}
 
 }

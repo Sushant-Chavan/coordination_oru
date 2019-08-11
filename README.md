@@ -115,6 +115,110 @@ for a list of all provided examples and instructions on how to run them (and/or 
 
 ![Coordination with the ReedsSheppCarPlanner](images/coord-rsp.png "Coordination with the ReedsSheppCarPlanner")
 
+## Experience Based Planning
+The Experience based planning update to the coordination framework allows for storing the previous planning experiences into a database and reuse them during future planning.
+
+### Updates:
+* Currently the Lightning and Thunder frameworks provided by OMPL have been implemented in the ```OmplPlanner``` package.
+* Many new test cases have been added to test the frameworks in the BRSU and Agaplesion hospital scenarios
+* The RViz visualization has been fixed to show the map published on the /map topic
+* A graph visualization tool has been developed to display the experiences stored in the databases
+* A script has been added to automatically generate training dataset to bootstrap the planning frameworks with prior experiences
+* A script has been added to train the frameworks using the training datasets
+
+### Dependencies:
+* **OMPL 1.4.2** - Installation instructions can be found <a href="http://ompl.kavrakilab.org/installation.html">here</a>. Generation of python bindings takes a lot of time (several hours). Since we do not need python bindings, install OMPL without bindings for faster build.
+
+### Usage:
+* Clone this repository
+```
+git clone git@github.com:Sushant-Chavan/coordination_oru.git
+```
+* cd to the coordination_oru directory
+```
+cd coordination_oru/
+```
+* Checkout the branch ExperinceBasedPlanning
+```
+git checkout ExperinceBasedPlanning
+```
+* Run any desired test. For example to run the University test case use the command:
+```
+./gradlew run -Pdemo=customTests.University
+```
+or to specify number of simulation iterations (for example 2 itertions) as well, use:
+```
+./gradlew run -Pdemo=customTests.University -Pitr=2
+```
+* Visualization medium depends the test case. Tests based on JAVA Swing will automatically launch the visualization. For browser based visualization, open the link <a href="http://localhost:8080">http://localhost:8080</a>. For RViz visualization (which is used for all newly added tests) start RViz with the custom generated RViz config file after launching the test case using the below command:
+```
+rosrun rviz rviz -d ~/config.rviz
+```
+* A list of all available tests can be found using the command:
+```
+./gradlew run
+```
+* Build the graph visualization tool using the following commands:
+```
+cd graphml_generator/
+mkdir build
+cd build/
+rm -rf * && cmake .. && make
+cd ../../
+```
+* Plot the database using the command:
+```
+python3 graphml_generator/PlotDatabase.py --map_image_filename=test-uni.png
+```
+
+### Switching between different frameworks:
+* The switch between Simple, Lightning and Thunder frameworks can be done by choosing the desired plannerType in the function ```doPlanning()``` in [OMPLPlanner.java](src/main/java/se/oru/coordination/coordination_oru/motionplanning/ompl/OMPLPlanner.java)
+* To plot the Thunder databases, the plotting script needs additional paramaters. For example for the university test case, the script should be called as follows after the thunder database has been generated:
+```
+python3 graphml_generator/PlotDatabase.py --map_image_filename=test-uni.png --is_thunder_db
+```
+
+### Choosing a different planning algorithm in OMPLPlanner
+It is possible to use different planning algorithms instead of the default RRT-Connect alogorithm used by the OMPLPlanner. For example to switch to the RRT-Star planning algorithm, change the lines containing ```ob::PlannerPtr planner(new og::RRTConnect(si));``` to ```ob::PlannerPtr planner(new og::RRTstar(si));``` in the file [OmplPlanner.cpp](OmplPlanner/src/OmplPlanner.cpp)
+
+Then recompile and install the OMPL planning library using the below commands:
+```
+cd OmplPlanner/
+mkdir build
+cd build/
+rm -rf * && cmake .. && make && sudo make install && sudo ldconfig
+```
+
+### Training dataset generation
+It is possible to automatically generate random navigation problems which can be used to bootstrap the planning frameworks with some initial experinces. The start and goal poses for training can either be generated uniformly throughout the map or at user provided hotspots in the map. Hotspots can be easily added to a config file corresponding to the map and each entry of the file represents the centre(x and y) and the half width and half height of the bounding box. Samples are then generated using a multivariate_uniform distribution such that majority of the samples are generated within these hotspots.
+
+It is also possible to generate arbitrary number of planning problems. The required number of planning problems should be passed when invoking the script. Additionally, it is possible to generate a plot of the generated samples and planning problems to verify that the generated samples are valid and good for training the planning frameworks.
+
+To generate dataset consisting of 100 problems, without using hotspots, for the map named ```BRSU_Floor0.png``` along with debug image for verification use the command:
+```
+python3 generators/dataset/GenerateTrainingDataset.py BRSU_Floor0.png --nProblems 100  --dbg_image=True --robot_radius=25
+```
+
+To generate for different number of problems (for example 10 problems, 100 problems) simultatneously, modify the command as:
+```
+python3 generators/dataset/GenerateTrainingDataset.py BRSU_Floor0.png --nProblems 10 100  --dbg_image=True --robot_radius=25
+```
+
+To use the user provided hotspots, use the command:
+```
+python3 generators/dataset/GenerateTrainingDataset.py BRSU_Floor0.png --nProblems 100  --dbg_image=True --robot_radius=25 --use_hotspots=True
+```
+
+### Training the planning frameworks using the training datasets
+The planning frameworks can be trained using the training dataset for any given framework. The experiences gained during training can help bootstrap and accelerate the planning of future plans. When generating the training experiences, the planning from recall of the planning framework is disabled so that we generate clean, unbiased solutions for each training problem.
+
+To generate experiences for a map named ```BRSU_Floor0.png```, for 10 experiences using a robot whose footprint has a bounding box of -0.25 0.25 -0.25 0.25 (coresponding to min_x, max_x, min_y, max_y) for the Thunder framework, use the command:
+```
+python3 generators/dataset/GenerateExperiences.py BRSU_Floor0.png --training_dataset_count=10 --footprint -0.25 0.25 -0.25 0.25 --planner_type=2
+```
+Check the help of this script for details about additional params
+
+
 ## Sponsors
 This project is supported by
 

@@ -1,0 +1,6 @@
+image: AGP_Floor4.png
+resolution: 0.02
+origin: [-25, -16.512918406166136, 0.0]
+negate: 0
+occupied_thresh: 0.9
+free_thresh: 0.10

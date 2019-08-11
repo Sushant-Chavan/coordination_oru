@@ -56,8 +56,8 @@ dependencies {
 
   // This pulls in the meta-csp-framework jar
   //compile 'org.metacsp:meta-csp-framework:1.3.4'
-  //compile 'org.metacsp:meta-csp-framework:0.0.0-SNAPSHOT'
-  compile 'com.github.FedericoPecora:meta-csp-framework:master-SNAPSHOT'
+  compile 'org.metacsp:meta-csp-framework:0.0.0-SNAPSHOT'
+  //compile 'com.github.FedericoPecora:meta-csp-framework:master-SNAPSHOT'
 
   //For interface with OMPL
   compile 'net.java.dev.jna:jna:4.4.0'
@@ -86,7 +86,13 @@ dependencies {
 }
 
 run {
-    if (project.hasProperty("demo")) {
+    if (project.hasProperty("demo") && project.hasProperty("nRobots") &&
+        project.hasProperty("planner") && project.hasProperty("map") &&
+        project.hasProperty("constrained") && project.hasProperty("no_hotspots") &&
+        project.hasProperty("exp")) {
+        args(demo, nRobots, planner, map, constrained, no_hotspots, exp)
+    }
+    else if (project.hasProperty("demo")) {
         args(demo)
     }
 }

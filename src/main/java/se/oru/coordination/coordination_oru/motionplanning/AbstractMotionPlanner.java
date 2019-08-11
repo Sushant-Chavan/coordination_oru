@@ -39,6 +39,7 @@ public abstract class AbstractMotionPlanner {
 	protected ArrayList<Geometry> obstacles = new ArrayList<Geometry>();
 	protected Coordinate[] footprintCoords = null;
 	protected boolean verifyPlanning = true;
+    protected boolean isReplan = false;
 	
 	protected PoseSteering[] pathPS = null;
 
@@ -76,7 +77,15 @@ public abstract class AbstractMotionPlanner {
 
 	public void setMapResolution(double res) {
 		this.mapResolution = res;
-	}
+    }
+    
+    public void setIsReplan(boolean value) {
+        this.isReplan = value;
+    }
+
+    public boolean getIsRePlan() {
+        return this.isReplan;
+    }
 	
 	private synchronized void addObstaclesToMap() {
 		BufferedImage img = null;
