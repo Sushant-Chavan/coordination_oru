@@ -36,13 +36,6 @@ $ cd coordination_oru
 $ ./gradlew install
 ```
 
-## Running an example
-A number of examples are provided. Issue the following command from the source code root directory for instructions on how to run the examples:
-```
-$ ./gradlew run
-```
-In the example ```TestTrajectoryEnvelopeCoordinatorThreeRobots```, missions are continuously posted for three robots to reach locations along intersecting paths. The paths are stored in files provided in the ```paths``` directory. The poses of locations and pointers to relevant path files between locations are stored in the self-explanatory ```paths/test_poses_and_path_data.txt``` file.
-
 ## Visualizations
 The API provides three visualization methods:
 
@@ -69,12 +62,6 @@ The ```RVizVisualization``` visualization publishes <a href="http://wiki.ros.org
 ![RVizVisualization GUI](images/rviz-gui.png "RViz-based visualization")
 
 The visualization with least computational overhead is the ```RVizVisualization```, and is recommended for fleets of many robots. The ```BrowserVisualization``` class serves an HTML page with a Javascript which communicates with the coordinator via websockets. Although rendering in this solution is less efficient than in RViz, the rendering occurs on the client platform (where the browser is running), so its computational overhead does not necessarily affect the coordination algorithm. The ```JTSDrawingPanelVisualization``` is rather slow and not recommended for fleets of more than a handful of robots, however it is practical (not requiring to start another process/program for visualization) and relatively well-tested.
-
-## Logging
-
-More detailed information about execution is posted in the terminal and saved to log files. Log files can be inspected offline by running class ```coordination_oru.util.BrowseLogs```, which opens a log browsing GUI. Each panel in the GUI shows the output of one of the class instances that ran in the previous execution of the test program. Several of these classes are instantiated in separate threads, and messages produced concurrently are highlighted when the caret position in one of the panels is updated by the user. The key-bindings Alt-\<X\> and Ctrl-Alt-\<X\> can be used to quickly select panel \<X\> in the top and bottom pane, respectively.  
-
-![LogBrowser GUI](images/logs.png "LogBrowser GUI")
 
 ## The ```SimpleReedsSheppCarPlanner``` motion planner
 
@@ -103,17 +90,6 @@ $ sudo ldconfig
 
 This will install ```libsimplereedssheppcarplanner.so``` in your ```/usr/local/lib``` directory. A simple JNA-based Java interface to the library is provided in package ```se.oru.coordination.coordination_oru.motionplanning```. The Java class  ```ReedsSheppCarPlanner``` in the same package can be instantiated and used to obtain motions for robots with Reeds-Shepp kinematics.
 
-## Using the ```SimpleReedsSheppCarPlanner``` motion planner
-
-A simple example showing how to invoke the motion planner is provided by class ```TestReedsSheppCarPlanner``` in package ```se.oru.coordination.coordination_oru.motionplanning.tests```.
-
-Most of the coordination examples make use of the motion planner (see screenshot below). Issue command
-
-```$ ./gradlew run```
-
-for a list of all provided examples and instructions on how to run them (and/or see package ```se.oru.coordination.coordination_oru.tests```).
-
-![Coordination with the ReedsSheppCarPlanner](images/coord-rsp.png "Coordination with the ReedsSheppCarPlanner")
 
 ## Experience Based Planning
 The Experience based planning update to the coordination framework allows for storing the previous planning experiences into a database and reuse them during future planning.
