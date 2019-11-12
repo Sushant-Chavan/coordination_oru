@@ -202,12 +202,27 @@ class DatasetGenerator():
         self.problems = np.arange(0, self.nRobots, 1).astype(int)
         np.random.shuffle(self.problems)
 
+    def get_or_create_dir(self, debugMaps=False):
+        directory = os.path.join(self.root_dir, "generated/testingData/")
+        if debugMaps:
+            directory = os.path.join(directory, "debugMaps")
+
+        try:
+            os.makedirs(directory)
+        except OSError as exc:
+            if exc.errno ==errno.EEXIST and os.path.isdir(directory):
+                pass
+            else:
+                raise "Could not create directory {}".format(directory)
+
+        return directory
+
     def save_dataset_to_file(self, file_path=None):
         print("\nSaving dataset to a file...")
 
         if file_path is None:
-            file_path = self.root_dir + "/generated/testingData/" + self.map_name +\
-                    "-" + str(self.problems.shape[0]) + "Problems.txt"
+            filename = self.map_name + "-" + str(self.problems.shape[0]) + "Problems.txt"
+            file_path = os.path.join(self.get_or_create_dir(), filename)
 
         height = self.img_height * self.resolution
 
@@ -321,8 +336,9 @@ class DatasetGenerator():
                  self.source_mean, self.sigma_interval, col='b'))
 
         if file_path is None:
-            file_path = self.root_dir + "/generated/testingData/debugMaps/" + self.map_name +\
-                        "-" + str(self.nRobots) + "Problems.svg"
+            filename = self.map_name + "-" + str(self.nRobots) + "Problems.svg"
+            file_path = os.path.join(self.get_or_create_dir(debugMaps=True), filename)
+
         plt.savefig(file_path, format='svg')
         print("Saved debug map at", file_path)
 
