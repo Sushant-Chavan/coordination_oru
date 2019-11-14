@@ -1,10 +1,20 @@
 #!/bin/bash
 
+cd ../
+# Set the current directory as the root dorectory for all installations
+ROOT_DIR=$(pwd)
+
 # Install figlet for ASCII fonts in console during setup
 sudo apt install -y figlet
 
-# Set the current directory as the root dorectory for all installations
-ROOT_DIR=$(pwd)
+#--------------------------------------------------
+# Install ROS
+#--------------------------------------------------
+figlet -t ============
+figlet -t Install ROS
+figlet -t ============
+cd coordination_oru/
+./install_ros.sh
 
 #--------------------------------------------------
 # Setup OMPL
@@ -79,7 +89,7 @@ sudo apt install -y mrpt-apps libmrpt-dev
 
 
 cd $ROOT_DIR
-git clone git@github.com:Sushant-Chavan/coordination_oru.git
+#git clone git@github.com:Sushant-Chavan/coordination_oru.git
 cd coordination_oru/
 
 ## Build the GraphML generation tool
