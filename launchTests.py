@@ -101,13 +101,19 @@ def main():
     parser.add_argument("--nIterations", type=int, help="Number to test iterations to run. Default: 2", default=2)
     parser.add_argument("--timeout", type=int, help="Maximum time allowed for each test in seconds. Default: 300", default=300)
     parser.add_argument("--sleep", type=int, help="Maximum time to pause between iterations in seconds. Default: 10", default=10)
+    parser.add_argument("--offline", type=bool, help="Indicate if gradle should try to use the existing snapshots", default=False)
     args = parser.parse_args()
 
     initialize_test(args)
 
-    run_test_cmd = ["./gradlew", "run", "--offline","-Pdemo=customTests.CustomTesting", "-PnRobots="+str(args.nRobots),
-           "-Pplanner="+str(args.planner), "-Pmap="+args.map, "-Pconstrained="+str(int(args.constrained)),
-           "-Pno_hotspots="+str(int(args.no_hotspots)), "-Pexp="+str(args.nExperiences)]
+    if args.offline:
+        run_test_cmd = ["./gradlew", "run", "--offline","-Pdemo=customTests.CustomTesting", "-PnRobots="+str(args.nRobots),
+               "-Pplanner="+str(args.planner), "-Pmap="+args.map, "-Pconstrained="+str(int(args.constrained)),
+               "-Pno_hotspots="+str(int(args.no_hotspots)), "-Pexp="+str(args.nExperiences)]
+    else:
+        run_test_cmd = ["./gradlew", "run","-Pdemo=customTests.CustomTesting", "-PnRobots="+str(args.nRobots),
+               "-Pplanner="+str(args.planner), "-Pmap="+args.map, "-Pconstrained="+str(int(args.constrained)),
+               "-Pno_hotspots="+str(int(args.no_hotspots)), "-Pexp="+str(args.nExperiences)]
 
     bool_strings = ["False", "True"]
 

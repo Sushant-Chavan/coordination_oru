@@ -28,12 +28,21 @@ In short, a trajectory envelope is a set of spatio-temporal constraints on a rob
 The approach is discussed in detail in the tutorial on _Integrated Motion Planning, Coordination and Control for Fleets of Mobile Robots_, given at the <a href="http://icaps18.icaps-conference.org/tutorials/">2018 International Conference on Automated Planning and Scheduling (ICAPS)</a> by F. Pecora and M. Mansouri. Slides and source code of the tutorial are available <a href="https://gitsvn-nt.oru.se/fopa/coordination-tutorial-src-ICAPS-2018">here</a>.
 
 ## Installation
-To install, clone this repository and compile the source code with gradle (redistributable included):
+To install, clone this repository:
 
 ```
 $ git clone https://github.com/FedericoPecora/coordination_oru.git
 $ cd coordination_oru
-$ ./gradlew install
+```
+
+Install ROS if not already installed:
+```
+./install_ros.sh
+```
+
+Install dependencies and the coordination_framework:
+```
+./install.sh
 ```
 
 ## Visualizations
@@ -105,58 +114,6 @@ The Experience based planning update to the coordination framework allows for st
 ### Dependencies:
 * <a href="https://github.com/Sushant-Chavan/ompl">OMPL 1.4.2</a>
 * <a href="https://github.com/Sushant-Chavan/smpl">SMPL</a>
-
-### Installation:
-* Follow the installation instructions for the coordination framework as described in the previous sections
-* Then complete the installation of additional sources as described below
-
-#### OMPL 1.4.2
-* Clone the forked repository
-```
-git clone git@github.com:Sushant-Chavan/ompl.git
-```
-* Checkout the custom build branch
-```
-cd cd ompl/ && git checkout CustomBuildSettings
-```
-* Build and install OMPL
-```
-./install-ompl-ubuntu.sh.in
-```
-
-#### SMPL
-* Clone the forked repository
-```
-git clone git@github.com:Sushant-Chavan/smpl.git
-```
-* Build the SMPL as per the instructions given in the README of <a href="https://github.com/Sushant-Chavan/smpl">SMPL</a>
-* Create build folders in the smpl and smpl_ompl_interface packages
-```
-cd smpl/smpl_ompl_interface && mkdir build && cd ../smpl && mkdir build && cd ..
-```
-* Build and install smpl and smpl_ompl_interface to root
-```
-cd smpl_ompl_interface/build && rm -rf * && cmake .. && make && sudo make install && sudo ldconfig && cd ../../smpl/build && rm -rf * && cmake .. && make && sudo make install && sudo ldconfig && cd ../../
-```
-
-#### Custom tools
-* Clone this repository
-```
-git clone git@github.com:Sushant-Chavan/coordination_oru.git
-```
-* Build and install GraphML generation tool 
-```
-cd graphml_generator && mkdir build && cd build && rm -rf * && cmake .. && make
-```
-* Build and install DWT tool
-```
-cd cd generators/logging/DynamicTimeWarping && mkdir build && cd build && rm -rf * && cmake .. && make && sudo make install && sudo ldconfig
-```
-* Build and install the custom OMPL planner
-```
-cd OmplPlanner && mkdir build && cd build && rm -rf * && cmake .. && make && sudo make install && sudo ldconfig
-```
-
 
 ### Usage:
 #### Generation of training datasets
