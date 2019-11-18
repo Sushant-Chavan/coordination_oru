@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/Sushant-Chavan/coordination_oru.svg?branch=master)](https://travis-ci.org/Sushant-Chavan/coordination_oru)
+
 # A Framework for Multi-Robot Motion Planning, Coordination and Control 
 
 This software implements an _online coordination method for multiple robots_. Its main features are:
