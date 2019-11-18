@@ -225,7 +225,7 @@ function environment_setup_bashrc {
    #   break
    #   ;;
    # esac
-  done
+  #done
 }
 
 function main_menu {
@@ -275,3 +275,4 @@ function main_menu {
 update_keys
 ros_install
 ros_amr_bugfix
+source ~/.bashrc
