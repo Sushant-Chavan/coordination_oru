@@ -1,0 +1,15 @@
+sudo: required
+
+language: cpp
+
+stages:
+  - build
+  - test
+
+jobs:
+  include:
+    - stage: build
+      script:
+        - mkdir Project
+        - ./install_ros.sh
+        - ./install.sh 
